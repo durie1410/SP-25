@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Quản Lý Sách - LIBHUB Admin')
+@section('title', 'Quản Lý Sách - LibNet Admin')
 
 @push('styles')
 <style>
@@ -44,6 +44,9 @@
             <span class="badge badge-warning" style="font-size: 12px; padding: 6px 12px;">
                 <i class="fas fa-exclamation-triangle"></i> Chưa có trong kho: {{ $booksWithoutInventory ?? 0 }}
             </span>
+            <a href="{{ route('admin.books.create') }}" class="btn btn-success btn-sm" title="Thêm sách mới">
+                <i class="fas fa-plus"></i> Thêm sách
+            </a>
             <form action="{{ route('admin.books.reset-ids') }}" 
                   method="POST" 
                   style="display: inline;"

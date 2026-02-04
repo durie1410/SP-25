@@ -28,7 +28,7 @@ class BookRequest extends FormRequest
         return [
             'ten_sach' => 'required|string|max:255',
             'category_id' => 'required|exists:categories,id',
-            'nha_xuat_ban_id' => 'required|exists:publishers,id',
+            'nha_xuat_ban_id' => 'nullable|exists:publishers,id',
             'tac_gia' => 'required|string|max:255',
             'nam_xuat_ban' => 'required|integer|min:1900|max:' . (date('Y') + 1),
             'hinh_anh' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',

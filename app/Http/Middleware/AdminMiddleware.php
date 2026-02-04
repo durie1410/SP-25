@@ -30,9 +30,9 @@ class AdminMiddleware
 
         $user = auth()->user();
         
-        // Kiểm tra role admin (cả attribute và Spatie role)
-        if (!$user->isAdmin()) {
-            abort(403, 'Bạn không có quyền truy cập trang này. Chỉ quản trị viên mới có quyền truy cập.');
+        // Cho phép admin và staff truy cập
+        if (!$user->isAdmin() && !$user->isStaff()) {
+            abort(403, 'Bạn không có quyền truy cập trang này. Chỉ quản trị viên và nhân viên mới có quyền truy cập.');
         }
 
         return $next($request);

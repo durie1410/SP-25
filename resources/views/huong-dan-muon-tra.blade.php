@@ -1,6 +1,6 @@
-@extends('layouts.frontend')
+@extends('layouts.app')
 
-@section('title', 'Hướng dẫn mượn/trả sách - Thư Viện LIBHUB')
+@section('title', 'Hướng dẫn mượn/trả sách - Thư Viện LibNet')
 
 @push('styles')
 <style>

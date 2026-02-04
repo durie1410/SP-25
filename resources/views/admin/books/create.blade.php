@@ -30,14 +30,28 @@
         </div>
 
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="mb-3">
                     <label class="form-label">Tác giả</label>
                     <input type="text" name="tac_gia" class="form-control" required>
                 </div>
             </div>
             
-            <div class="col-md-6">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Nhà xuất bản</label>
+                    <select name="nha_xuat_ban_id" class="form-control">
+                        <option value="">-- Chọn nhà xuất bản --</option>
+                        @if(isset($publishers))
+                            @foreach($publishers as $publisher)
+                                <option value="{{ $publisher->id }}">{{ $publisher->ten_nha_xuat_ban }}</option>
+                            @endforeach
+                        @endif
+                    </select>
+                </div>
+            </div>
+
+            <div class="col-md-4">
                 <div class="mb-3">
                     <label class="form-label">Năm xuất bản</label>
                     <input type="number" name="nam_xuat_ban" class="form-control" required>

@@ -21,6 +21,10 @@ use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\BorrowItemController;
 use App\Http\Controllers\ShippingLogController;
 use App\Http\Controllers\VnPayController;
+use App\Http\Controllers\Admin\InventoryReservationController;
+use App\Http\Controllers\ReservationCartController;
+use App\Http\Controllers\NotificationBellController;
+use App\Http\Controllers\Admin\BookDeleteRequestController;
 
 
 /*
@@ -160,17 +164,28 @@ Route::get('/diem-sach/{id}', [PublicBookController::class, 'showDiemSach'])->na
 Route::get('/tin-tuc/{id}', [PublicBookController::class, 'showTinTuc'])->name('tin-tuc.show');
 Route::post('/borrow-book', [HomeController::class, 'borrowBook'])->name('borrow.book')->middleware('auth');
 
-// Borrow Cart Routes
-Route::prefix('borrow-cart')->name('borrow-cart.')->middleware('auth')->group(function () {
-    Route::get('/', [App\Http\Controllers\BorrowCartController::class, 'index'])->name('index');
-    Route::post('/add', [App\Http\Controllers\BorrowCartController::class, 'add'])->name('add');
-    Route::put('/update/{id}', [App\Http\Controllers\BorrowCartController::class, 'update'])->name('update');
-    Route::delete('/remove/{id}', [App\Http\Controllers\BorrowCartController::class, 'remove'])->name('remove');
-    Route::delete('/clear', [App\Http\Controllers\BorrowCartController::class, 'clear'])->name('clear');
-    Route::get('/count', [App\Http\Controllers\BorrowCartController::class, 'count'])->name('count');
-    Route::get('/checkout', [App\Http\Controllers\BorrowCartController::class, 'showCheckout'])->name('checkout');
-    Route::post('/apply-voucher', [App\Http\Controllers\BorrowCartController::class, 'applyVoucher'])->name('apply-voucher');
-    Route::post('/process-checkout', [App\Http\Controllers\BorrowCartController::class, 'processCheckout'])->name('process-checkout');
+// Reservation cart (Giỏ đặt trước)
+Route::prefix('reservation-cart')->name('reservation-cart.')->middleware('auth')->group(function () {
+    Route::get('/', [ReservationCartController::class, 'index'])->name('index');
+    Route::post('/add', [ReservationCartController::class, 'add'])->name('add');
+    Route::post('/remove/{bookId}', [ReservationCartController::class, 'remove'])->name('remove');
+    Route::post('/submit', [ReservationCartController::class, 'submit'])->name('submit');
+    Route::get('/count', [ReservationCartController::class, 'count'])->name('count');
+});
+
+// Notification bell (user)
+Route::prefix('notifications')->name('notifications.')->middleware('auth')->group(function () {
+    Route::get('/count', [NotificationBellController::class, 'count'])->name('count');
+    Route::get('/latest', [NotificationBellController::class, 'latest'])->name('latest');
+    Route::post('/read', [NotificationBellController::class, 'markRead'])->name('read');
+    Route::post('/read-all', [NotificationBellController::class, 'markAllRead'])->name('read-all');
+});
+
+// Borrow Cart Routes (disabled - replaced by reservation cart)
+Route::prefix('borrow-cart')->group(function () {
+    Route::any('{any?}', function () {
+        abort(404);
+    })->where('any', '.*');
 });
 
 // Shopping Cart Routes (for purchasing books)
@@ -277,7 +292,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('categories/{id}/move-books', [CategoryController::class, 'moveBooks'])->name('categories.move-books')->middleware('permission:edit-categories');
         Route::resource('authors', App\Http\Controllers\Admin\AuthorController::class)->middleware('permission:view-readers');
       // Vô hiệu hóa create và store - sách mới chỉ được tạo từ quản lý kho
-      Route::resource('books', BookController::class)->except(['create', 'store'])->middleware('permission:view-books');
+      Route::resource('books', BookController::class)->middleware('permission:view-books')->except(['create', 'store', 'edit', 'update', 'destroy']);
+      Route::get('books/create', [BookController::class, 'create'])->name('books.create')->middleware('permission:create-books');
+      Route::post('books', [BookController::class, 'store'])->name('books.store')->middleware('permission:create-books');
+      Route::get('books/{book}/edit', [BookController::class, 'edit'])->name('books.edit')->middleware('permission:edit-books');
+      Route::put('books/{book}', [BookController::class, 'update'])->name('books.update')->middleware('permission:edit-books');
+      Route::delete('books/{book}', [BookController::class, 'destroy'])->name('books.destroy')->middleware('permission:delete-books');
       Route::post('books/{id}/hide', [BookController::class, 'hide'])->name('books.hide')->middleware('permission:edit-books');
       Route::post('books/{id}/unhide', [BookController::class, 'unhide'])->name('books.unhide')->middleware('permission:edit-books');
       Route::post('books/delete-without-inventory', [BookController::class, 'deleteBooksWithoutInventory'])->name('books.delete-without-inventory')->middleware('permission:edit-books');
@@ -293,6 +313,27 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
       Route::get('readers-statistics', [ReaderController::class, 'statistics'])->name('readers.statistics')->middleware('permission:view-readers');
       Route::post('readers-bulk-action', [ReaderController::class, 'bulkAction'])->name('readers.bulk-action')->middleware('permission:edit-readers');
    
+     // Inventory delete requests (Đề xuất xoá/thanh lý) - Staff tạo, Admin duyệt
+     Route::get('inventory/delete-requests', [BookDeleteRequestController::class, 'index'])
+         ->name('inventory.delete-requests.index')
+         ->middleware('admin-only');
+     Route::post('inventory/delete-requests', [BookDeleteRequestController::class, 'store'])
+         ->name('inventory.delete-requests.store');
+     Route::post('inventory/delete-requests/{id}/approve', [BookDeleteRequestController::class, 'approve'])
+         ->name('inventory.delete-requests.approve')
+         ->middleware('admin-only');
+     Route::post('inventory/delete-requests/{id}/reject', [BookDeleteRequestController::class, 'reject'])
+         ->name('inventory.delete-requests.reject')
+         ->middleware('admin-only');
+
+     // Inventory Reservations (Đặt trước) - Staff + Admin
+     Route::prefix('inventory-reservations')->name('inventory-reservations.')->middleware('permission:view-borrows')->group(function () {
+         Route::get('/', [InventoryReservationController::class, 'index'])->name('index');
+         Route::post('{id}/ready', [InventoryReservationController::class, 'markAsReady'])->name('ready')->middleware('permission:edit-borrows');
+         Route::post('{id}/fulfill', [InventoryReservationController::class, 'markAsFulfilled'])->name('fulfill')->middleware('permission:edit-borrows');
+         Route::post('{id}/cancel', [InventoryReservationController::class, 'cancel'])->name('cancel')->middleware('permission:edit-borrows');
+     });
+
      Route::resource('borrows', BorrowController::class)->middleware('permission:view-borrows');
       Route::post('borrows/{id}/return', [BorrowController::class, 'return'])->name('borrows.return')->middleware('permission:return-books');
       Route::post('borrows/{id}/extend', [BorrowController::class, 'extend'])->name('borrows.extend')->middleware('permission:edit-borrows');

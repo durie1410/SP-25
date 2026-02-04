@@ -29,9 +29,30 @@ class AuthController extends Controller
         ]);
 
         $credentials = $request->only('email', 'password');
+        
+        // DEBUG: Log login attempt
+        Log::info('=== LOGIN ATTEMPT DEBUG ===');
+        Log::info('Email input: ' . $credentials['email']);
+        Log::info('Password input length: ' . strlen($credentials['password']));
+        
+        // Check if user exists
+        $user = User::where('email', $credentials['email'])->first();
+        if ($user) {
+            Log::info('User found: ID=' . $user->id . ', Name=' . $user->name . ', Role=' . $user->role);
+            Log::info('Password hash in DB: ' . substr($user->password, 0, 30) . '...');
+            Log::info('Password hash algo: ' . (password_get_info($user->password)['algoName'] ?? 'unknown'));
+            Log::info('Manual Hash::check result: ' . (Hash::check($credentials['password'], $user->password) ? 'TRUE' : 'FALSE'));
+        } else {
+            Log::info('User NOT found with email: ' . $credentials['email']);
+        }
+        
+        // Log guard being used
+        Log::info('Guard being used: ' . Auth::getDefaultDriver());
 
         if (Auth::attempt($credentials, $request->filled('remember'))) {
             $request->session()->regenerate();
+            
+            Log::info('Auth::attempt SUCCESS');
             
             // Log successful login
             AuditService::logLogin('User logged in successfully');
@@ -42,10 +63,16 @@ class AuthController extends Controller
             // Redirect based on user role
             if ($user->role === 'admin') {
                 return redirect()->route('admin.dashboard');
+            } elseif ($user->role === 'staff' || $user->isStaff()) {
+                // Staff cũng dùng admin dashboard
+                return redirect()->route('admin.dashboard');
             } else {
                 return redirect()->route('home');
             }
         }
+        
+        Log::info('Auth::attempt FAILED');
+        Log::info('=== END LOGIN DEBUG ===');
 
         return back()->withErrors([
             'email' => 'Thông tin đăng nhập không chính xác.',

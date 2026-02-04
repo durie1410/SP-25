@@ -6,7 +6,7 @@
             </div>
             <div class="logo-text">
                 <span class="logo-part1">THƯ VIỆN</span>
-                <span class="logo-part2">LIBHUB</span>
+                <span class="logo-part2">LibNet</span>
             </div>
         </div>
         <div class="hotline-section">
@@ -21,10 +21,25 @@
         </div>
         <div class="user-actions">
             @auth
-                <a href="{{ route('borrow-cart.index') }}" class="cart-link" id="borrow-cart-link" title="Giỏ sách">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span>Giỏ sách</span>
-                    <span class="cart-badge" id="borrow-cart-count" style="display: none;">0</span>
+                <!-- Notification Bell -->
+                <div class="notif-bell-wrapper" style="position: relative;">
+                    <a href="#" class="cart-link" id="notif-bell" title="Thông báo">
+                        <i class="fas fa-bell" aria-hidden="true"></i>
+                        <span class="cart-badge" id="notif-bell-count" style="display: none;">0</span>
+                    </a>
+                    <div class="notif-panel" id="notif-panel">
+                        <div class="notif-header">
+                            <h3>Thông báo</h3>
+                            <a href="#" id="notif-mark-all">Đánh dấu đã đọc hết</a>
+                        </div>
+                        <div class="notif-list" id="notif-list"></div>
+                    </div>
+                </div>
+
+                <a href="{{ route('reservation-cart.index') }}" class="cart-link" id="reservation-cart-link" title="Giỏ đặt trước">
+                    <i class="fas fa-shopping-cart" aria-hidden="true"></i>
+                    <span>Giỏ đặt trước</span>
+                    <span class="cart-badge" id="reservation-cart-count" style="display: none;">0</span>
                 </a>
                 <div class="user-menu-dropdown" style="position: relative;">
                     <a href="#" class="auth-link user-menu-toggle">
@@ -37,30 +52,15 @@
                             <span class="user-icon">👤</span>
                             {{ auth()->user()->name }}
                         </div>
-                        @if(auth()->user()->reader)
-                            <a href="{{ route('account.borrowed-books') }}" class="dropdown-item">
-                                <span>📚</span> Sách đang mượn
-                            </a>
-                        @endif
                         <a href="{{ route('account') }}" class="dropdown-item">
-                            <span>👤</span> Thông tin cá nhân
+                            <i class="fas fa-user" aria-hidden="true"></i>
+                            <span>Thông tin tài khoản</span>
                         </a>
-                        <a href="{{ route('account.change-password') }}" class="dropdown-item">
-                            <span>🔒</span> Đổi mật khẩu
-                        </a>
-                        <a href="{{ route('orders.index') }}" class="dropdown-item">
-                            <span>📋</span> Lịch sử đơn mượn
-                        </a>
-                        @if(auth()->user()->role === 'admin' || auth()->user()->role === 'staff')
-                            <div style="border-top: 1px solid #eee; margin-top: 5px;"></div>
-                            <a href="{{ route('dashboard') }}" class="dropdown-item">
-                                <span>📊</span> Dashboard
-                            </a>
-                        @endif
                         <form action="{{ route('logout') }}" method="POST" style="margin: 0;">
                             @csrf
                             <button type="submit" class="dropdown-item logout-btn">
-                                <span>➡️</span> Đăng xuất
+                                <i class="fas fa-right-from-bracket" aria-hidden="true"></i>
+                                <span>Đăng xuất</span>
                             </button>
                         </form>
                     </div>
@@ -140,14 +140,14 @@
     <script>
         // Load số lượng giỏ sách khi trang load
         document.addEventListener('DOMContentLoaded', function () {
-            loadBorrowCartCount();
+            loadReservationCartCount();
         });
 
-        function loadBorrowCartCount() {
-            fetch('{{ route('borrow-cart.count') }}')
+        function loadReservationCartCount() {
+            fetch('{{ route('reservation-cart.count') }}')
                 .then(response => response.json())
                 .then(data => {
-                    const cartCountElement = document.getElementById('borrow-cart-count');
+                    const cartCountElement = document.getElementById('reservation-cart-count');
                     if (cartCountElement) {
                         const count = data.count || 0;
                         cartCountElement.textContent = count;

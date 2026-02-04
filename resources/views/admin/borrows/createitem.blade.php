@@ -29,7 +29,15 @@
                                 <p> <span id="bookPrice"></span></p>
                             </div>
 
-                            <div class="payment-info">
+                                                        <div class="payment-info">
+                                <div class="mb-3">
+                                    <label class="form-label">Loại mượn</label>
+                                    <select name="borrow_type" id="borrowType" class="form-control">
+                                        <option value="take_home" selected>Mượn về</option>
+                                        <option value="onsite">Đọc tại chỗ</option>
+                                    </select>
+                                </div>
+
                                 <div class="mb-2">
                                     <label for="tienThueInput" class="form-label">Tiền thuê (₫)</label>
                                     <input type="text" name="tien_thue" id="tienThueInput" class="form-control" value="0" readonly>
@@ -185,6 +193,10 @@ const loaiSachMap = { 'binh_thuong': 'Bình thường', 'tham_khao': 'Tham khả
 const conditionMap = { 'Moi': 'Mới', 'Tot': 'Tốt', 'Trung binh':'Trung bình', 'Cu':'Cũ', 'Hong':'Hỏng' };
 const statusMap    = { 'Co san':'Có sẵn','Dang muon':'Đang mượn','Mat':'Mất','Hong':'Hỏng','Thanh ly':'Thanh lý' };
 const hasCard = Boolean({{ $borrow->reader_id ? 1 : 0 }});
+const borrowTypeSelect = document.getElementById('borrowType');
+if (borrowTypeSelect) {
+    borrowTypeSelect.addEventListener('change', updateMoneyFields);
+}
 
 // -------------------- TÌM SÁCH --------------------
 document.getElementById('bookSearch').addEventListener('input', function(){
@@ -315,66 +327,36 @@ function updateMoneyFields(){
         soNgayMuon = Math.max(1, diffDays);
     }
 
-    // Tỷ lệ phí thuê mỗi ngày (1% giá sách mỗi ngày, có thể điều chỉnh)
-    const dailyRate = hasCard ? 0.005 : 0.01; // Có thẻ: 0.5%, không có thẻ: 1%
+    const borrowType = document.getElementById('borrowType').value;
+    const dailyRate = 0.01; // 1% giá sách mỗi ngày
+    const onsiteHourlyRate = 5000; // 5k/giờ
 
     let totalCoc = 0, totalThue = 0, totalShip = 20000;
 
-    selectedInventories.forEach(inp => {
-        const inv = inventories.find(i => i.id == inp.value);
-        let price = Number(selectedBook.gia);
-        let coc = 0, thue = 0;
+    if (borrowType === 'onsite') {
+        // Đọc tại chỗ: không cọc, thuê theo giờ
+        totalCoc = 0;
+        totalThue = selectedInventories.length * onsiteHourlyRate; // Tạm tính 1 giờ
+        document.getElementById('ngayHenTraInput').value = document.getElementById('ngayMuonInput').value;
+    } else {
+        // Mượn về: cọc 70%, thuê 1%/ngày
+        selectedInventories.forEach(inp => {
+            const inv = inventories.find(i => i.id == inp.value);
+            let price = Number(selectedBook.gia);
+            let coc = 0, thue = 0;
 
-        if(inv.status === 'Hong' || inv.status === 'Dang muon' || inv.status === 'Mat'){
-            coc = thue = 0;
-        } else if(hasCard){
-            if(selectedBook.loai_sach === 'quy'){
-                switch(inv.condition){
-                    case 'Moi':
-                    case 'Tot': coc = price; break;
-                    case 'Trung binh': coc = Math.round(price*0.7); break;
-                    case 'Cu': coc = Math.round(price*0.6); break;
-                    default: coc = price;
-                }
-                thue = 0; // Sách quý có thẻ không tính phí thuê
-            } else {
-                switch(inv.condition){
-                    case 'Moi': coc = Math.round(price*0.4); break;
-                    case 'Tot': coc = Math.round(price*0.3); break;
-                    case 'Trung binh': coc = Math.round(price*0.2); break;
-                    case 'Cu': coc = Math.round(price*0.15); break;
-                    default: coc = Math.round(price*0.2);
-                }
-                // Phí thuê = giá sách * tỷ lệ mỗi ngày * số ngày
+            if(inv.status !== 'Hong' && inv.status !== 'Dang muon' && inv.status !== 'Mat'){
+                // Cọc = 70% giá sách, làm tròn đến hàng nghìn
+                coc = Math.round((price * 0.7) / 1000) * 1000;
+
+                // Thuê = 1% giá sách * số ngày, làm tròn đến hàng nghìn
                 thue = Math.round((price * dailyRate * soNgayMuon) / 1000) * 1000;
             }
-        } else {
-            if(selectedBook.loai_sach === 'quy'){
-                switch(inv.condition){
-                    case 'Moi':
-                    case 'Tot': coc = price; break;
-                    case 'Trung binh': coc = Math.round(price*0.8); break;
-                    case 'Cu': coc = Math.round(price*0.6); break;
-                    default: coc = price;
-                }
-                // Sách quý không có thẻ vẫn tính phí thuê
-                thue = Math.round((price * dailyRate * soNgayMuon) / 1000) * 1000;
-            } else {
-                switch(inv.condition){
-                    case 'Moi': coc = Math.round(price*0.4); break;
-                    case 'Tot': coc = Math.round(price*0.3); break;
-                    case 'Trung binh': coc = Math.round(price*0.3); break;
-                    case 'Cu': coc = Math.round(price*0.2); break;
-                    default: coc = Math.round(price*0.2);
-                }
-                // Phí thuê = giá sách * tỷ lệ mỗi ngày * số ngày
-                thue = Math.round((price * dailyRate * soNgayMuon) / 1000) * 1000;
-            }
-        }
 
-        totalCoc += coc;
-        totalThue += thue;
-    });
+            totalCoc += coc;
+            totalThue += thue;
+        });
+    }
 
     setInputMoney('tienThueInput', totalThue);
     setInputMoney('depositInput', totalCoc);

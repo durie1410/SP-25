@@ -68,7 +68,7 @@
         <p class="error-description">
             Xin lỗi, trang bạn đang tìm kiếm không tồn tại hoặc đã bị di chuyển.
         </p>
-        <a href="{{ route('home') }}" class="btn">Về trang chủ</a>
+        <a href="{{ url('/') }}" class="btn">Về trang chủ</a>
     </div>
 </body>
 </html>

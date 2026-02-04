@@ -178,24 +178,24 @@ public function updateStatus(Request $request, $id)
             'all_data' => $request->all()
         ]);
         
-        $log = ShippingLog::findOrFail($id);
+    $log = ShippingLog::findOrFail($id);
         
         if (!$log) {
             \Log::error('ShippingLog not found', ['id' => $id]);
             return redirect()->back()->withErrors(['error' => 'Không tìm thấy đơn hàng!']);
         }
 
-        // Validate với 11 trạng thái mới
+    // Validate với 11 trạng thái mới
         $validated = $request->validate([
-            'status' => 'required|string|in:don_hang_moi,dang_chuan_bi_sach,cho_ban_giao_van_chuyen,dang_giao_hang,giao_hang_thanh_cong,giao_hang_that_bai,da_muon_dang_luu_hanh,cho_tra_sach,dang_van_chuyen_tra_ve,da_nhan_va_kiem_tra,hoan_tat_don_hang',
-            'tinh_trang_sach' => 'nullable|in:binh_thuong,hong_nhe,hong_nang,mat_sach',
-            'ghi_chu_kiem_tra' => 'nullable|string',
-            'ghi_chu_hoan_coc' => 'nullable|string',
-            'receiver_note' => 'nullable|string',
-            'delivered_at'  => 'nullable|date',
-            'proof_image'   => 'nullable|image|max:2048',
-            'ma_van_don' => 'nullable|string|max:100',
-            'don_vi_van_chuyen' => 'nullable|string|max:100',
+        'status' => 'required|string|in:don_hang_moi,dang_chuan_bi_sach,cho_ban_giao_van_chuyen,dang_giao_hang,giao_hang_thanh_cong,giao_hang_that_bai,da_muon_dang_luu_hanh,cho_tra_sach,dang_van_chuyen_tra_ve,da_nhan_va_kiem_tra,hoan_tat_don_hang',
+        'tinh_trang_sach' => 'nullable|in:binh_thuong,hong_nhe,hong_nang,mat_sach',
+        'ghi_chu_kiem_tra' => 'nullable|string',
+        'ghi_chu_hoan_coc' => 'nullable|string',
+        'receiver_note' => 'nullable|string',
+        'delivered_at'  => 'nullable|date',
+        'proof_image'   => 'nullable|image|max:2048',
+        'ma_van_don' => 'nullable|string|max:100',
+        'don_vi_van_chuyen' => 'nullable|string|max:100',
             'failure_reason' => 'nullable|in:loi_khach_hang,loi_thu_vien',
             'failure_proof_image' => 'nullable|image|max:2048',
         ]);
@@ -440,14 +440,14 @@ public function updateStatus(Request $request, $id)
                 } elseif ($request->failure_reason === 'loi_thu_vien') {
                     // Lỗi do thư viện: Hoàn 100% (Cọc + Phí thuê + Phí ship)
                     // Hoàn tất cả các khoản thanh toán
-                    $log->borrow->payments()
-                        ->where('payment_status', 'success')
-                        ->whereIn('payment_type', ['deposit', 'borrow_fee', 'shipping_fee'])
-                        ->update([
+                $log->borrow->payments()
+                    ->where('payment_status', 'success')
+                    ->whereIn('payment_type', ['deposit', 'borrow_fee', 'shipping_fee'])
+                    ->update([
                             'payment_status' => 'refunded',
                             'note' => \DB::raw("CONCAT(COALESCE(note, ''), ' - Hoàn 100% do giao hàng thất bại (Lỗi thư viện)')"),
-                            'updated_at' => now()
-                        ]);
+                        'updated_at' => now()
+                    ]);
                 }
             }
             break;
@@ -599,7 +599,7 @@ public function updateStatus(Request $request, $id)
     // Tạo thông báo với thông tin chi tiết
     $message = 'Cập nhật trạng thái đơn hàng thành công!';
     
-            if ($request->status === 'giao_hang_thanh_cong') {
+    if ($request->status === 'giao_hang_thanh_cong') {
         if ($log->borrow) {
             $updatedPayments = $log->borrow->payments()
                 ->where('payment_status', 'success')
@@ -627,7 +627,7 @@ public function updateStatus(Request $request, $id)
         }
     }
 
-        return redirect()->route('admin.shipping_logs.edit', $log->id)->with('success', $message);
+    return redirect()->route('admin.shipping_logs.edit', $log->id)->with('success', $message);
         
     } catch (\Illuminate\Validation\ValidationException $e) {
         \Log::error('Validation error in updateStatus', [

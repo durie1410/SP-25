@@ -49,8 +49,16 @@ class PricingService
      */
     public static function calculateDeposit($bookPrice, $condition, $bookType = 'binh_thuong', $hasCard = false)
     {
-        // Tiền cọc = giá sách (1:1)
-        return $bookPrice;
+        if ($bookPrice <= 0) {
+            return 0;
+        }
+
+        // Policy: cọc = 70% giá sách, làm tròn đến hàng nghìn
+        $depositRate = 0.7;
+        $roundTo = 1000;
+
+        $deposit = $bookPrice * $depositRate;
+        return round($deposit / $roundTo) * $roundTo;
     }
 
     /**
@@ -107,23 +115,26 @@ class PricingService
      */
     public static function calculateLateReturnFine($dueDate, $returnDate = null, $numberOfBooks = 1)
     {
-        $dueDateCarbon = Carbon::parse($dueDate);
-        $returnDateCarbon = $returnDate ? Carbon::parse($returnDate) : Carbon::now();
-        
+        $dueDateCarbon = Carbon::parse($dueDate)->startOfDay();
+        $returnDateCarbon = $returnDate ? Carbon::parse($returnDate)->startOfDay() : Carbon::today();
+
         // Tính số ngày quá hạn
         $daysOverdue = max(0, $dueDateCarbon->diffInDays($returnDateCarbon, false));
-        
+
         if ($daysOverdue <= 0) {
             return 0;
         }
-        
-        // Lấy tỷ lệ phí trả muộn từ config (theo cuốn sách)
-        $dailyRatePerBook = config('pricing.fines.late_return.default_daily_rate_per_book', 4000);
-        
-        // Tính phí = số ngày quá hạn × phí mỗi ngày/cuốn × số cuốn
-        $fineAmount = $daysOverdue * $dailyRatePerBook * $numberOfBooks;
-        
-        return round($fineAmount);
+
+        // Policy: 3 ngày đầu 5k/ngày/cuốn, từ ngày 4 trở đi 15k/ngày/cuốn
+        $fineDay1 = 5000;
+        $fineDay2 = 15000;
+        $threshold = 3;
+
+        $perBook = $daysOverdue <= $threshold
+            ? ($daysOverdue * $fineDay1)
+            : (($threshold * $fineDay1) + (($daysOverdue - $threshold) * $fineDay2));
+
+        return round($perBook * max(1, (int) $numberOfBooks));
     }
     
     /**
@@ -167,12 +178,13 @@ class PricingService
             return 0; // Không đủ điều kiện trả sớm
         }
         
-        // Tính tỷ lệ hoàn lại (20-30%)
-        $refundRate = config('pricing.early_return.default_refund_rate', 0.25);
-        
-        // Hoàn lại = phí thuê × tỷ lệ hoàn lại
-        $refundAmount = $rentalFee * $refundRate;
-        
+        // Policy: Hoàn 30% phần phí thuê tương ứng với số ngày trả sớm
+        $refundRate = 0.3;
+
+        // Hoàn lại = (phí thuê / số ngày dự kiến) * số ngày trả sớm * 30%
+        $perDay = $daysExpected > 0 ? ($rentalFee / $daysExpected) : 0;
+        $refundAmount = $perDay * $daysEarly * $refundRate;
+
         return round($refundAmount);
     }
 

@@ -1,4 +1,4 @@
-@extends('layouts.frontend')
+@extends('layouts.app')
 
 @section('title', 'Đăng Nhập / Đăng Ký - Thư Viện Online')
 

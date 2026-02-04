@@ -24,10 +24,13 @@ class RealTimeNotificationService
             $notification = NotificationLog::create([
                 'user_id' => $userId,
                 'type' => $type,
+                'channel' => 'realtime',
+                'recipient' => (string) ($userId),
                 'subject' => $title,
+                'content' => $message,
                 'body' => $message,
                 'priority' => $data['priority'] ?? 'normal',
-                'channel' => 'realtime',
+                'status' => 'sent',
                 'sent_at' => now(),
             ]);
 

@@ -127,7 +127,8 @@ class BookController extends Controller
     public function create()
     {
         $categories = CacheService::getActiveCategories();
-        return view('admin.books.create', compact('categories'));
+        $publishers = \App\Models\Publisher::where('trang_thai', 'active')->orderBy('ten_nha_xuat_ban')->get();
+        return view('admin.books.create', compact('categories', 'publishers'));
     }
 
     public function store(BookRequest $request)

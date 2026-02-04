@@ -12,7 +12,7 @@
 </head>
 
 <body>
-    @include('account._header')
+    @include('components.frontend-header')
 
     <!-- Breadcrumb Navigation -->
     <nav class="breadcrumb-nav">

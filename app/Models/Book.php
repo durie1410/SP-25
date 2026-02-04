@@ -84,22 +84,34 @@ class Book extends Model
     // Accessor để tự động xử lý đường dẫn hình ảnh
     public function getImageUrlAttribute()
     {
-        if (!$this->hinh_anh) {
+        $path = $this->hinh_anh;
+
+        if (!$path) {
             return asset('images/default-book.png');
         }
 
-        // Nếu đường dẫn bắt đầu bằng assets/, sử dụng trực tiếp
-        if (strpos($this->hinh_anh, 'assets/') === 0) {
-            return asset($this->hinh_anh);
+        // Normalize slashes (Windows -> URL)
+        $path = str_replace('\\', '/', $path);
+        $path = ltrim($path, '/');
+
+        // Full URL (Cloudinary, etc.)
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
         }
 
-        // Nếu đường dẫn bắt đầu bằng storage/ hoặc books/, thêm storage/
-        if (strpos($this->hinh_anh, 'storage/') === 0 || strpos($this->hinh_anh, 'books/') === 0) {
-            return asset('storage/' . ltrim($this->hinh_anh, 'storage/'));
+        // Public assets
+        if (str_starts_with($path, 'assets/')) {
+            return asset($path);
         }
 
-        // Mặc định: thêm storage/
-        return asset('storage/' . $this->hinh_anh);
+        // Some old data may already include 'storage/' prefix
+        if (str_starts_with($path, 'storage/')) {
+            $path = substr($path, strlen('storage/'));
+            $path = ltrim($path, '/');
+        }
+
+        // Default: store everything under public storage
+        return asset('storage/' . $path);
     }
 
 

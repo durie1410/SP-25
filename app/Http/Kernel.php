@@ -37,6 +37,7 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\StaffOnlyDashboard::class,
         ],
 
         'api' => [
@@ -66,8 +67,11 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'admin' => \App\Http\Middleware\AdminMiddleware::class,
         'staff' => \App\Http\Middleware\StaffMiddleware::class,
+        'staff-only-dashboard' => \App\Http\Middleware\StaffOnlyDashboard::class,
+        'librarian' => \App\Http\Middleware\LibrarianMiddleware::class,
         'user' => \App\Http\Middleware\UserMiddleware::class,
         'permission' => \App\Http\Middleware\PermissionMiddleware::class,
         'role' => \App\Http\Middleware\EnsureUserHasRole::class,
+        'admin-only' => \App\Http\Middleware\AdminOnlyMiddleware::class,
     ];
 }

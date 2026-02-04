@@ -128,11 +128,12 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Check if user is staff (librarian or warehouse)
+     * Check if user is staff (librarian, warehouse, or staff role)
      */
     public function isStaff()
     {
-        return $this->isLibrarian() || $this->isWarehouse();
+        return $this->role === 'staff' || $this->role === 'librarian' || $this->role === 'warehouse' || 
+               $this->hasRole('staff') || $this->hasRole('librarian') || $this->hasRole('warehouse');
     }
 
     /**

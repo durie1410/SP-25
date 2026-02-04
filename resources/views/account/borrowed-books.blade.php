@@ -79,9 +79,9 @@
                                     $statusLabel = 'Đã được duyệt';
                                     $statusColor = 'success';
                                 } else {
-                                    $statusConfig = config('borrow_status.statuses.' . $borrow->trang_thai_chi_tiet, []);
-                                    $statusLabel = $statusConfig['label'] ?? $borrow->trang_thai_chi_tiet;
-                                    $statusColor = $statusConfig['color'] ?? 'secondary';
+                                $statusConfig = config('borrow_status.statuses.' . $borrow->trang_thai_chi_tiet, []);
+                                $statusLabel = $statusConfig['label'] ?? $borrow->trang_thai_chi_tiet;
+                                $statusColor = $statusConfig['color'] ?? 'secondary';
                                 }
                             @endphp
                             <p><strong>Trạng thái:</strong> 
@@ -1135,8 +1135,8 @@
                         <div style="margin-top: 10px;">
                             <span class="detail-label" style="display: block; margin-bottom: 6px;">Ảnh minh chứng:</span>
                             <img src="${borrow.failure_proof_image}" alt="Ảnh minh chứng giao hàng thất bại" style="max-width: 240px; border-radius: 6px; border: 1px solid #ddd;">
-                        </div>
-                        ` : ''}
+                </div>
+                ` : ''}
                     </div>
                 </div>
                 ` : ''}

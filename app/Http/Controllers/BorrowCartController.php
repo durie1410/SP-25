@@ -133,7 +133,7 @@ class BorrowCartController extends Controller
         if (!auth()->check()) {
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập để xem giỏ sách');
         }
-        
+
         $cart = $this->getOrCreateCart();
 
         if (!$cart) {

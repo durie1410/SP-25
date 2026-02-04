@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Dashboard Kho - LIBHUB Admin')
+@section('title', 'Dashboard Kho - LibNet Admin')
 
 @section('content')
 <div class="page-header">

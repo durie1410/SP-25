@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Chi Tiết Sách Trong Kho - LIBHUB Admin')
+@section('title', 'Chi Tiết Sách Trong Kho - LibNet Admin')
 
 @section('content')
 <!-- Page Header -->

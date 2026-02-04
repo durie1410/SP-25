@@ -352,7 +352,7 @@
                             @if($detailStatus === \App\Models\Borrow::STATUS_DON_HANG_MOI)
                                 <span class="status-badge" style="background-color: #d4edda; color: #155724;">✅ Đã được duyệt</span>
                             @else
-                                <span class="status-badge status-Cho-duyet">⏳ Đang chờ xử lí</span>
+                            <span class="status-badge status-Cho-duyet">⏳ Đang chờ xử lí</span>
                             @endif
                         @elseif($borrow->trang_thai === 'Dang muon')
                             <span class="status-badge status-Dang-muon">📖 Đang mượn</span>
@@ -360,7 +360,7 @@
                             @if($detailStatus === 'hoan_tat_don_hang')
                                 <span class="status-badge" style="background-color: #d4edda; color: #155724;">✅ Đã hoàn tiền</span>
                             @else
-                                <span class="status-badge status-Da-tra">✅ Đã trả</span>
+                            <span class="status-badge status-Da-tra">✅ Đã trả</span>
                             @endif
                         @elseif($borrow->trang_thai === 'Huy')
                             <span class="status-badge status-Huy">❌ Đã hủy</span>
@@ -376,10 +376,10 @@
                     <div class="info-value">{{ \Carbon\Carbon::parse($borrow->ngay_muon)->format('d/m/Y') }}</div>
                 </div>
                 @if($borrow->ghi_chu)
-                <div class="info-row">
-                    <div class="info-label">Ghi chú:</div>
-                    <div class="info-value">{{ $borrow->ghi_chu }}</div>
-                </div>
+                    <div class="info-row">
+                        <div class="info-label">Ghi chú:</div>
+                        <div class="info-value">{{ $borrow->ghi_chu }}</div>
+                    </div>
                 @endif
                 
                 @php
@@ -593,8 +593,8 @@
                             <span style="font-weight: 600; color: #28a745;">{{ number_format($tongTienHoan, 0, ',', '.') }}₫</span>
                         </div>
                     @else
-                        <div class="price-row">
-                            <span>Tổng cộng:</span>
+                    <div class="price-row">
+                        <span>Tổng cộng:</span>
                             <span>
                                 @php
                                     // Tính lại tổng tiền = cọc + thuê + ship
@@ -605,7 +605,7 @@
                                 @endphp
                                 {{ number_format($tongTien, 0, ',', '.') }}₫
                             </span>
-                        </div>
+                    </div>
                     @endif
                 </div>
 

@@ -32,6 +32,7 @@ class BorrowItem extends Model
         'ngay_hen_tra',
         'ngay_tra_thuc_te',
         'trang_thai',
+        'borrow_type',
         'so_lan_gia_han',
         'ngay_gia_han_cuoi',
         'inventorie_id',

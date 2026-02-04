@@ -993,6 +993,9 @@
 </head>
 
 <body>
+    @include('components.frontend-header')
+
+    <div style="display:none">
     <header class="main-header">
         <div class="header-top">
             <div class="logo-section">
@@ -1001,7 +1004,7 @@
                 </div>
                 <div class="logo-text">
                     <span class="logo-part1">THƯ VIỆN</span>
-                    <span class="logo-part2">LIBHUB</span>
+                    <span class="logo-part2">LibNet</span>
                 </div>
             </div>
             <div class="hotline-section">
@@ -1020,10 +1023,10 @@
                     <i class="fas fa-tags"></i> Chính sách giá
                 </a>
                 @auth
-                    <a href="{{ route('borrow-cart.index') }}" class="cart-link" id="borrow-cart-link" title="Giỏ sách">
+                    <a href="{{ route('reservation-cart.index') }}" class="cart-link" id="reservation-cart-link" title="Giỏ đặt trước">
                         <i class="fas fa-shopping-cart"></i>
                         <span>Giỏ sách</span>
-                        <span class="cart-badge" id="borrow-cart-count" style="display: none;">0</span>
+                        <span class="cart-badge" id="reservation-cart-count" style="display: none;">0</span>
                     </a>
                     <div class="user-menu-dropdown" style="position: relative;">
                         <a href="#" class="auth-link user-menu-toggle">
@@ -1120,10 +1123,10 @@
                         }
                     </style>
                 @else
-                    <a href="{{ route('borrow-cart.index') }}" class="cart-link" id="borrow-cart-link" title="Giỏ sách">
+                    <a href="{{ route('reservation-cart.index') }}" class="cart-link" id="reservation-cart-link" title="Giỏ đặt trước">
                         <i class="fas fa-shopping-cart"></i>
                         <span>Giỏ sách</span>
-                        <span class="cart-badge" id="borrow-cart-count" style="display: none;">0</span>
+                        <span class="cart-badge" id="reservation-cart-count" style="display: none;">0</span>
                     </a>
                     <a href="{{ route('login') }}" class="auth-link">Đăng nhập</a>
                 @endauth
@@ -1140,6 +1143,8 @@
         </div>
     </header>
 
+    </div>
+
     <div class="content-wrapper">
         <main class="main-content">
             <p class="breadcrumb">
@@ -1149,8 +1154,9 @@
 
             <section class="book-detail-section">
                 <div class="book-summary">
-                    <img src="{{ $book->image_url ?? 'https://via.placeholder.com/200x300?text=Book+Cover' }}"
-                        alt="Bìa sách {{ $book->ten_sach }}" class="book-cover">
+                    <img src="{{ $book->image_url }}"
+                        alt="Bìa sách {{ $book->ten_sach }}" class="book-cover"
+                        onerror="this.onerror=null; this.src='{{ asset('images/default-book.png') }}';">
 
                     <div class="info-and-buy">
                         <h1>{{ $book->ten_sach }}</h1>
@@ -1160,20 +1166,7 @@
                         @endif
 
                         <div class="rating">
-                            @php
-                                $rating = $stats['average_rating'] ?? $book->formatted_rating;
-                            @endphp
-                            {{ number_format($rating, 1, ',', '.') }}
-                            <span class="stars">
-                                @for($i = 1; $i <= 5; $i++)
-                                    @if($i <= floor($rating))
-                                        ★
-                                    @else
-                                        ☆
-                                    @endif
-                                @endfor
-                            </span>
-                            | {{ $book->formatted_views }} Lượt xem |
+                            {{ $book->formatted_views }} Lượt xem |
                             {{ $book->formatted_sales }} Đã bán
                         </div>
 
@@ -1182,7 +1175,7 @@
                                 $isBorrowMode = isset($mode) && $mode === 'borrow';
                             @endphp
 
-                            @if($isBorrowMode)
+                            @if(false && $isBorrowMode)
                                 <!-- Hiển thị thông tin giá sách -->
                                 @if($book->gia && $book->gia > 0)
                                     <div
@@ -1238,7 +1231,7 @@
                                     @endauth
                                 </div>
                             @else
-                                <label>Chọn sản phẩm</label>
+                                <label>Đặt trước</label>
 
                                 <!-- Sách giấy -->
                                 <div class="option-row">
@@ -1278,22 +1271,9 @@
                                 </div>
 
                                 <div class="action-buttons">
-                                    @auth
-                                        <button class="btn btn-buy" onclick="buyNow()" {{ ($stats['stock_quantity'] ?? 0) == 0 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '' }} style="width: 100%;">
-                                            <span style="font-size: 1.2em;">$</span> Mua ngay
-                                        </button>
-                                    @else
-                                        <button class="btn btn-buy"
-                                            onclick="alert('Vui lòng đăng nhập để mua hàng!'); window.location.href='{{ route('login') }}';"
-                                            style="opacity: 0.7; cursor: pointer;" {{ ($stats['stock_quantity'] ?? 0) == 0 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '' }}>
-                                            <span style="font-size: 1.2em;">$</span> Mua ngay
-                                        </button>
-                                        <button class="btn btn-cart"
-                                            onclick="alert('Vui lòng đăng nhập để thêm vào giỏ sách!'); window.location.href='{{ route('login') }}';"
-                                            style="opacity: 0.7; cursor: pointer;" {{ ($stats['stock_quantity'] ?? 0) == 0 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '' }}>
-                                            <span style="font-size: 1.2em;">🛒</span> Thêm vào giỏ
-                                        </button>
-                                    @endauth
+                                    <button class="btn btn-buy" onclick="addToReservationCart()" style="width: 100%; background: #0d9488;">
+                                        <span style="font-size: 1.2em;">📌</span> Thêm vào giỏ đặt trước
+                                    </button>
                                 </div>
                             @endif
                         </div>
@@ -1302,15 +1282,10 @@
 
                 <div class="tab-section">
                     <a href="#" class="tab-link active" onclick="switchTab('intro'); return false;">Giới thiệu</a>
-                    <a href="#" class="tab-link" onclick="switchTab('contents'); return false;">Mục lục</a>
                 </div>
 
                 <div class="description-section" id="intro-content">
                     {{ $book->formatted_description }}
-                </div>
-
-                <div class="description-section" id="contents-content" style="display: none;">
-                    <p>Mục lục đang được cập nhật...</p>
                 </div>
 
                 <div class="metadata-table">
@@ -1332,7 +1307,7 @@
                             <td class="label">Số lượng:</td>
                             <td>{{ $book->formatted_quantity }} cuốn</td>
                             <td class="label">Đánh giá:</td>
-                            <td>{{ $book->formatted_rating }}/5.0 ⭐</td>
+                            <td>—</td>
                         </tr>
                         @if($book->so_trang)
                         <tr>
@@ -1522,10 +1497,13 @@
             }
         }
 
-        function buyNow() {
-            // Kiểm tra đăng nhập
+        function addToReservationCart() {
             @guest
-                alert('Vui lòng đăng nhập để mua hàng!');
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Thông báo', 'Vui lòng đăng nhập để đặt trước sách!', 'warning');
+                } else {
+                    alert('Vui lòng đăng nhập để đặt trước sách!');
+                }
                 window.location.href = '{{ route("login") }}';
                 return;
             @endguest
@@ -1534,36 +1512,68 @@
             const paperChecked = paperCheckbox ? paperCheckbox.checked : false;
 
             if (!paperChecked) {
-                alert('Vui lòng chọn sản phẩm!');
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Thông báo', 'Vui lòng chọn sản phẩm!', 'warning');
+                } else {
+                    alert('Vui lòng chọn sản phẩm!');
+                }
                 return;
             }
 
             const quantity = parseInt(document.getElementById('paper-quantity')?.value) || 1;
             const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
 
-            // Kiểm tra số lượng tồn kho
-            if (quantity > stockQuantity) {
-                alert(`Số lượng bạn chọn (${quantity} cuốn) vượt quá số lượng tồn kho (${stockQuantity} cuốn). Vui lòng chọn lại!`);
-                return;
-            }
-
             if (stockQuantity === 0) {
-                alert('Sách này hiện đã hết hàng. Vui lòng quay lại sau!');
-                return;
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Thông báo', 'Hiện không có cuốn nào sẵn sàng. Bạn vẫn có thể đặt trước.', 'info');
+                }
             }
 
-            const message = `Bạn có chắc chắn muốn mua:\n- Sách giấy: ${quantity} cuốn\n`;
-
-            if (!confirm(message)) {
-                return;
+            if (quantity > stockQuantity && stockQuantity > 0) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Thông báo', `Bạn chọn ${quantity} cuốn nhưng kho chỉ còn ${stockQuantity} cuốn. (Giỏ đặt trước chỉ lưu 1 yêu cầu / sách)`, 'warning');
+                }
             }
 
-            // Tạo URL với các tham số
-            const params = new URLSearchParams();
-            params.append('book_id', {{ $book->id }});
-            params.append('paper_quantity', document.getElementById('paper-quantity').value);
+            fetch('{{ route("reservation-cart.add") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ book_id: {{ $book->id }} })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast('Thành công', data.message || 'Đã thêm vào giỏ đặt trước.', 'success');
+                    } else {
+                        alert(data.message || 'Đã thêm vào giỏ đặt trước.');
+                    }
 
-            window.location.href = '{{ route("checkout") }}?' + params.toString();
+                    if (typeof window.loadReservationCartCount === 'function') {
+                        window.loadReservationCartCount();
+                    }
+                } else {
+                    if (typeof window.showToast === 'function') {
+                        window.showToast('Có lỗi', data.message || 'Không thể thêm vào giỏ.', 'error');
+                    } else {
+                        alert(data.message || 'Không thể thêm vào giỏ.');
+                    }
+
+                    if (data.redirect) {
+                        window.location.href = data.redirect;
+                    }
+                }
+            })
+            .catch(() => {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Có lỗi', 'Không thể thêm vào giỏ. Vui lòng thử lại.', 'error');
+                } else {
+                    alert('Không thể thêm vào giỏ. Vui lòng thử lại.');
+                }
+            });
         }
 
         function scrollCarousel(carouselId, direction) {
@@ -1652,7 +1662,7 @@
             // Gọi API kiểm tra mã giảm giá (tạm thời giả lập)
             setTimeout(() => {
                 // Giả lập kiểm tra mã giảm giá
-                const validCodes = ['LIBHUB2024', 'FREESHIP', 'DISCOUNT10'];
+                const validCodes = ['LibNet2024', 'FREESHIP', 'DISCOUNT10'];
 
                 if (validCodes.includes(code.toUpperCase())) {
                     alert('Áp dụng mã giảm giá thành công!\n\nLưu ý: Chức năng giảm giá đang được phát triển.');
@@ -1790,7 +1800,7 @@
             btn.disabled = true;
             btn.innerHTML = '<span style="font-size: 1.2em;">⏳</span> Đang thêm...';
 
-            fetch('{{ route("borrow-cart.add") }}', {
+            fetch('{{ route("reservation-cart.add") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2094,7 +2104,7 @@
             params.append('quantity', borrowQuantity);
             params.append('items', JSON.stringify(items));
 
-            window.location.href = '{{ route("borrow-cart.checkout") }}?' + params.toString();
+            window.location.href = '{{ route("reservation-cart.index") }}?' + params.toString();
         }
 
         // Hàm cũ: Cập nhật thông tin giá cho nhiều items với thông số khác nhau (giữ lại để tương thích)
@@ -2556,7 +2566,7 @@
             params.append('quantity', items.length);
             params.append('items', JSON.stringify(items));
 
-            window.location.href = '{{ route("borrow-cart.checkout") }}?' + params.toString();
+            window.location.href = '{{ route("reservation-cart.index") }}?' + params.toString();
         }
 
         // Hàm cũ: Xác nhận mượn sách (giữ lại cho tương thích)
@@ -2635,7 +2645,7 @@
                         alert(message);
 
                         // Redirect đến trang sách đang mượn để xem yêu cầu vừa tạo
-                        window.location.href = '{{ route("borrow-cart.checkout") }}';
+                        window.location.href = '{{ route("reservation-cart.index") }}';
                     } else {
                         console.error('Borrow creation failed:', data.message);
                         alert(data.message || 'Có lỗi xảy ra khi gửi yêu cầu mượn sách!');
@@ -2672,11 +2682,11 @@
         <script>
             // Load số lượng giỏ sách khi trang load
             document.addEventListener('DOMContentLoaded', function () {
-                loadBorrowCartCount();
+                loadReservationCartCount();
             });
 
-            function loadBorrowCartCount() {
-                fetch('{{ route('borrow-cart.count') }}')
+            function loadReservationCartCount() {
+                fetch('{{ route('reservation-cart.count') }}')
                     .then(response => response.json())
                     .then(data => {
                         const cartCountElement = document.getElementById('borrow-cart-count');

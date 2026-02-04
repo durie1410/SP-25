@@ -523,31 +523,36 @@ public function markOverdue($id)
     try {
         $item = BorrowItem::with('borrow.reader', 'book', 'inventory')->findOrFail($id);
 
-        // Kiểm tra trạng thái hiện tại
         if ($item->trang_thai !== 'Dang muon') {
             return back()->with('error', 'Chỉ có thể đánh dấu quá hạn cho sách đang mượn!');
         }
 
         \DB::beginTransaction();
 
-        // Cập nhật trạng thái item
         $item->update([
             'trang_thai' => 'Qua han'
         ]);
 
-        // Tính số ngày quá hạn
-        $dueDate = \Carbon\Carbon::parse($item->ngay_hen_tra);
+        $dueDate = \Carbon\Carbon::parse($item->ngay_hen_tra)->startOfDay();
         $today = \Carbon\Carbon::today();
         $daysOverdue = $today->diffInDays($dueDate, false) * -1;
 
-        // Khởi tạo biến phạt
+        $fineDay1 = 5000;
+        $fineDay2 = 15000;
+        $threshold = 3;
+
         $phatQuaHan = 0;
-
-        // Nếu đã quá hạn thì tính phạt
         if ($daysOverdue > 0) {
-            $phatQuaHan = $daysOverdue * 5000; // 5000đ/ngày
+            if ($daysOverdue <= $threshold) {
+                $phatQuaHan = $daysOverdue * $fineDay1;
+            } else {
+                $phatQuaHan = ($threshold * $fineDay1) + (($daysOverdue - $threshold) * $fineDay2);
+            }
 
-            // Lưu vào bảng fines
+            $item->update([
+                'tien_phat' => $phatQuaHan,
+            ]);
+
             Fine::create([
                 'borrow_id'      => $item->borrow_id,
                 'borrow_item_id' => $item->id,
@@ -561,13 +566,12 @@ public function markOverdue($id)
             ]);
         }
 
-        // Cập nhật trạng thái Borrow
         $borrow = $item->borrow;
         if ($borrow) {
             $borrow->refresh();
             $borrow->load('items');
             $statuses = $borrow->items->pluck('trang_thai')->toArray();
-            
+
             if (in_array('Mat sach', $statuses)) {
                 $borrow->trang_thai = 'Mat sach';
             } elseif (in_array('Qua han', $statuses)) {
@@ -610,13 +614,21 @@ public function updateStatus(Request $request, $id)
                 $item->update(['trang_thai' => 'Qua han']);
 
                 // Tính số ngày quá hạn
-                $dueDate = \Carbon\Carbon::parse($item->ngay_hen_tra);
+                $dueDate = \Carbon\Carbon::parse($item->ngay_hen_tra)->startOfDay();
                 $today = \Carbon\Carbon::today();
                 $daysOverdue = $today->diffInDays($dueDate, false) * -1;
 
+                $fineDay1 = 5000;
+                $fineDay2 = 15000;
+                $threshold = 3;
+
                 // Nếu đã quá hạn thì tính phạt
                 if ($daysOverdue > 0) {
-                    $phatQuaHan = $daysOverdue * 5000; // 5000đ/ngày
+                    if ($daysOverdue <= $threshold) {
+                        $phatQuaHan = $daysOverdue * $fineDay1;
+                    } else {
+                        $phatQuaHan = ($threshold * $fineDay1) + (($daysOverdue - $threshold) * $fineDay2);
+                    }
 
                     // Lưu vào bảng fines
                     Fine::create([
@@ -630,6 +642,11 @@ public function updateStatus(Request $request, $id)
                         'due_date'       => now()->addDays(7),
                         'created_by'     => auth()->id(),
                     ]);
+
+                    // Đồng bộ tiền phạt vào borrow_items
+                    $item->update([
+                        'tien_phat' => $phatQuaHan,
+                    ]);
                 }
 
                 $message = 'Đã đánh dấu sách quá hạn!';
@@ -639,10 +656,39 @@ public function updateStatus(Request $request, $id)
                 break;
 
             case 'Da tra':
-                // Cập nhật trạng thái item
-                $item->update(['trang_thai' => 'Da tra']);
+                $returnDate = now();
+                $update = [
+                    'trang_thai' => 'Da tra',
+                    'ngay_tra_thuc_te' => $returnDate->toDateString(),
+                ];
 
-                // Cập nhật inventory về 'Co san' (Có sẵn)
+                if (($item->borrow_type ?? 'take_home') === 'take_home' && $item->ngay_muon && $item->ngay_hen_tra) {
+                    $ngayMuon = \Carbon\Carbon::parse($item->ngay_muon)->startOfDay();
+                    $ngayHenTra = \Carbon\Carbon::parse($item->ngay_hen_tra)->startOfDay();
+                    $ngayTra = \Carbon\Carbon::parse($returnDate)->startOfDay();
+
+                    $daysExpected = max(1, $ngayMuon->diffInDays($ngayHenTra));
+                    $daysBorrowed = max(1, $ngayMuon->diffInDays($ngayTra));
+
+                    $refund = \App\Services\PricingService::calculateEarlyReturnRefund((float) ($item->tien_thue ?? 0), $daysBorrowed, $daysExpected);
+                    if ($refund > 0) {
+                        $update['tien_thue'] = max(0, (float) ($item->tien_thue ?? 0) - $refund);
+                    }
+
+                    $fine = \App\Services\PricingService::calculateLateReturnFine($ngayHenTra, $ngayTra, 1);
+                    if ($fine > 0) {
+                        $update['tien_phat'] = $fine;
+                    }
+
+                    $deposit = (float) ($item->tien_coc ?? 0);
+                    $depositRefund = max(0, $deposit - ($fine > 0 ? $fine : (float) ($item->tien_phat ?? 0)));
+                    $update['tien_coc_da_hoan'] = $depositRefund;
+                    $update['trang_thai_coc'] = 'da_hoan';
+                    $update['ngay_hoan_coc'] = $returnDate->toDateString();
+                }
+
+                $item->update($update);
+
                 if ($item->inventory) {
                     $item->inventory->update(['status' => 'Co san']);
                 }
@@ -744,7 +790,8 @@ public function updateStatus(Request $request, $id)
             } else {
                 $borrow->trang_thai = 'Da tra';
             }
-            $borrow->save();
+
+            $borrow->recalculateTotals();
         }
 
         \DB::commit();

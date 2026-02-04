@@ -699,7 +699,7 @@ body {
                         @endif
                     </div>
                 </div>
-
+                
                 {{-- Form cho thanh toán cọc --}}
                 <div id="refund-form" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
                     <h6 style="margin-bottom: 15px; color: #495057;">Thông tin thanh toán cọc</h6>
@@ -1081,7 +1081,7 @@ body {
                             <div style="display: flex; flex-direction: column; align-items: flex-end;">
                                 <div style="text-decoration: line-through; color: #999; font-size: 14px;">{{ number_format($totalTienCoc, 0) }}₫</div>
                                 <div style="color: #28a745;">{{ number_format($refundDeposit, 0) }}₫</div>
-                            </div>
+                </div>
                         @else
                             {{ number_format($tienCocHoan, 0) }}₫
                         @endif

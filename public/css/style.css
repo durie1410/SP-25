@@ -245,6 +245,24 @@ body {
 
 .hotline-item {
     display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.hotline-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 148, 136, 0.12);
+    color: var(--primary-color);
+    flex: 0 0 42px;
+}
+
+.hotline-info {
+    display: flex;
     flex-direction: column;
     gap: 3px;
 }

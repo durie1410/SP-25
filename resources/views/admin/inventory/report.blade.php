@@ -322,7 +322,7 @@
                             <tr>
                                 <td><strong>{{ $receipt->receipt_number }}</strong></td>
                                 <td>{{ $receipt->receipt_date->format('d/m/Y') }}</td>
-                                <td>{{ $receipt->book->ten_sach }}</td>
+                                <td>{{ $receipt->book->ten_sach ?? 'N/A' }}</td>
                                 <td>
                                     <span class="badge badge-primary">{{ $receipt->quantity }}</span>
                                 </td>

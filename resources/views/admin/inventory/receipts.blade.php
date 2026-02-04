@@ -176,8 +176,14 @@
                     @forelse($receipts as $receipt)
                         <tr>
                             <td><strong>{{ $receipt->receipt_number }}</strong></td>
-                            <td>{{ $receipt->receipt_date->format('d/m/Y') }}</td>
-                            <td>{{ $receipt->book->ten_sach }}</td>
+                            <td>{{ optional($receipt->receipt_date)->format('d/m/Y') }}</td>
+                            <td>
+                                @if($receipt->book)
+                                    {{ $receipt->book->ten_sach }}
+                                @else
+                                    <span class="text-muted">[Sách đã xoá hoặc không tồn tại]</span>
+                                @endif
+                            </td>
                             <td>{{ $receipt->quantity }}</td>
                             <td>{{ $receipt->storage_location }}</td>
                             <td>
@@ -187,7 +193,7 @@
                                     <span class="badge badge-warning">Trưng bày</span>
                                 @endif
                             </td>
-                            <td>{{ $receipt->receiver->name }}</td>
+                            <td>{{ optional($receipt->receiver)->name ?? 'N/A' }}</td>
                             <td>
                                 @if($receipt->status == 'pending')
                                     <span class="badge badge-warning">Chờ phê duyệt</span>

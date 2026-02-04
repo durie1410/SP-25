@@ -6,39 +6,70 @@ use App\Models\Book;
 use App\Models\Category;
 use App\Models\Borrow;
 use App\Models\BorrowItem;
+use App\Models\BorrowPayment;
 use App\Models\Fine;
 use App\Models\Reader;
 use App\Models\Inventory;
 use App\Models\Order;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        // Lấy thống kê tổng quan theo đúng như trong ảnh
+        // Lấy thống kê tổng quan
         $totalBooks = Book::count();
         $totalBorrowingReaders = Borrow::where('trang_thai', 'Dang muon')->count();
         
         // Thống kê bổ sung
-        $totalReservations = 0; // Reservation model đã bị xóa
+        $totalReservations = 0;
         
         // Thống kê theo thể loại
         $categoryStats = Category::withCount('books')->get();
         $totalCategories = Category::count();
         
-        // Tổng hợp tiền - Doanh thu từ MƯỢN SÁCH
-        // Tính tổng tiền từ các phiếu mượn (có thể lọc theo trạng thái đã hoàn thành hoặc tất cả)
-        $totalRevenueFromBorrows = Borrow::sum('tong_tien');
-        $monthlyRevenueFromBorrows = Borrow::whereYear('created_at', Carbon::now()->year)
+        // ========================================
+        // DOANH THU TỪ MƯỢN SÁCH (BorrowPayment)
+        // Chỉ tính các payment đã thành công
+        // ========================================
+        $totalRevenueFromBorrows = BorrowPayment::where('payment_status', 'success')->sum('amount');
+        $monthlyRevenueFromBorrows = BorrowPayment::where('payment_status', 'success')
+            ->whereYear('created_at', Carbon::now()->year)
             ->whereMonth('created_at', Carbon::now()->month)
-            ->sum('tong_tien');
-        $todayRevenueFromBorrows = Borrow::whereDate('created_at', Carbon::today())
-            ->sum('tong_tien');
+            ->sum('amount');
+        $todayRevenueFromBorrows = BorrowPayment::where('payment_status', 'success')
+            ->whereDate('created_at', Carbon::today())
+            ->sum('amount');
         
-        // Tổng hợp tiền - Doanh thu từ ĐẶT TRƯỚC/MUA SÁCH (Orders)
-        // Chỉ tính các đơn hàng đã thanh toán
+        // Nếu không có BorrowPayment records, fallback tính từ Borrow với status hoàn tất
+        if ($totalRevenueFromBorrows == 0) {
+            // Tính từ các phiếu mượn đã hoàn tất hoặc đang mượn (đã thanh toán để nhận sách)
+            $validBorrowStatuses = ['Dang muon', 'Da tra', 'hoan_tat_don_hang', 'da_muon_dang_luu_hanh'];
+            $totalRevenueFromBorrows = Borrow::whereIn('trang_thai', $validBorrowStatuses)
+                ->orWhereIn('trang_thai_chi_tiet', $validBorrowStatuses)
+                ->sum('tong_tien');
+            $monthlyRevenueFromBorrows = Borrow::where(function($q) use ($validBorrowStatuses) {
+                    $q->whereIn('trang_thai', $validBorrowStatuses)
+                      ->orWhereIn('trang_thai_chi_tiet', $validBorrowStatuses);
+                })
+                ->whereYear('created_at', Carbon::now()->year)
+                ->whereMonth('created_at', Carbon::now()->month)
+                ->sum('tong_tien');
+            $todayRevenueFromBorrows = Borrow::where(function($q) use ($validBorrowStatuses) {
+                    $q->whereIn('trang_thai', $validBorrowStatuses)
+                      ->orWhereIn('trang_thai_chi_tiet', $validBorrowStatuses);
+                })
+                ->whereDate('created_at', Carbon::today())
+                ->sum('tong_tien');
+        }
+        
+        // ========================================
+        // DOANH THU TỪ ĐẶT/MUA SÁCH (Orders)
+        // Chỉ tính các đơn đã thanh toán
+        // ========================================
         $totalRevenueFromOrders = Order::where('payment_status', 'paid')->sum('total_amount');
         $monthlyRevenueFromOrders = Order::where('payment_status', 'paid')
             ->whereYear('created_at', Carbon::now()->year)
@@ -48,55 +79,107 @@ class DashboardController extends Controller
             ->whereDate('created_at', Carbon::today())
             ->sum('total_amount');
         
-        // TỔNG HỢP - Từ cả mượn sách và đặt trước
+        // ========================================
+        // TỔNG HỢP DOANH THU
+        // ========================================
         $totalRevenue = $totalRevenueFromBorrows + $totalRevenueFromOrders;
         $monthlyRevenue = $monthlyRevenueFromBorrows + $monthlyRevenueFromOrders;
         $todayRevenue = $todayRevenueFromBorrows + $todayRevenueFromOrders;
         
         // Tính doanh thu tháng trước để so sánh
-        $lastMonthRevenueFromBorrows = Borrow::whereYear('created_at', Carbon::now()->subMonth()->year)
+        $lastMonthBorrowPayments = BorrowPayment::where('payment_status', 'success')
+            ->whereYear('created_at', Carbon::now()->subMonth()->year)
             ->whereMonth('created_at', Carbon::now()->subMonth()->month)
-            ->sum('tong_tien');
+            ->sum('amount');
+        if ($lastMonthBorrowPayments == 0) {
+            $validBorrowStatuses = ['Dang muon', 'Da tra', 'hoan_tat_don_hang', 'da_muon_dang_luu_hanh'];
+            $lastMonthBorrowPayments = Borrow::where(function($q) use ($validBorrowStatuses) {
+                    $q->whereIn('trang_thai', $validBorrowStatuses)
+                      ->orWhereIn('trang_thai_chi_tiet', $validBorrowStatuses);
+                })
+                ->whereYear('created_at', Carbon::now()->subMonth()->year)
+                ->whereMonth('created_at', Carbon::now()->subMonth()->month)
+                ->sum('tong_tien');
+        }
         $lastMonthRevenueFromOrders = Order::where('payment_status', 'paid')
             ->whereYear('created_at', Carbon::now()->subMonth()->year)
             ->whereMonth('created_at', Carbon::now()->subMonth()->month)
             ->sum('total_amount');
-        $lastMonthRevenue = $lastMonthRevenueFromBorrows + $lastMonthRevenueFromOrders;
+        $lastMonthRevenue = $lastMonthBorrowPayments + $lastMonthRevenueFromOrders;
         
-        // Tính phần trăm tăng/giảm so với tháng trước
+        // Tính phần trăm tăng/giảm
         $revenueChangePercent = 0;
         if ($lastMonthRevenue > 0) {
             $revenueChangePercent = (($monthlyRevenue - $lastMonthRevenue) / $lastMonthRevenue) * 100;
         } elseif ($monthlyRevenue > 0) {
-            $revenueChangePercent = 100; // Tăng 100% nếu tháng trước = 0
+            $revenueChangePercent = 100;
         }
         
-        // Tổng hợp tiền phạt
+        // ========================================
+        // TIỀN PHẠT
+        // ========================================
         $totalFinesPaid = Fine::where('status', 'paid')->sum('amount');
         $totalFinesPending = Fine::where('status', 'pending')->sum('amount');
         $totalFinesOverdue = Fine::overdue()->sum('amount');
         
+        // DEBUG: Log để kiểm tra
+        Log::info('=== DASHBOARD REVENUE DEBUG ===');
+        Log::info('BorrowPayment success count: ' . BorrowPayment::where('payment_status', 'success')->count());
+        Log::info('BorrowPayment success total: ' . BorrowPayment::where('payment_status', 'success')->sum('amount'));
+        Log::info('Borrow count (Dang muon/Da tra): ' . Borrow::whereIn('trang_thai', ['Dang muon', 'Da tra'])->count());
+        Log::info('Borrow total (Dang muon/Da tra): ' . Borrow::whereIn('trang_thai', ['Dang muon', 'Da tra'])->sum('tong_tien'));
+        Log::info('Order paid count: ' . Order::where('payment_status', 'paid')->count());
+        Log::info('Order paid total: ' . Order::where('payment_status', 'paid')->sum('total_amount'));
+        Log::info('Fine paid count: ' . Fine::where('status', 'paid')->count());
+        Log::info('Fine paid total: ' . Fine::where('status', 'paid')->sum('amount'));
+        Log::info('totalRevenue: ' . $totalRevenue);
+        Log::info('monthlyRevenue: ' . $monthlyRevenue);
+        Log::info('todayRevenue: ' . $todayRevenue);
+        Log::info('totalFinesPaid: ' . $totalFinesPaid);
+        Log::info('=== END DEBUG ===');
+        
         // Thống kê doanh thu theo tháng (12 tháng gần nhất)
         $monthlyRevenueStats = [];
+        $validBorrowStatuses = ['Dang muon', 'Da tra', 'hoan_tat_don_hang', 'da_muon_dang_luu_hanh'];
+        
         for ($i = 11; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
             $year = $date->year;
             $month = $date->month;
             
-            $revenueFromBorrows = Borrow::whereYear('created_at', $year)
+            // Ưu tiên dùng BorrowPayment
+            $revenueFromBorrows = BorrowPayment::where('payment_status', 'success')
+                ->whereYear('created_at', $year)
                 ->whereMonth('created_at', $month)
-                ->sum('tong_tien');
+                ->sum('amount');
+            
+            // Fallback nếu không có BorrowPayment
+            if ($revenueFromBorrows == 0) {
+                $revenueFromBorrows = Borrow::where(function($q) use ($validBorrowStatuses) {
+                        $q->whereIn('trang_thai', $validBorrowStatuses)
+                          ->orWhereIn('trang_thai_chi_tiet', $validBorrowStatuses);
+                    })
+                    ->whereYear('created_at', $year)
+                    ->whereMonth('created_at', $month)
+                    ->sum('tong_tien');
+            }
             
             $revenueFromOrders = Order::where('payment_status', 'paid')
                 ->whereYear('created_at', $year)
                 ->whereMonth('created_at', $month)
                 ->sum('total_amount');
             
+            // Cộng thêm tiền phạt đã thu trong tháng
+            $finesRevenue = Fine::where('status', 'paid')
+                ->whereYear('updated_at', $year)
+                ->whereMonth('updated_at', $month)
+                ->sum('amount');
+            
             $monthlyRevenueStats[] = [
                 'label' => 'T' . $date->month,
                 'month' => $date->month,
                 'year' => $year,
-                'revenue' => $revenueFromBorrows + $revenueFromOrders
+                'revenue' => $revenueFromBorrows + $revenueFromOrders + $finesRevenue
             ];
         }
         

@@ -1,102 +1,121 @@
 @extends('layouts.admin')
 
-@section('title', 'Dashboard - Quản Lý Thư Viện LIBHUB')
+@section('title', 'Dashboard - Quản Lý Thư Viện LibNet')
 
 @section('content')
 <!-- Page Header -->
 <div class="page-header">
     <h1 class="page-title">
-                            <i class="fas fa-tachometer-alt"></i>
-        Dashboard Thư Viện
-            </h1>
+        <i class="fas fa-chart-pie"></i>
+        Dashboard
+    </h1>
     <p class="page-subtitle">
-                        Tổng quan và thống kê hệ thống quản lý thư viện
-        - Hôm nay: {{ now()->format('d/m/Y') }} | <span id="current-time">{{ now()->format('H:i') }}</span>
+        Tổng quan hệ thống quản lý thư viện • {{ now()->format('d/m/Y') }} | <span id="current-time">{{ now()->format('H:i') }}</span>
     </p>
 </div>
 
 <!-- Stats Cards -->
-<div class="stats-grid" style="grid-template-columns: repeat(2, 1fr);">
+<div class="stats-grid" style="grid-template-columns: repeat(4, 1fr);">
     <!-- Total Books -->
-    <div class="stat-card" style="animation: slideInUp 0.5s var(--ease-smooth) 0.1s both;">
+    <div class="stat-card">
         <div class="stat-header">
             <div class="stat-title">Tổng Sách</div>
             <div class="stat-icon primary">
-                <i class="fas fa-book-open"></i>
+                <i class="fas fa-book"></i>
             </div>
         </div>
-        <div class="stat-value">{{ $totalBooks ?? 0 }}</div>
-        <div class="stat-label">Quyển sách trong hệ thống</div>
-        <div class="stat-trend" style="margin-top: 12px; font-size: 12px; color: var(--primary-color); display: flex; align-items: center; gap: 6px;">
+        <div class="stat-value">{{ number_format($totalBooks ?? 0) }}</div>
+        <div class="stat-label">Quyển trong hệ thống</div>
+        <div class="stat-trend positive">
             <i class="fas fa-check-circle"></i>
-            <span>Có trong kho</span>
+            <span>Đang hoạt động</span>
         </div>
     </div>
     
     <!-- Currently Borrowing -->
-    <div class="stat-card" style="animation: slideInUp 0.5s var(--ease-smooth) 0.2s both;">
+    <div class="stat-card">
         <div class="stat-header">
             <div class="stat-title">Đang Mượn</div>
             <div class="stat-icon success">
-                <i class="fas fa-exchange-alt"></i>
+                <i class="fas fa-hand-holding"></i>
             </div>
         </div>
-        <div class="stat-value">{{ $totalBorrowingReaders ?? 0 }}</div>
-        <div class="stat-label">Sách đang được mượn</div>
-        <div class="stat-trend" style="margin-top: 12px; font-size: 12px; color: #28a745; display: flex; align-items: center; gap: 6px;">
-            <i class="fas fa-check-circle"></i>
-            <span>Hoạt động bình thường</span>
+        <div class="stat-value">{{ number_format($totalBorrowingReaders ?? 0) }}</div>
+        <div class="stat-label">Sách đang cho mượn</div>
+        <div class="stat-trend positive">
+            <i class="fas fa-arrow-up"></i>
+            <span>Hoạt động tốt</span>
         </div>
     </div>
-    
+
+    <!-- Categories -->
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-title">Thể Loại</div>
+            <div class="stat-icon warning">
+                <i class="fas fa-tags"></i>
+            </div>
+        </div>
+        <div class="stat-value">{{ number_format(count($categoryStats ?? [])) }}</div>
+        <div class="stat-label">Danh mục sách</div>
+        <div class="stat-trend positive">
+            <i class="fas fa-layer-group"></i>
+            <span>Phân loại đầy đủ</span>
+        </div>
+    </div>
+
+    <!-- Today Activity -->
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-title">Hôm Nay</div>
+            <div class="stat-icon danger">
+                <i class="fas fa-calendar-day"></i>
+            </div>
+        </div>
+        <div class="stat-value">{{ count($recentActivities ?? []) }}</div>
+        <div class="stat-label">Hoạt động gần đây</div>
+        <div class="stat-trend positive">
+            <i class="fas fa-clock"></i>
+            <span>Cập nhật liên tục</span>
+        </div>
+    </div>
 </div>
 
-<!-- Financial Summary Section -->
-<div class="card" style="margin-bottom: 25px; animation: fadeInScale 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.5s both;">
+<!-- Financial Summary Section - Only for Admin -->
+@if(!auth()->user()->isStaff())
+<div class="card" style="margin-bottom: 24px;">
     <div class="card-header">
-        <div>
-            <h3 class="card-title">
-                <i class="fas fa-money-bill-wave"></i>
-                Tổng Hợp Tiền
-            </h3>
-            <p style="font-size: 13px; color: #888; margin: 5px 0 0 0;">Thống kê doanh thu từ mượn sách và tiền phạt</p>
-        </div>
+        <h3 class="card-title">
+            <i class="fas fa-wallet"></i>
+            Tổng Hợp Doanh Thu
+        </h3>
     </div>
-    <div style="padding: 25px;">
-        <!-- Tổng hợp chính -->
-        <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px;">
+    <div class="card-body">
+        <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); gap: 20px;">
             <!-- Total Revenue -->
-            <div class="stat-card" style="background: linear-gradient(135deg, rgba(0, 255, 153, 0.15), rgba(0, 255, 153, 0.08)); border: 2px solid rgba(0, 255, 153, 0.3);">
+            <div class="stat-card" style="background: linear-gradient(135deg, rgba(13, 148, 136, 0.08), rgba(13, 148, 136, 0.04)); border-color: rgba(13, 148, 136, 0.2);">
                 <div class="stat-header">
                     <div class="stat-title">Tổng Doanh Thu</div>
                     <div class="stat-icon primary">
                         <i class="fas fa-coins"></i>
                     </div>
                 </div>
-                <div class="stat-value" style="color: var(--primary-color); font-size: 32px;">{{ number_format($totalRevenue ?? 0, 0, ',', '.') }} <span style="font-size: 16px;">VNĐ</span></div>
-                <div class="stat-label" style="margin-top: 8px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888;">
-                        <span>Từ mượn sách</span>
-                    </div>
-                </div>
+                <div class="stat-value" style="color: var(--primary-color); font-size: 28px;">{{ number_format($totalRevenue ?? 0, 0, ',', '.') }}</div>
+                <div class="stat-label">VNĐ • Từ mượn sách</div>
             </div>
             
             <!-- Monthly Revenue -->
-            <div class="stat-card" style="background: linear-gradient(135deg, rgba(40, 167, 69, 0.15), rgba(40, 167, 69, 0.08)); border: 2px solid rgba(40, 167, 69, 0.3);">
+            <div class="stat-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.04)); border-color: rgba(16, 185, 129, 0.2);">
                 <div class="stat-header">
-                    <div class="stat-title">Doanh Thu Tháng Này</div>
+                    <div class="stat-title">Tháng Này</div>
                     <div class="stat-icon success">
                         <i class="fas fa-calendar-alt"></i>
                     </div>
                 </div>
-                <div class="stat-value" style="color: #28a745; font-size: 32px;">{{ number_format($monthlyRevenue ?? 0, 0, ',', '.') }} <span style="font-size: 16px;">VNĐ</span></div>
-                <div class="stat-label" style="margin-top: 8px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888;">
-                        <span>Từ mượn sách</span>
-                    </div>
-                </div>
+                <div class="stat-value" style="color: #10b981; font-size: 28px;">{{ number_format($monthlyRevenue ?? 0, 0, ',', '.') }}</div>
+                <div class="stat-label">VNĐ • Doanh thu tháng</div>
                 @if(isset($revenueChangePercent) && $revenueChangePercent != 0)
-                <div class="stat-trend" style="margin-top: 12px; font-size: 12px; color: {{ $revenueChangePercent > 0 ? '#28a745' : '#ff6b6b' }}; display: flex; align-items: center; gap: 6px;">
+                <div class="stat-trend {{ $revenueChangePercent > 0 ? 'positive' : 'negative' }}">
                     <i class="fas fa-arrow-{{ $revenueChangePercent > 0 ? 'up' : 'down' }}"></i>
                     <span>{{ number_format(abs($revenueChangePercent), 1) }}% so với tháng trước</span>
                 </div>
@@ -104,59 +123,52 @@
             </div>
             
             <!-- Today Revenue -->
-            <div class="stat-card" style="background: linear-gradient(135deg, rgba(255, 221, 0, 0.15), rgba(255, 221, 0, 0.08)); border: 2px solid rgba(255, 221, 0, 0.3);">
+            <div class="stat-card" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.04)); border-color: rgba(245, 158, 11, 0.2);">
                 <div class="stat-header">
-                    <div class="stat-title">Doanh Thu Hôm Nay</div>
-                    <div class="stat-icon" style="background: rgba(255, 221, 0, 0.2); color: var(--secondary-color);">
+                    <div class="stat-title">Hôm Nay</div>
+                    <div class="stat-icon warning">
                         <i class="fas fa-sun"></i>
                     </div>
                 </div>
-                <div class="stat-value" style="color: var(--secondary-color); font-size: 32px;">{{ number_format($todayRevenue ?? 0, 0, ',', '.') }} <span style="font-size: 16px;">VNĐ</span></div>
-                <div class="stat-label" style="margin-top: 8px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888;">
-                        <span>Từ mượn sách</span>
-                    </div>
-                </div>
+                <div class="stat-value" style="color: #f59e0b; font-size: 28px;">{{ number_format($todayRevenue ?? 0, 0, ',', '.') }}</div>
+                <div class="stat-label">VNĐ • Doanh thu hôm nay</div>
             </div>
-        </div>
-        
-        <!-- Chi tiết từng nguồn và tiền phạt -->
-        <div class="stats-grid" style="grid-template-columns: repeat(1, 1fr); gap: 20px;">
+            
             <!-- Fines Paid -->
-            <div class="stat-card" style="background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(40, 167, 69, 0.05)); border: 1px solid rgba(40, 167, 69, 0.2);">
+            <div class="stat-card" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.04)); border-color: rgba(59, 130, 246, 0.2);">
                 <div class="stat-header">
-                    <div class="stat-title">Tiền Phạt Đã Thu</div>
-                    <div class="stat-icon success">
-                        <i class="fas fa-check-circle"></i>
+                    <div class="stat-title">Tiền Phạt</div>
+                    <div class="stat-icon" style="background: rgba(59, 130, 246, 0.12); color: #3b82f6;">
+                        <i class="fas fa-receipt"></i>
                     </div>
                 </div>
-                <div class="stat-value" style="color: #28a745;">{{ number_format($totalFinesPaid ?? 0, 0, ',', '.') }} <span style="font-size: 18px;">VNĐ</span></div>
-                <div class="stat-label">Tiền phạt đã thanh toán</div>
+                <div class="stat-value" style="color: #3b82f6; font-size: 28px;">{{ number_format($totalFinesPaid ?? 0, 0, ',', '.') }}</div>
+                <div class="stat-label">VNĐ • Đã thu</div>
             </div>
         </div>
     </div>
 </div>
+@endif
 
 <!-- Charts Row -->
-<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 25px; margin-bottom: 25px;">
+<div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; margin-bottom: 24px;">
     <!-- Borrow Chart -->
     <div class="card">
         <div class="card-header">
             <div>
                 <h3 class="card-title">
-                            <i class="fas fa-chart-line"></i>
-                    Mượn Sách Theo Tháng
+                    <i class="fas fa-chart-line"></i>
+                    Thống Kê Mượn Sách
                 </h3>
-                <p style="font-size: 13px; color: #888; margin: 5px 0 0 0;">Thống kê xu hướng mượn và trả sách</p>
-                        </div>
-            <select class="form-select" id="chartPeriod" style="width: auto; padding: 8px 12px;">
-                        <option value="7">7 ngày qua</option>
-                        <option value="30" selected>30 ngày qua</option>
-                        <option value="90">3 tháng qua</option>
-                        <option value="365">1 năm qua</option>
-                    </select>
-                </div>
-        <div style="height: 300px; padding: 20px;">
+            </div>
+            <select class="form-select" id="chartPeriod" style="width: auto; padding: 8px 14px; font-size: 13px; border-radius: 8px;">
+                <option value="7">7 ngày qua</option>
+                <option value="30" selected>30 ngày qua</option>
+                <option value="90">3 tháng qua</option>
+                <option value="365">1 năm qua</option>
+            </select>
+        </div>
+        <div class="card-body" style="height: 280px;">
             <canvas id="borrowChart"></canvas>
         </div>
     </div>
@@ -166,139 +178,128 @@
         <div class="card-header">
             <div>
                 <h3 class="card-title">
-                            <i class="fas fa-chart-pie"></i>
-                    Thể Loại Sách
+                    <i class="fas fa-pie-chart"></i>
+                    Phân Bố Thể Loại
                 </h3>
-                <p style="font-size: 13px; color: #888; margin: 5px 0 0 0;">Phân bố theo danh mục</p>
             </div>
-                        </div>
-        <div style="height: 300px; padding: 20px;">
+        </div>
+        <div class="card-body" style="height: 280px;">
             <canvas id="categoryChart"></canvas>
         </div>
     </div>
 </div>
 
-<!-- Revenue Chart Row -->
-<div style="display: grid; grid-template-columns: 1fr; gap: 25px; margin-bottom: 25px;">
-    <!-- Revenue Chart -->
-    <div class="card" style="border: 2px solid rgba(0, 255, 153, 0.3);">
+<!-- Revenue Chart Row - Only for Admin -->
+@if(!auth()->user()->isStaff())
+<div style="margin-bottom: 24px;">
+    <div class="card">
         <div class="card-header">
-            <div>
-                <h3 class="card-title">
-                    <i class="fas fa-chart-bar"></i>
-                    Tổng Doanh Thu Theo Tháng
-                </h3>
-                <p style="font-size: 13px; color: #888; margin: 5px 0 0 0;">Thống kê xu hướng doanh thu theo tháng</p>
-            </div>
-            <select class="form-select" id="revenueChartPeriod" style="width: auto; padding: 8px 12px;">
+            <h3 class="card-title">
+                <i class="fas fa-chart-bar"></i>
+                Biểu Đồ Doanh Thu
+            </h3>
+            <select class="form-select" id="revenueChartPeriod" style="width: auto; padding: 8px 14px; font-size: 13px; border-radius: 8px;">
                 <option value="7">7 ngày qua</option>
                 <option value="30" selected>30 ngày qua</option>
                 <option value="90">3 tháng qua</option>
                 <option value="365">1 năm qua</option>
             </select>
         </div>
-        <div style="height: 300px; padding: 20px;">
+        <div class="card-body" style="height: 280px;">
             <canvas id="revenueChart"></canvas>
         </div>
     </div>
 </div>
+@endif
 
 <!-- Activity and System Info Row -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
     <!-- Recent Activity -->
     <div class="card">
-                <div class="card-header">
+        <div class="card-header">
             <h3 class="card-title">
-                        <i class="fas fa-history"></i>
+                <i class="fas fa-history"></i>
                 Hoạt Động Gần Đây
             </h3>
-            <a href="{{ route('admin.logs.index') }}" style="color: var(--primary-color); text-decoration: none; font-size: 14px; font-weight: 500;">
-                Xem tất cả <i class="fas fa-arrow-right" style="font-size: 12px;"></i>
+            <a href="{{ route('admin.logs.index') }}" style="color: var(--primary-color); text-decoration: none; font-size: 13px; font-weight: 500;">
+                Xem tất cả <i class="fas fa-chevron-right" style="font-size: 10px;"></i>
             </a>
-            </div>
-        <div style="padding: 0;">
-            <div style="display: flex; flex-direction: column; gap: 0;">
-                @forelse($recentActivities ?? [] as $activity)
-                    <a href="{{ $activity['action_url'] }}" class="activity-item" style="padding: 18px 25px; {{ !$loop->last ? 'border-bottom: 1px solid rgba(255, 255, 255, 0.05);' : '' }} display: flex; align-items: flex-start; gap: 15px; transition: all 0.3s; cursor: pointer; text-decoration: none; color: inherit;" onmouseover="this.style.background='{{ str_replace('0.2', '0.05', $activity['bg_color']) }}'" onmouseout="this.style.background='transparent'">
-                        <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, {{ $activity['bg_color'] }}, {{ str_replace('0.2', '0.1', $activity['bg_color']) }}); display: flex; align-items: center; justify-content: center; color: {{ $activity['icon_color'] }}; flex-shrink: 0; box-shadow: 0 2px 8px {{ $activity['bg_color'] }};">
-                            <i class="{{ $activity['icon'] }}"></i>
-                        </div>
-                        <div style="flex: 1;">
-                            <div style="color: var(--text-primary); font-size: 14px; margin-bottom: 6px; font-weight: 500;">{{ $activity['title'] }}</div>
-                            @if(!empty($activity['description']))
-                                <div style="font-size: 12px; color: #888; margin-bottom: 6px;">{{ Str::limit($activity['description'], 50) }}</div>
-                            @endif
-                            <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 8px;">
-                                <i class="fas fa-clock" style="font-size: 10px;"></i>
-                                <span>{{ $activity['time']->diffForHumans() }}</span>
-                                <span style="margin: 0 4px;">•</span>
-                                <span style="color: {{ $activity['text_color'] }}; font-weight: 500;">{{ $activity['action_text'] }}</span>
-                            </div>
-                        </div>
-                    </a>
-                @empty
-                    <div style="padding: 40px 25px; text-align: center; color: #888;">
-                        <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 15px; opacity: 0.3;"></i>
-                        <p style="margin: 0;">Chưa có hoạt động nào</p>
+        </div>
+        <div style="max-height: 360px; overflow-y: auto;">
+            @forelse($recentActivities ?? [] as $activity)
+                <a href="{{ $activity['action_url'] }}" class="activity-item" style="padding: 16px 24px; {{ !$loop->last ? 'border-bottom: 1px solid var(--border-color);' : '' }} display: flex; align-items: flex-start; gap: 14px; transition: all 0.2s; text-decoration: none; color: inherit;" onmouseover="this.style.background='rgba(13, 148, 136, 0.04)'" onmouseout="this.style.background='transparent'">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: {{ $activity['bg_color'] }}; display: flex; align-items: center; justify-content: center; color: {{ $activity['icon_color'] }}; flex-shrink: 0;">
+                        <i class="{{ $activity['icon'] }}" style="font-size: 14px;"></i>
                     </div>
-                @endforelse
-            </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="color: var(--text-primary); font-size: 14px; margin-bottom: 4px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $activity['title'] }}</div>
+                        <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-clock" style="font-size: 10px;"></i>
+                            <span>{{ $activity['time']->diffForHumans() }}</span>
+                            <span style="color: {{ $activity['text_color'] }}; font-weight: 500; margin-left: 4px;">{{ $activity['action_text'] }}</span>
+                        </div>
+                    </div>
+                </a>
+            @empty
+                <div style="padding: 48px 24px; text-align: center; color: var(--text-muted);">
+                    <i class="fas fa-inbox" style="font-size: 40px; margin-bottom: 12px; opacity: 0.4;"></i>
+                    <p style="margin: 0; font-size: 14px;">Chưa có hoạt động nào</p>
+                </div>
+            @endforelse
         </div>
     </div>
     
     <!-- System Info -->
     <div class="card">
-                <div class="card-header">
+        <div class="card-header">
             <h3 class="card-title">
-                        <i class="fas fa-server"></i>
+                <i class="fas fa-server"></i>
                 Thông Tin Hệ Thống
             </h3>
-            <span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 5px;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: #28a745; animation: pulse 2s infinite;"></span>
+            <span class="badge badge-success">
+                <span style="width: 6px; height: 6px; border-radius: 50%; background: currentColor;"></span>
                 Online
             </span>
+        </div>
+        <div>
+            <div class="system-info-item" style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(13, 148, 136, 0.1); display: flex; align-items: center; justify-content: center; color: var(--primary-color);">
+                        <i class="fas fa-code-branch"></i>
+                    </div>
+                    <span style="color: var(--text-muted); font-size: 14px;">Phiên bản</span>
+                </div>
+                <span style="color: var(--text-primary); font-weight: 600; font-size: 14px;">v2.1.0</span>
             </div>
-        <div style="padding: 0;">
-            <div style="display: flex; flex-direction: column; gap: 0;">
-                <div style="padding: 15px 25px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(0, 255, 153, 0.15); display: flex; align-items: center; justify-content: center; color: var(--primary-color);">
-                                <i class="fas fa-code-branch"></i>
-                            </div>
-                        <span style="color: #888; font-size: 14px;">Phiên bản hệ thống</span>
-                            </div>
-                    <span style="color: var(--text-primary); font-weight: 600; font-size: 14px;">v2.1.0</span>
+            
+            <div class="system-info-item" style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(16, 185, 129, 0.1); display: flex; align-items: center; justify-content: center; color: #10b981;">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <span style="color: var(--text-muted); font-size: 14px;">Uptime</span>
                 </div>
-                
-                <div style="padding: 15px 25px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(0, 255, 153, 0.15); display: flex; align-items: center; justify-content: center; color: var(--primary-color);">
-                                <i class="fas fa-clock"></i>
-                            </div>
-                        <span style="color: #888; font-size: 14px;">Thời gian hoạt động</span>
-                            </div>
-                    <span style="color: var(--text-primary); font-weight: 600; font-size: 14px;">15 ngày 8 giờ</span>
+                <span style="color: var(--text-primary); font-weight: 600; font-size: 14px;">15 ngày 8 giờ</span>
+            </div>
+            
+            <div class="system-info-item" style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(59, 130, 246, 0.1); display: flex; align-items: center; justify-content: center; color: #3b82f6;">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <span style="color: var(--text-muted); font-size: 14px;">Database</span>
                 </div>
-                
-                <div style="padding: 15px 25px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(0, 255, 153, 0.15); display: flex; align-items: center; justify-content: center; color: var(--primary-color);">
-                                <i class="fas fa-database"></i>
-                            </div>
-                        <span style="color: #888; font-size: 14px;">Dung lượng database</span>
-                            </div>
-                    <span style="color: var(--text-primary); font-weight: 600; font-size: 14px;">245.6 MB</span>
-                        </div>
+                <span style="color: var(--text-primary); font-weight: 600; font-size: 14px;">245.6 MB</span>
+            </div>
 
-                <div style="padding: 15px 25px; display: flex; align-items: center; justify-content: space-between;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(0, 255, 153, 0.15); display: flex; align-items: center; justify-content: center; color: var(--primary-color);">
-                            <i class="fas fa-tachometer-alt"></i>
+            <div class="system-info-item" style="padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(245, 158, 11, 0.1); display: flex; align-items: center; justify-content: center; color: #f59e0b;">
+                        <i class="fas fa-bolt"></i>
                     </div>
-                        <span style="color: #888; font-size: 14px;">Response Time</span>
-                    </div>
-                    <span style="color: var(--text-primary); font-weight: 600; font-size: 14px;">45ms</span>
+                    <span style="color: var(--text-muted); font-size: 14px;">Response</span>
                 </div>
+                <span style="color: var(--text-primary); font-weight: 600; font-size: 14px;">45ms</span>
             </div>
         </div>
     </div>
@@ -437,19 +438,19 @@
                 ? monthlyBorrowData.map(item => item.count) 
                 : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             
-            let borrowChartInstance = new Chart(borrowCtx, {
+            let borrowChartInstance =                     new Chart(borrowCtx, {
                     type: 'line',
         data: {
                         labels: borrowLabels,
             datasets: [{
                             label: 'Sách mượn',
                         data: borrowCounts,
-                        borderColor: 'rgb(0, 255, 153)',
-                        backgroundColor: 'rgba(0, 255, 153, 0.1)',
-                            borderWidth: 3,
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.08)',
+                            borderWidth: 2,
                             fill: true,
                             tension: 0.4,
-                        pointBackgroundColor: 'rgb(0, 255, 153)',
+                        pointBackgroundColor: '#0d9488',
                             pointBorderColor: '#fff',
                         pointBorderWidth: 2,
                         pointRadius: 4,
@@ -464,33 +465,34 @@
                             display: false
                             },
                             tooltip: {
-                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                backgroundColor: '#0f172a',
                                 titleColor: '#fff',
-                                bodyColor: '#fff',
-                            borderColor: 'rgb(0, 255, 153)',
+                                bodyColor: '#e2e8f0',
+                            borderColor: '#0d9488',
                                 borderWidth: 1,
-                            cornerRadius: 8
+                            cornerRadius: 8,
+                            padding: 12
                             }
                         },
                         scales: {
                             y: {
                                 beginAtZero: true,
                                 grid: {
-                                color: 'rgba(255, 255, 255, 0.05)',
+                                color: 'rgba(0, 0, 0, 0.06)',
                                     drawBorder: false
                                 },
                                 ticks: {
-                                color: '#888',
+                                color: '#64748b',
                                 font: { size: 11 }
                                 }
                             },
                             x: {
                                 grid: {
-                                color: 'rgba(255, 255, 255, 0.05)',
+                                display: false,
                                     drawBorder: false
                                 },
                                 ticks: {
-                                color: '#888',
+                                color: '#64748b',
                                 font: { size: 11 }
                             }
                         }
@@ -514,13 +516,14 @@
         if (categoryCtx && typeof Chart !== 'undefined') {
                 if (labels.length > 0) {
                     const colors = [
-                    'rgb(0, 255, 153)',
-                    'rgb(255, 221, 0)',
-                    'rgb(255, 107, 107)',
-                    '#6f42c1',
-                    '#20c997',
-                    '#fd7e14',
-                    '#6610f2'
+                    '#0d9488',
+                    '#f59e0b',
+                    '#ef4444',
+                    '#8b5cf6',
+                    '#10b981',
+                    '#3b82f6',
+                    '#ec4899',
+                    '#6366f1'
                     ];
                     
                     new Chart(categoryCtx, {
@@ -530,7 +533,8 @@
             datasets: [{
                 data: data,
                                 backgroundColor: colors.slice(0, labels.length),
-                            borderWidth: 0
+                            borderWidth: 2,
+                            borderColor: '#fff'
             }]
         },
                         options: {
@@ -541,28 +545,29 @@
                                     position: 'bottom',
                                     labels: {
                                         usePointStyle: true,
-                                        padding: 15,
-                                    color: '#888',
+                                        padding: 16,
+                                    color: '#64748b',
                                     font: { size: 11 }
                                     }
                                 },
                                 tooltip: {
-                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                    backgroundColor: '#0f172a',
                                     titleColor: '#fff',
-                                    bodyColor: '#fff',
-                                borderColor: 'rgb(0, 255, 153)',
+                                    bodyColor: '#e2e8f0',
+                                borderColor: '#0d9488',
                                     borderWidth: 1,
-                                cornerRadius: 8
+                                cornerRadius: 8,
+                                padding: 12
                             }
                         },
-                        cutout: '65%'
+                        cutout: '60%'
                     }
                 });
                 } else {
                     categoryCtx.parentElement.innerHTML = `
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #888;">
-                        <i class="fas fa-chart-pie" style="font-size: 48px; margin-bottom: 15px; opacity: 0.3;"></i>
-                        <p style="margin: 0;">Chưa có dữ liệu thể loại</p>
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted);">
+                        <i class="fas fa-chart-pie" style="font-size: 40px; margin-bottom: 12px; opacity: 0.4;"></i>
+                        <p style="margin: 0; font-size: 14px;">Chưa có dữ liệu</p>
                         </div>
                     `;
                 }
@@ -581,9 +586,9 @@
                     datasets: [{
                         label: 'Doanh thu (VNĐ)',
                         data: revenueValues,
-                        backgroundColor: 'rgba(0, 255, 153, 0.8)',
-                        borderColor: 'rgb(0, 255, 153)',
-                        borderWidth: 2,
+                        backgroundColor: '#0d9488',
+                        borderColor: '#0d9488',
+                        borderWidth: 0,
                         borderRadius: 6,
                         borderSkipped: false,
                     }]
@@ -596,12 +601,13 @@
                             display: false
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            backgroundColor: '#0f172a',
                             titleColor: '#fff',
-                            bodyColor: '#fff',
-                            borderColor: 'rgb(0, 255, 153)',
+                            bodyColor: '#e2e8f0',
+                            borderColor: '#0d9488',
                             borderWidth: 1,
                             cornerRadius: 8,
+                            padding: 12,
                             callbacks: {
                                 label: function(context) {
                                     return 'Doanh thu: ' + new Intl.NumberFormat('vi-VN').format(context.parsed.y) + ' VNĐ';
@@ -613,11 +619,11 @@
                         y: {
                             beginAtZero: true,
                             grid: {
-                                color: 'rgba(255, 255, 255, 0.05)',
+                                color: 'rgba(0, 0, 0, 0.06)',
                                 drawBorder: false
                             },
                             ticks: {
-                                color: '#888',
+                                color: '#64748b',
                                 font: { size: 11 },
                                 callback: function(value) {
                                     if (value >= 1000000) {
@@ -631,12 +637,11 @@
                         },
                         x: {
                             grid: {
-                                color: 'rgba(255, 255, 255, 0.05)',
-                                drawBorder: false,
-                                display: false
+                                display: false,
+                                drawBorder: false
                             },
                             ticks: {
-                                color: '#888',
+                                color: '#64748b',
                                 font: { size: 11 }
                             }
                         }

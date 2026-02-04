@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Quản Lý Kho - LIBHUB Admin')
+@section('title', 'Quản Lý Kho - LibNet Admin')
 
 @section('content')
 <!-- Page Header -->
@@ -20,18 +20,7 @@
                 Đồng bộ lên trang chủ
             </button>
         </form>
-        <a href="{{ route('admin.inventory.export', request()->all()) }}" class="btn btn-info">
-            <i class="fas fa-file-excel"></i>
-            Xuất Excel
-        </a>
-        <button type="button" class="btn btn-secondary" data-toggle="modal" data-target="#importModal">
-            <i class="fas fa-file-import"></i>
-            Nhập Excel
-        </button>
-        <a href="{{ route('admin.inventory.create') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i>
-            Thêm sách vào kho
-        </a>
+        
     </div>
 </div>
 
@@ -286,18 +275,28 @@
                                            title="Sửa thông tin kho">
                                             <i class="fas fa-edit"></i> Sửa
                                         </a>
-                                        <form action="{{ route('admin.inventory.destroy-by-book', $book->id) }}" 
-                                              method="POST" 
-                                              class="d-inline"
-                                              onsubmit="return confirm('Bạn có chắc chắn muốn xóa tất cả {{ $item->total_quantity }} quyển sách \"{{ $book->ten_sach }}\" khỏi kho?\\n\\n⚠️ CẢNH BÁO: Sách này cũng sẽ bị xóa khỏi quản lý sách!\\n\\nHành động này không thể hoàn tác!');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" 
-                                                    class="btn btn-sm btn-danger" 
-                                                    title="Xóa tất cả quyển sách khỏi kho và xóa sách khỏi quản lý sách">
-                                                <i class="fas fa-trash"></i> Xóa
-                                            </button>
-                                        </form>
+                                        @if(auth()->user()->isAdmin())
+                                            <form action="{{ route('admin.inventory.destroy-by-book', $book->id) }}" 
+                                                  method="POST" 
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('Bạn có chắc chắn muốn xóa tất cả {{ $item->total_quantity }} quyển sách \"{{ $book->ten_sach }}\" khỏi kho?\\n\\n⚠️ CẢNH BÁO: Sách này cũng sẽ bị xóa khỏi quản lý sách!\\n\\nHành động này không thể hoàn tác!');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" 
+                                                        class="btn btn-sm btn-danger" 
+                                                        title="Xóa tất cả quyển sách khỏi kho và xóa sách khỏi quản lý sách">
+                                                    <i class="fas fa-trash"></i> Xóa
+                                                </button>
+                                            </form>
+                                        @else
+                                            <form action="{{ route('admin.inventory.delete-requests.store') }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <input type="hidden" name="book_id" value="{{ $book->id }}">
+                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Gửi yêu cầu xóa sách \"{{ $book->ten_sach }}\" để Admin duyệt?');" title="Đề xuất xóa">
+                                                    <i class="fas fa-paper-plane"></i> Đề xuất xóa
+                                                </button>
+                                            </form>
+                                        @endif
                                     @else
                                         <span class="text-muted">-</span>
                                     @endif

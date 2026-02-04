@@ -28,7 +28,19 @@ class NotificationService
         $template = $this->getTemplate($type);
         if (!$template) {
             Log::warning("Notification template not found for type: {$type}");
-            return false;
+
+            // Fallback for reservation_ready notification if template is missing
+            if ($type === 'reservation_ready') {
+                Log::info("Using fallback template for type: {$type}");
+                $template = (object) [
+                    'subject' => 'Sách bạn đặt trước đã sẵn sàng',
+                    'content' => 'Sách "{{book_title}}" đã sẵn sàng. Mời bạn đến quầy để nhận sách trước ngày {{expiry_date}}.',
+                    'type' => 'reservation_ready',
+                    'channel' => 'database', // Default to database channel
+                ];
+            } else {
+                return false; // Keep original behavior for other types
+            }
         }
 
         $notificationData = $this->prepareNotificationData($template, $data);
@@ -287,10 +299,13 @@ class NotificationService
         NotificationLog::create([
             'user_id' => $user->id,
             'type' => $notificationData['type'],
+            'channel' => 'database',
+            'recipient' => (string) ($user->id),
             'subject' => $notificationData['subject'],
+            'content' => $notificationData['body'],
             'body' => $notificationData['body'],
             'priority' => $notificationData['priority'],
-            'channel' => 'database',
+            'status' => 'sent',
             'sent_at' => now(),
         ]);
     }
@@ -316,10 +331,13 @@ class NotificationService
             NotificationLog::create([
                 'user_id' => $user->id,
                 'type' => $notificationData['type'],
+                'channel' => 'email',
+                'recipient' => (string) ($user->email ?? $user->id),
                 'subject' => $notificationData['subject'],
+                'content' => $notificationData['body'],
                 'body' => $notificationData['body'],
                 'priority' => $notificationData['priority'],
-                'channel' => 'email',
+                'status' => 'sent',
                 'sent_at' => now(),
             ]);
 
@@ -343,10 +361,13 @@ class NotificationService
         NotificationLog::create([
             'user_id' => $user->id,
             'type' => $notificationData['type'],
+            'channel' => 'sms',
+            'recipient' => (string) ($user->phone ?? $user->id),
             'subject' => $notificationData['subject'],
+            'content' => $notificationData['body'],
             'body' => $notificationData['body'],
             'priority' => $notificationData['priority'],
-            'channel' => 'sms',
+            'status' => 'sent',
             'sent_at' => now(),
         ]);
     }

@@ -86,6 +86,7 @@
                     <select name="role" class="form-select @error('role') is-invalid @enderror" required>
                         <option value="">-- Chọn vai trò --</option>
                         <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Quản trị viên</option>
+                        <option value="staff" {{ old('role') == 'staff' ? 'selected' : '' }}>Thủ thư (Staff)</option>
                         <option value="user" {{ old('role') == 'user' ? 'selected' : '' }}>Người dùng</option>
                     </select>
                     @error('role')

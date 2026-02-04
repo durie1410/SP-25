@@ -257,13 +257,15 @@ class Borrow extends Model
         $this->tien_thue = $this->borrowItems()->sum('tien_thue');
         $this->tien_ship = $this->borrowItems()->sum('tien_ship');
 
+        $tien_phat = $this->borrowItems()->sum('tien_phat');
+
         // Tổng trước khi áp dụng voucher
-        $this->tong_tien = $this->tien_coc + $this->tien_thue + $this->tien_ship;
+        $this->tong_tien = $this->tien_coc + $this->tien_thue + $this->tien_ship + $tien_phat;
 
         // Nếu có voucher, áp dụng giảm giá
         if ($this->voucher) {
             $voucher = $this->voucher;
-            $tongTienTruocGiam = $this->tien_coc + $this->tien_thue + $this->tien_ship;
+            $tongTienTruocGiam = $this->tien_coc + $this->tien_thue + $this->tien_ship + $tien_phat;
 
             if ($voucher->loai === 'percentage') {
                 $discount = ($tongTienTruocGiam * $voucher->gia_tri) / 100;

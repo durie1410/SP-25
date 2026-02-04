@@ -176,6 +176,36 @@ class RolePermissionSeeder extends Seeder
                 'view-email-marketing', 'create-email-marketing', 'edit-email-marketing', 'send-email-marketing',
             ],
             
+            // ========== STAFF (Nhân viên) - Quyền trung bình ==========
+            'staff' => [
+                // Dashboard
+                'view-dashboard',
+                
+                // Books - Có thể xem, tạo và sửa
+                'view-books', 'create-books', 'edit-books',
+                
+                // Categories - Chỉ xem
+                'view-categories',
+                
+                // Orders/Borrows - Quản lý đơn hàng
+                'view-borrows', 'create-borrows', 'edit-borrows', 'return-books',
+                
+                // Reservations - Quản lý đặt chỗ
+                'view-reservations', 'confirm-reservations',
+                
+                // Readers - Có thể xem
+                'view-readers',
+                
+                // Reports - Xem báo cáo
+                'view-reports', 'export-reports',
+                
+                // Notifications - Xem thông báo
+                'view-notifications',
+                
+                // Reviews - Có thể xem và phê duyệt
+                'view-reviews', 'approve-reviews',
+            ],
+            
             // ========== USER (Người dùng) - Quyền hạn chế nhất ==========
             'user' => [
                 // Chỉ xem sách và danh mục
@@ -221,19 +251,19 @@ class RolePermissionSeeder extends Seeder
         $user->update(['role' => 'user']);
         $this->command->info('User created/updated.');
 
-        // Xóa role staff nếu tồn tại (chuyển các user có role staff thành user)
-        $staffRole = Role::where('name', 'staff')->first();
-        if ($staffRole) {
-            $staffUsers = User::where('role', 'staff')->get();
-            foreach ($staffUsers as $staffUser) {
-                $staffUser->removeRole('staff');
-                $staffUser->assignRole('user');
-                $staffUser->update(['role' => 'user']);
-                $this->command->info("User {$staffUser->email} role changed from staff to user.");
-            }
-            $staffRole->delete();
-            $this->command->info('Staff role removed.');
+        // Tạo thêm user mẫu với role staff
+        $staffUser = User::firstOrCreate([
+            'email' => 'staff@library.com'
+        ], [
+            'name' => 'Nhân viên',
+            'password' => bcrypt('123456'),
+            'role' => 'staff',
+        ]);
+        if (!$staffUser->hasRole('staff')) {
+            $staffUser->assignRole('staff');
         }
+        $staffUser->update(['role' => 'staff']);
+        $this->command->info('Staff user created/updated.');
 
         $this->command->info('');
         $this->command->info('========================================');
@@ -242,6 +272,7 @@ class RolePermissionSeeder extends Seeder
         $this->command->info('');
         $this->command->info('Summary:');
         $this->command->info('- Admin: Full access to all features');
+        $this->command->info('- Staff: Can manage orders, books, and view reports');
         $this->command->info('- User: Read-only access with ability to create reviews and reservations');
     }
 }

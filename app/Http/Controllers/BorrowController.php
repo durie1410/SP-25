@@ -305,11 +305,12 @@ class BorrowController extends Controller
             $borrow->items()->create([
                 'book_id' => $request->book_id,
                 'inventorie_id' => $invId,
-                'tien_coc' => $request->tien_coc ?? $fees['tien_coc'],
-                'tien_thue' => $request->tien_thue ?? $fees['tien_thue'],
+                'tien_coc' => $fees['tien_coc'],
+                'tien_thue' => $fees['tien_thue'],
                 'tien_ship' => $request->tien_ship ?? 0,
                 'ngay_muon' => $request->ngay_muon,
                 'ngay_hen_tra' => $request->ngay_hen_tra,
+                'borrow_type' => $request->input('borrow_type', 'take_home'),
                 'ghi_chu' => $request->ghi_chu,
                 'librarian_id' => $request->librarian_id ?? auth()->id(),
             ]);
@@ -338,12 +339,45 @@ class BorrowController extends Controller
     ============================================================ */
     public function returnItem($id)
     {
-        $item = BorrowItem::findOrFail($id);
+        $item = BorrowItem::with(['book'])->findOrFail($id);
 
-        $item->update([
+        $returnDate = now();
+
+        $update = [
             'trang_thai' => 'Da tra',
-            'ngay_tra_thuc_te' => now()->toDateString(),
-        ]);
+            'ngay_tra_thuc_te' => $returnDate->toDateString(),
+        ];
+
+        // Take-home: tính phạt quá hạn theo tier + hoàn 30% tiền thuê nếu trả sớm
+        if (($item->borrow_type ?? 'take_home') === 'take_home' && $item->ngay_muon && $item->ngay_hen_tra) {
+            $ngayMuon = \Carbon\Carbon::parse($item->ngay_muon)->startOfDay();
+            $ngayHenTra = \Carbon\Carbon::parse($item->ngay_hen_tra)->startOfDay();
+            $ngayTra = \Carbon\Carbon::parse($returnDate)->startOfDay();
+
+            $daysExpected = max(1, $ngayMuon->diffInDays($ngayHenTra));
+            $daysBorrowed = max(1, $ngayMuon->diffInDays($ngayTra));
+
+            // hoàn tiền thuê theo policy (cách 1: giảm tien_thue thực tế)
+            $refund = \App\Services\PricingService::calculateEarlyReturnRefund((float) ($item->tien_thue ?? 0), $daysBorrowed, $daysExpected);
+            if ($refund > 0) {
+                $update['tien_thue'] = max(0, (float) ($item->tien_thue ?? 0) - $refund);
+            }
+
+            // phạt quá hạn theo tier
+            $fine = \App\Services\PricingService::calculateLateReturnFine($ngayHenTra, $ngayTra, 1);
+            if ($fine > 0) {
+                $update['tien_phat'] = $fine;
+            }
+
+            // hoàn cọc sau khi trừ phạt (chưa trừ phí hỏng/mất ở flow khác)
+            $deposit = (float) ($item->tien_coc ?? 0);
+            $depositRefund = max(0, $deposit - ($fine > 0 ? $fine : (float) ($item->tien_phat ?? 0)));
+            $update['tien_coc_da_hoan'] = $depositRefund;
+            $update['trang_thai_coc'] = 'da_hoan';
+            $update['ngay_hoan_coc'] = $returnDate->toDateString();
+        }
+
+        $item->update($update);
 
         // Cập nhật trạng thái inventory từ 'Dang muon' về 'Co san' khi trả sách
         if ($item->inventorie_id) {
@@ -358,6 +392,11 @@ class BorrowController extends Controller
                 'inventory_id' => $item->inventorie_id,
                 'borrow_item_id' => $item->id
             ]);
+        }
+
+        // Cập nhật tổng tiền của Borrow (bao gồm cả tiền phạt theo policy)
+        if ($item->borrow) {
+            $item->borrow->recalculateTotals();
         }
 
         return back()->with('success', 'Đã trả sách!');

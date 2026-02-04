@@ -29,8 +29,9 @@
     <div class="book-cover">
         @if($book->hinh_anh)
             @php
-                $imagePath = ltrim(str_replace('\\', '/', $book->hinh_anh), '/');
-                $imageUrl = asset('storage/' . $imagePath) . '?t=' . ($book->updated_at ? $book->updated_at->timestamp : time());
+                // Use model accessor to normalize different stored path formats
+                $imageUrl = $book->image_url;
+                $imageUrl .= (str_contains($imageUrl, '?') ? '&' : '?') . 't=' . ($book->updated_at ? $book->updated_at->timestamp : time());
             @endphp
             <img src="{{ $imageUrl }}" 
                  alt="{{ $book->ten_sach }}" 

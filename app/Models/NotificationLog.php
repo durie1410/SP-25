@@ -11,11 +11,17 @@ class NotificationLog extends Model
 
     protected $fillable = [
         'user_id',
+        'template_id',
         'type',
+        'channel',
+        'recipient',
         'subject',
+        'content',
         'body',
         'priority',
-        'channel',
+        'status',
+        'error_message',
+        'metadata',
         'read_at',
         'sent_at',
     ];
