@@ -9,7 +9,8 @@ use App\Models\InventoryReservation;
 
 class ReservationCart extends Model
 {
-    protected $fillable = ['user_id', 'reader_id'];
+    protected $fillable = ['user_id', 'reader_id', 'pickup_date'];
+    protected $dates = ['pickup_date'];
 
     public function user(): BelongsTo
     {
@@ -54,7 +55,77 @@ class ReservationCart extends Model
     {
         $this->items()->delete();
     }
+    /**
+     * Calculate total price for all items in cart
+     * Total = sum of (days * daily_fee * quantity) for all items
+     */
+    public function getTotalPriceAttribute(): float
+    {
+        return $this->items->sum(function ($item) {
+            return ($item->days ?? 1) * ($item->daily_fee ?? 5000) * ($item->quantity ?? 1);
+        });
+    }
 
+    /**
+     * Update quantity for a specific book item
+     */
+    public function updateQuantity(int $bookId, int $quantity): array
+    {
+        $item = $this->items()->where('book_id', $bookId)->first();
+        if (!$item) {
+            return ['success' => false, 'message' => 'Sách không có trong giỏ'];
+        }
+
+        if ($quantity < 1) {
+            $quantity = 1;
+        }
+
+        $item->update(['quantity' => $quantity]);
+        return [
+            'success' => true,
+            'quantity' => $quantity,
+            'item_price' => $item->total_price,
+            'total_price' => $this->total_price
+        ];
+    }
+
+    /**
+     * Update pickup and return dates for a specific book item
+     */
+    public function updateDates(int $bookId, string $pickupDate, string $returnDate): array
+    {
+        $item = $this->items()->where('book_id', $bookId)->first();
+        if (!$item) {
+            return ['success' => false, 'message' => 'Sách không có trong giỏ'];
+        }
+
+        $pickup = new \DateTime($pickupDate);
+        $return = new \DateTime($returnDate);
+        $today = new \DateTime();
+        $today->setTime(0, 0, 0);
+
+        if ($pickup < $today) {
+            return ['success' => false, 'message' => 'Ngày lấy không được là ngày quá khứ'];
+        }
+
+        if ($return <= $pickup) {
+            return ['success' => false, 'message' => 'Ngày trả phải sau ngày lấy'];
+        }
+
+        $days = max(1, (int)$pickup->diff($return)->days);
+        $item->update([
+            'pickup_date' => $pickupDate,
+            'return_date' => $returnDate,
+            'days' => $days
+        ]);
+
+        return [
+            'success' => true,
+            'days' => $days,
+            'item_price' => $item->total_price,
+            'total_price' => $this->total_price
+        ];
+    }
     public function submitReservations(string $notes = null): array
     {
         $createdReservations = [];

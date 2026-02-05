@@ -777,6 +777,112 @@
                     console.error('Error loading cart count:', error);
                 });
         }
+
+        // Book Comparison Feature
+        function updateCompareCount() {
+            const checkboxes = document.querySelectorAll('.book-card-checkbox:checked');
+            const count = checkboxes.length;
+            const compareBtn = document.getElementById('compare-btn');
+            const compareCount = document.getElementById('compare-count');
+            
+            if (count > 0) {
+                compareBtn.style.display = 'flex';
+                compareCount.textContent = count;
+            } else {
+                compareBtn.style.display = 'none';
+            }
+        }
+
+        function openComparisonModal() {
+            const checkboxes = document.querySelectorAll('.book-card-checkbox:checked');
+            const books = [];
+            
+            checkboxes.forEach(checkbox => {
+                books.push({
+                    id: checkbox.getAttribute('data-book-id'),
+                    name: checkbox.getAttribute('data-book-name'),
+                    author: checkbox.getAttribute('data-book-author'),
+                    image: checkbox.getAttribute('data-book-image'),
+                    price: parseInt(checkbox.getAttribute('data-book-price'))
+                });
+            });
+
+            if (books.length === 0) {
+                alert('Vui lòng chọn ít nhất một cuốn sách để so sánh');
+                return;
+            }
+
+            displayComparisonModal(books);
+        }
+
+        function displayComparisonModal(books) {
+            // Remove existing modal if present
+            const existingModal = document.getElementById('comparison-modal');
+            if (existingModal) existingModal.remove();
+
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'comparison-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+                padding: 20px;
+            `;
+
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white;
+                border-radius: 12px;
+                max-width: 1200px;
+                width: 100%;
+                max-height: 90vh;
+                overflow-y: auto;
+                padding: 24px;
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            `;
+
+            let html = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <h2 style="margin: 0; font-size: 1.5em; color: #0d9488;">So sánh sách (${books.length} cuốn)</h2>
+                    <button onclick="document.getElementById('comparison-modal').remove()" style="background: none; border: none; font-size: 1.5em; cursor: pointer; color: #999;">✕</button>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+            `;
+
+            books.forEach(book => {
+                const bookUrl = `/books/${book.id}`;
+                html += `
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; transition: box-shadow 0.3s;">
+                        <img src="${book.image}" alt="${book.name}" style="width: 100%; height: 280px; object-fit: cover; background: #f0f0f0;">
+                        <div style="padding: 16px;">
+                            <h3 style="margin: 0 0 8px 0; font-size: 0.95em; line-height: 1.4; color: #1f2937; height: 40px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${book.name}</h3>
+                            <p style="margin: 0 0 10px 0; font-size: 0.85em; color: #6b7280;">${book.author || 'Không xác định'}</p>
+                            <p style="margin: 0 0 16px 0; font-weight: 700; color: #0d9488;">${book.price > 0 ? (book.price.toLocaleString('vi-VN') + '₫') : 'Liên hệ'}</p>
+                            <a href="${bookUrl}" style="display: inline-block; background: #0d9488; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85em; font-weight: 500; transition: background 0.3s; width: 100%; text-align: center;" onmouseover="this.style.background='#099268'" onmouseout="this.style.background='#0d9488'">Xem chi tiết</a>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            content.innerHTML = html;
+            modal.appendChild(content);
+            document.body.appendChild(modal);
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+        }
     </script>
     @endauth
 </body>

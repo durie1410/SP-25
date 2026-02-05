@@ -171,6 +171,9 @@ Route::prefix('reservation-cart')->name('reservation-cart.')->middleware('auth')
     Route::post('/remove/{bookId}', [ReservationCartController::class, 'remove'])->name('remove');
     Route::post('/submit', [ReservationCartController::class, 'submit'])->name('submit');
     Route::get('/count', [ReservationCartController::class, 'count'])->name('count');
+    Route::post('/update-days/{bookId}', [ReservationCartController::class, 'updateDays'])->name('update-days');
+    Route::post('/update-dates/{bookId}', [ReservationCartController::class, 'updateDates'])->name('update-dates');
+    Route::post('/update-quantity/{bookId}', [ReservationCartController::class, 'updateQuantity'])->name('update-quantity');
 });
 
 // Notification bell (user)

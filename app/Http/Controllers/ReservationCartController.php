@@ -98,6 +98,10 @@ class ReservationCartController extends Controller
 
         $request->validate([
             'notes' => 'nullable|string|max:1000',
+            'pickup_date' => 'required|date|after:' . \Carbon\Carbon::now()->addDays(2)->format('Y-m-d'),
+        ], [
+            'pickup_date.required' => 'Vui lòng chọn ngày lấy sách.',
+            'pickup_date.after' => 'Ngày lấy sách phải cách hôm nay tối thiểu 3 ngày.',
         ]);
 
         $cart = ReservationCart::with('items')->where('user_id', $user->id)->first();
@@ -111,6 +115,9 @@ class ReservationCartController extends Controller
         }
 
         try {
+            // Lưu pickup_date vào cart
+            $cart->update(['pickup_date' => $request->pickup_date]);
+            
             $result = $cart->submitReservations($request->notes);
             $createdCount = is_array($result) && array_key_exists('created', $result) ? count($result['created']) : 0;
             $skippedCount = is_array($result) && array_key_exists('skipped', $result) ? (int) $result['skipped'] : 0;
@@ -143,5 +150,108 @@ class ReservationCartController extends Controller
         $count = $cart ? $cart->items()->count() : 0;
 
         return response()->json(['count' => $count]);
+    }
+
+    public function updateQuantity(Request $request, $bookId)
+    {
+        $user = $request->user();
+        $reader = $user?->reader;
+
+        if (!$reader) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn cần đăng ký thông tin độc giả.',
+            ], 422);
+        }
+
+        $request->validate([
+            'quantity' => 'required|integer|min:1|max:100',
+        ]);
+
+        $cart = ReservationCart::where('user_id', $user->id)->first();
+        if (!$cart) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Giỏ không tồn tại.',
+            ], 404);
+        }
+
+        $result = $cart->updateQuantity($bookId, $request->quantity);
+        return response()->json($result, $result['success'] ? 200 : 422);
+    }
+
+    public function updateDates(Request $request, $bookId)
+    {
+        $user = $request->user();
+        $reader = $user?->reader;
+
+        if (!$reader) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn cần đăng ký thông tin độc giả.',
+            ], 422);
+        }
+
+        $request->validate([
+            'pickup_date' => 'required|date|date_format:Y-m-d|after_or_equal:today',
+            'return_date' => 'required|date|date_format:Y-m-d|after:pickup_date',
+        ]);
+
+        $cart = ReservationCart::where('user_id', $user->id)->first();
+        if (!$cart) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Giỏ không tồn tại.',
+            ], 404);
+        }
+
+        $result = $cart->updateDates($bookId, $request->pickup_date, $request->return_date);
+        return response()->json($result, $result['success'] ? 200 : 422);
+    }
+
+    public function updateDays(Request $request, $bookId)
+    {
+        $user = $request->user();
+        $reader = $user?->reader;
+
+        if (!$reader) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn cần đăng ký thông tin độc giả.',
+            ], 422);
+        }
+
+        $request->validate([
+            'days' => 'required|integer|min:1|max:365',
+        ]);
+
+        $cart = ReservationCart::where('user_id', $user->id)->first();
+        if (!$cart) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Giỏ không tồn tại.',
+            ], 404);
+        }
+
+        $item = $cart->items()->where('book_id', $bookId)->first();
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sách không có trong giỏ.',
+            ], 404);
+        }
+
+        $item->update(['days' => $request->days]);
+
+        $totalPrice = $cart->total_price ?? 0;
+        $itemPrice = $item->total_price ?? 0;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cập nhật số ngày thành công.',
+            'days' => $item->days,
+            'item_price' => $itemPrice,
+            'total_price' => $totalPrice,
+        ]);
     }
 }
