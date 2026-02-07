@@ -21,6 +21,7 @@ use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\BorrowItemController;
 use App\Http\Controllers\ShippingLogController;
 use App\Http\Controllers\VnPayController;
+use App\Http\Controllers\MomoController;
 use App\Http\Controllers\Admin\InventoryReservationController;
 use App\Http\Controllers\ReservationCartController;
 use App\Http\Controllers\NotificationBellController;
@@ -646,10 +647,16 @@ Route::prefix('vnpay')->name('vnpay.')->middleware('auth')->group(function () {
     
     // Tạo thanh toán từ giỏ mượn (API)
     Route::post('create-payment-cart', [VnPayController::class, 'createPaymentFromCart'])->name('create-payment-cart');
+    
+    // Tạo thanh toán từ giỏ đặt trước (reservation cart)
+    Route::post('create-payment-reservation', [VnPayController::class, 'createPaymentFromReservationCart'])->name('create-payment-reservation');
 });
 
 // VnPay Callback (không cần auth vì VnPay gọi trực tiếp)
 Route::get('vnpay/callback', [VnPayController::class, 'callback'])->name('vnpay.callback');
+
+// Momo QR generator (simple QR redirect to Google Charts). Public access for UAT.
+Route::get('/momo/qr/{order_number}', [MomoController::class, 'qr'])->name('momo.qr');
 
 // Debug VnPay Payment URL
 Route::get('debug-vnpay-payment', function() {

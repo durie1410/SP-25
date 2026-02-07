@@ -104,28 +104,16 @@
                                 <div class="mb-3">
                                     <label for="payment_method" class="form-label">Phương thức thanh toán <span class="text-danger">*</span></label>
                                     <select class="form-select" id="payment_method" name="payment_method" required>
-                                        <option value="">Chọn phương thức thanh toán</option>
-                                        <option value="cash_on_delivery">Thanh toán khi nhận hàng</option>
-                                        <option value="bank_transfer">Chuyển khoản ngân hàng</option>
+                                        <option value="momo" selected>Thanh toán Momo (Quét mã)</option>
+                                        <option value="cash_on_delivery">Thanh toán khi nhận hàng (COD)</option>
                                     </select>
                                 </div>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="customer_address" class="form-label">Địa chỉ giao hàng <span class="text-danger">*</span></label>
-                            <textarea class="form-control" id="customer_address" name="customer_address" rows="3" 
-                                      placeholder="Nhập địa chỉ chi tiết để giao hàng..." required></textarea>
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle"></i> Hệ thống sẽ tự động tính phí vận chuyển dựa trên khoảng cách từ địa chỉ của bạn đến thư viện.
-                            </small>
-                            <div id="shipping-info" class="mt-2" style="display: none;">
-                                <div class="alert alert-info mb-0 py-2">
-                                    <small>
-                                        <i class="fas fa-map-marker-alt"></i> Khoảng cách: <span id="shipping-distance">0</span> km | 
-                                        Phí vận chuyển: <span id="shipping-fee-display" class="fw-bold">0</span> VNĐ
-                                    </small>
-                                </div>
-                            </div>
+                            <label class="form-label">Địa chỉ giao hàng</label>
+                            <div class="text-muted">Không yêu cầu địa chỉ — sử dụng thanh toán Momo (quét mã UAT) hoặc nhận hàng (COD).</div>
+                            <small class="text-muted d-block mt-1"><i class="fas fa-info-circle"></i> Nếu bạn chọn giao hàng sau, nhân viên sẽ liên hệ để lấy địa chỉ và phí vận chuyển.</small>
                         </div>
                         <div class="mb-3">
                             <label for="notes" class="form-label">Ghi chú</label>
@@ -152,11 +140,13 @@
                         
                         <div id="paymentInfo" class="mt-3" style="display: none;">
                             <div class="alert alert-warning">
-                                <h6><i class="fas fa-bank"></i> Thông tin chuyển khoản:</h6>
-                                <p class="mb-1"><strong>Ngân hàng:</strong> Vietcombank</p>
-                                <p class="mb-1"><strong>Số tài khoản:</strong> 1234567890</p>
-                                <p class="mb-1"><strong>Chủ tài khoản:</strong> Thư Viện Online</p>
-                                <p class="mb-0"><strong>Nội dung:</strong> <span id="transferContent"></span></p>
+                                <h6><i class="fas fa-mobile-alt"></i> Thanh toán qua Momo</h6>
+                                <p class="mb-1"><strong>Số Momo:</strong> 090-123-4567</p>
+                                <p class="mb-1"><strong>Tên:</strong> Thư Viện Online</p>
+                                <p class="mb-1"><strong>Nội dung chuyển tiền:</strong> <span id="momoContent"></span></p>
+                                <div class="mt-2">
+                                    <div class="text-muted small">QR Momo sẽ hiển thị sau khi bạn gửi đơn (UAT).</div>
+                                </div>
                             </div>
                         </div>
                         
@@ -221,8 +211,8 @@
                         </div>
 
                         <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg" id="placeOrderBtn">
-                                <i class="fas fa-shopping-cart"></i> Đặt hàng
+                            <button id="placeOrderBtn" type="submit" class="btn btn-primary">
+                                <i class="fas fa-credit-card"></i> Thanh toán / Đặt hàng
                             </button>
                             <a href="{{ route('home') }}" class="btn btn-outline-secondary">
                                 <i class="fas fa-arrow-left"></i> Quay lại trang chủ
@@ -251,9 +241,32 @@
 </div>
 @endsection
 
+<!-- Momo QR Modal -->
+<div class="modal fade" id="momoModal" tabindex="-1" aria-labelledby="momoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="momoModalLabel">Thanh toán Momo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p id="momoModalText">Vui lòng quét mã Momo để thanh toán.</p>
+                <img id="momoModalQr" src="" alt="Momo QR" style="max-width:220px;" class="img-fluid my-2" />
+                <div class="mt-2">
+                    <strong>Số Momo:</strong> <span id="momoModalNumber"></span><br>
+                    <strong>Nội dung:</strong> <span id="momoModalContent"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button id="momoPaidBtn" type="button" class="btn btn-success">Đã thanh toán</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
-// Đảm bảo handler được attach ngay lập tức, không đợi DOMContentLoaded
 (function() {
     function initCheckout() {
         console.log('Initializing checkout...');
@@ -263,7 +276,7 @@
         const paymentMethodSelect = document.getElementById('payment_method');
         const paymentInfo = document.getElementById('paymentInfo');
         const codInfo = document.getElementById('codInfo');
-        const transferContent = document.getElementById('transferContent');
+        const momoContent = document.getElementById('momoContent');
         
         // Kiểm tra các element có tồn tại không
         if (!checkoutForm || !placeOrderBtn) {
@@ -288,124 +301,39 @@
             console.error('Error initializing toast:', e);
         }
 
-        // Tính phí vận chuyển tự động
-        const customerAddressInput = document.getElementById('customer_address');
-        const shippingInfo = document.getElementById('shipping-info');
-        const shippingDistance = document.getElementById('shipping-distance');
-        const shippingFeeDisplay = document.getElementById('shipping-fee-display');
-        const shippingAmountDisplay = document.getElementById('shipping-amount-display');
+        // Shipping is not required for Momo UAT QR flow; set shippingFee = 0
         const totalAmountDisplay = document.getElementById('total-amount-display');
         const subtotalDisplay = document.getElementById('subtotal-display');
-        
         let shippingFee = 0;
         let subtotal = {{ $selectedTotal }};
-        let calculateTimeout = null;
 
-        // Khởi tạo hiển thị ban đầu
-        if (customerAddressInput && customerAddressInput.value.trim().length >= 10) {
-            // Nếu đã có địa chỉ, tính ngay
-            calculateShippingFee(customerAddressInput.value.trim());
-        } else {
-            // Nếu chưa có địa chỉ, hiển thị mặc định
-            shippingAmountDisplay.textContent = 'Vui lòng nhập địa chỉ';
-            shippingAmountDisplay.className = 'text-muted';
-            updateTotal();
-        }
-
-        // Hàm tính phí vận chuyển
-        function calculateShippingFee(address) {
-            if (!address || address.trim().length < 10) {
-                shippingInfo.style.display = 'none';
-                shippingFee = 0;
-                shippingAmountDisplay.textContent = 'Vui lòng nhập địa chỉ';
-                shippingAmountDisplay.className = 'text-muted';
-                updateTotal();
-                return;
-            }
-
-            shippingAmountDisplay.textContent = 'Đang tính...';
-            shippingAmountDisplay.className = 'text-info';
-
-            fetch('/api/shipping/calculate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || 
-                                   document.querySelector('input[name="_token"]')?.value,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ address: address })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    shippingFee = data.shipping_fee || 0;
-                    const distance = data.distance || 0;
-                    
-                    shippingDistance.textContent = distance.toFixed(2);
-                    shippingFeeDisplay.textContent = new Intl.NumberFormat('vi-VN').format(shippingFee);
-                    shippingAmountDisplay.textContent = shippingFee > 0 
-                        ? new Intl.NumberFormat('vi-VN').format(shippingFee) + ' VNĐ'
-                        : 'Miễn phí';
-                    shippingAmountDisplay.className = shippingFee > 0 ? 'text-primary' : 'text-success';
-                    shippingInfo.style.display = 'block';
-                } else {
-                    shippingFee = 0;
-                    shippingAmountDisplay.textContent = 'Không thể tính phí';
-                    shippingAmountDisplay.className = 'text-warning';
-                    shippingInfo.style.display = 'none';
-                }
-                updateTotal();
-            })
-            .catch(error => {
-                console.error('Error calculating shipping:', error);
-                shippingFee = 0;
-                shippingAmountDisplay.textContent = 'Lỗi tính phí';
-                shippingAmountDisplay.className = 'text-danger';
-                shippingInfo.style.display = 'none';
-                updateTotal();
-            });
-        }
-
-        // Hàm cập nhật tổng tiền
         function updateTotal() {
             const total = subtotal + shippingFee;
-            totalAmountDisplay.textContent = new Intl.NumberFormat('vi-VN').format(total) + ' VNĐ';
+            if (totalAmountDisplay) totalAmountDisplay.textContent = new Intl.NumberFormat('vi-VN').format(total) + ' VNĐ';
+            if (subtotalDisplay) subtotalDisplay.textContent = new Intl.NumberFormat('vi-VN').format(subtotal) + ' VNĐ';
         }
 
-        // Lắng nghe sự kiện nhập địa chỉ (debounce để tránh gọi API quá nhiều)
-        if (customerAddressInput) {
-            customerAddressInput.addEventListener('input', function() {
-                clearTimeout(calculateTimeout);
-                const address = this.value.trim();
-                
-                // Chờ 1 giây sau khi người dùng ngừng nhập
-                calculateTimeout = setTimeout(() => {
-                    calculateShippingFee(address);
-                }, 1000);
-            });
-
-            // Tính phí ngay khi blur (rời khỏi ô input)
-            customerAddressInput.addEventListener('blur', function() {
-                clearTimeout(calculateTimeout);
-                calculateShippingFee(this.value.trim());
-            });
-        }
+        // Initialize totals
+        updateTotal();
 
     // Xử lý thay đổi phương thức thanh toán
-    paymentMethodSelect.addEventListener('change', function() {
-        if (this.value === 'bank_transfer') {
-            paymentInfo.style.display = 'block';
-            codInfo.style.display = 'none';
-            transferContent.textContent = 'Thanh toan don hang - ' + new Date().toISOString().slice(0,10);
-        } else if (this.value === 'cash_on_delivery') {
-            paymentInfo.style.display = 'none';
-            codInfo.style.display = 'block';
-        } else {
-            paymentInfo.style.display = 'none';
-            codInfo.style.display = 'none';
-        }
-    });
+    if (paymentMethodSelect) {
+        paymentMethodSelect.addEventListener('change', function() {
+            if (this.value === 'momo') {
+                if (paymentInfo) paymentInfo.style.display = 'block';
+                if (codInfo) codInfo.style.display = 'none';
+                if (momoContent) momoContent.textContent = 'Thanh toan don hang - ' + new Date().toISOString().slice(0,10);
+            } else if (this.value === 'cash_on_delivery') {
+                if (paymentInfo) paymentInfo.style.display = 'none';
+                if (codInfo) codInfo.style.display = 'block';
+            } else {
+                if (paymentInfo) paymentInfo.style.display = 'none';
+                if (codInfo) codInfo.style.display = 'none';
+            }
+        });
+    } else {
+        console.warn('Payment method select not found; skipping payment method change binding');
+    }
 
     // Xử lý submit form
     checkoutForm.addEventListener('submit', function(e) {
@@ -450,6 +378,12 @@
             return;
         }
         
+        // IMPORTANT: Check if Momo is selected, show warning if not
+        if (paymentMethod !== 'momo') {
+            showToast('warning', 'Note: Bạn chọn ' + (paymentMethod === 'cash_on_delivery' ? 'COD' : paymentMethod) + ' - sẽ không hiển thị mã QR. Hãy chọn "Thanh toán Momo" để quét mã.');
+            console.warn('⚠️ User selected:', paymentMethod, '- not Momo');
+        }
+        
         // Kiểm tra sản phẩm trước khi submit - sử dụng dữ liệu từ backend
         const checkoutItemsCount = {{ $checkoutItems->count() ?? 0 }};
         
@@ -469,10 +403,15 @@
         // Lấy dữ liệu form
         const formData = new FormData(this);
         
-        // Log form data để debug
-        console.log('Form data:');
+        // Debug: Log payment method trước khi gửi
+        const paymentMethodValue = formData.get('payment_method');
+        console.log('=== FORM SUBMITTED ===');
+        console.log('payment_method value:', paymentMethodValue);
+        console.log('Type:', typeof paymentMethodValue);
+        console.log('Is "momo"?', paymentMethodValue === 'momo');
+        console.log('All form data:');
         for (let [key, value] of formData.entries()) {
-            console.log(key, ':', value);
+            console.log(`  ${key}: ${value}`);
         }
         
         // Lấy CSRF token
@@ -503,10 +442,9 @@
             }
         })
         .then(async response => {
-            console.log('Response received!');
+            console.log('=== RESPONSE RECEIVED ===');
             console.log('Response status:', response.status);
             console.log('Response statusText:', response.statusText);
-            console.log('Response headers:', Object.fromEntries(response.headers.entries()));
             
             // Kiểm tra content type
             const contentType = response.headers.get('content-type');
@@ -514,16 +452,22 @@
             
             if (!contentType || !contentType.includes('application/json')) {
                 const text = await response.text();
-                console.error('Response is not JSON:', text);
-                console.error('Response length:', text.length);
-                showToast('error', 'Phản hồi từ server không đúng định dạng. Vui lòng thử lại. Chi tiết: ' + text.substring(0, 200));
+                console.error('❌ Response is NOT JSON:');
+                console.error(text.substring(0, 500));
+                showToast('error', 'Server response không phải JSON. Xem console để chi tiết.');
                 button.innerHTML = originalText;
                 button.disabled = false;
                 return;
             }
             
             const data = await response.json();
-            console.log('Response data:', data);
+            console.log('=== PARSED JSON ===');
+            console.log('Full response:', JSON.stringify(data, null, 2));
+            console.log('success:', data.success);
+            console.log('momo_qr_url:', data.momo_qr_url);
+            console.log('Has momo_qr_url?', !!data.momo_qr_url);
+            console.log('momo_number:', data.momo_number);
+            console.log('momo_content:', data.momo_content);
             
             if (!response.ok) {
                 // Xử lý lỗi validation hoặc lỗi khác
@@ -535,61 +479,76 @@
                     errorMessage = errorList || errorMessage;
                 }
                 
-                console.error('Error response:', errorMessage);
+                console.error('❌ Error response:', errorMessage);
                 showToast('error', errorMessage);
-                
-                // Nếu không có sản phẩm, redirect về trang chủ
-                if (data.message && (data.message.includes('trống') || data.message.includes('sản phẩm'))) {
-                    if (data.redirect_url) {
-                        setTimeout(() => {
-                            window.location.href = data.redirect_url;
-                        }, 2000);
-                    } else {
-                        setTimeout(() => {
-                            window.location.href = '{{ route("home") }}';
-                        }, 2000);
-                    }
-                } else {
-                    button.innerHTML = originalText;
-                    button.disabled = false;
-                }
+                button.innerHTML = originalText;
+                button.disabled = false;
                 return;
             }
             
             if (data.success) {
-                console.log('Order created successfully!');
-                console.log('Order number:', data.order_number);
-                console.log('Redirect URL:', data.redirect_url);
+                console.log('✓ Order created successfully!');
+                console.log('Order#:', data.order_number);
+                
+                // DEBUG: Print entire response
+                console.log('📋 ENTIRE RESPONSE OBJECT:');
+                console.table(data);
+                
                 showToast('success', data.message || 'Đặt hàng thành công!');
+
+                // If server returned Momo QR info, show modal instead of redirecting
+                if (data.momo_qr_url) {
+                    console.log('✓ Showing Momo QR modal...');
+                    try {
+                        const momoModal = new bootstrap.Modal(document.getElementById('momoModal'));
+                        document.getElementById('momoModalQr').src = data.momo_qr_url;
+                        document.getElementById('momoModalNumber').textContent = data.momo_number || '';
+                        document.getElementById('momoModalContent').textContent = data.momo_content || '';
+                        document.getElementById('momoModalText').textContent = data.message || 'Quét mã Momo để thanh toán';
+                        momoModal.show();
+
+                        // Handler for "Đã thanh toán" - simply redirect to orders index
+                        document.getElementById('momoPaidBtn').onclick = function() {
+                            window.location.href = '{{ route("orders.index") }}';
+                        };
+                        console.log('✓ Momo modal shown');
+                    } catch (e) {
+                        console.error('❌ Failed to show modal:', e);
+                        window.location.href = data.redirect_url || '{{ route("orders.index") }}';
+                    }
+                    return;
+                }
                 
-                // Redirect ngay lập tức về trang lịch sử mua hàng
-                const redirectUrl = data.redirect_url || '{{ route("orders.index") }}';
-                console.log('Redirecting to:', redirectUrl);
+                // For COD: redirect
+                console.log('→ Redirecting to orders index...');
+                setTimeout(() => {
+                    window.location.href = data.redirect_url || '{{ route("orders.index") }}';
+                }, 1000);
+                return;
                 
-                // Redirect ngay lập tức, không đợi
-                window.location.href = redirectUrl;
-            } else {
-                console.error('Order creation failed:', data.message);
-                showToast('error', data.message || 'Có lỗi xảy ra khi đặt hàng');
+                // Show error and re-enable button; do not auto-redirect to home
                 button.innerHTML = originalText;
                 button.disabled = false;
             }
         })
         .catch(error => {
-            console.error('Fetch Error:', error);
-            console.error('Error name:', error.name);
-            console.error('Error message:', error.message);
-            console.error('Error stack:', error.stack);
-            showToast('error', 'Có lỗi xảy ra khi kết nối đến server: ' + error.message);
+            console.error('❌ Fetch Error:', error.message);
+            showToast('error', 'Có lỗi kết nối: ' + error.message);
             button.innerHTML = originalText;
             button.disabled = false;
         });
     });
     
-    // Thêm event listener cho nút đặt hàng để log
+    // Thêm event listener cho nút đặt hàng để kích hoạt submit đã bind (bảo đảm không submit native)
     placeOrderBtn.addEventListener('click', function(e) {
-        console.log('Place order button clicked!');
-        // Form submit handler sẽ xử lý, không cần preventDefault ở đây
+        e.preventDefault();
+        console.log('Place order button clicked! dispatching submit event...');
+        if (checkoutForm) {
+            const evt = new Event('submit', { cancelable: true });
+            checkoutForm.dispatchEvent(evt);
+        } else {
+            console.error('checkoutForm not found when clicking placeOrderBtn');
+        }
     });
 
         // Hàm hiển thị toast
@@ -664,3 +623,4 @@
 </script>
 @endpush
 
+resources/views/orders/checkout.blade.php

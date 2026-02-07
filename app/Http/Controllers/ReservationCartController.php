@@ -98,10 +98,6 @@ class ReservationCartController extends Controller
 
         $request->validate([
             'notes' => 'nullable|string|max:1000',
-            'pickup_date' => 'required|date|after:' . \Carbon\Carbon::now()->addDays(2)->format('Y-m-d'),
-        ], [
-            'pickup_date.required' => 'Vui lòng chọn ngày lấy sách.',
-            'pickup_date.after' => 'Ngày lấy sách phải cách hôm nay tối thiểu 3 ngày.',
         ]);
 
         $cart = ReservationCart::with('items')->where('user_id', $user->id)->first();
@@ -115,25 +111,95 @@ class ReservationCartController extends Controller
         }
 
         try {
-            // Lưu pickup_date vào cart
-            $cart->update(['pickup_date' => $request->pickup_date]);
-            
-            $result = $cart->submitReservations($request->notes);
-            $createdCount = is_array($result) && array_key_exists('created', $result) ? count($result['created']) : 0;
-            $skippedCount = is_array($result) && array_key_exists('skipped', $result) ? (int) $result['skipped'] : 0;
+                // Kiểm tra các item đã có pickup_date/return_date
+                $itemsMissingDates = $cart->items->filter(function ($it) {
+                    return empty($it->pickup_date) || empty($it->return_date);
+                })->count();
 
-            if ($createdCount > 0) {
-                $message = 'Đã gửi ' . $createdCount . ' yêu cầu đặt trước. Vui lòng chờ thông báo.';
-                if ($skippedCount > 0) {
-                    $message .= ' Bỏ qua ' . $skippedCount . ' sách đang chờ xử lý.';
+                if ($itemsMissingDates > 0) {
+                    return back()->with('error', 'Vui lòng chọn ngày lấy và ngày trả cho tất cả sách trước khi thanh toán.');
                 }
-            } else {
-                $message = 'Không có yêu cầu nào được tạo. Tất cả sách đều đang chờ xử lý hoặc đã được đặt trước.';
+
+                // Lấy ngày lấy sớm nhất từ các item để kiểm tra yêu cầu 3 ngày
+                $earliestPickup = $cart->items->pluck('pickup_date')->filter()->min();
+                if (!$earliestPickup) {
+                    return back()->with('error', 'Không tìm thấy ngày lấy hợp lệ.');
+                }
+
+                if (\Carbon\Carbon::parse($earliestPickup)->lt(\Carbon\Carbon::now()->addDays(2))) {
+                    return back()->with('error', 'Ngày lấy sách phải cách hôm nay tối thiểu 3 ngày.');
+                }
+
+                // Lưu pickup_date vào cart (dùng earliest)
+                $cart->update(['pickup_date' => $earliestPickup]);
+
+            // Chuẩn bị thông tin thanh toán tạm (giống flow từ giỏ mượn)
+            $itemsData = [];
+            $totalTienThue = 0;
+            $totalTienCoc = 0;
+            $totalTienShip = 0;
+
+            foreach ($cart->items as $item) {
+                $book = $item->book;
+                $borrowDays = (int) ($item->days ?? 1);
+                $quantity = (int) ($item->quantity ?? 1);
+                $tienThue = ($item->daily_fee ?? 5000) * $borrowDays * $quantity;
+
+                $itemsData[] = [
+                    'book_id' => $item->book_id,
+                    'inventorie_id' => $item->inventorie_id ?? null,
+                    'borrow_days' => $borrowDays,
+                    'tien_coc' => 0,
+                    'tien_thue' => $tienThue,
+                    'tien_ship' => 0,
+                    'note' => $item->notes ?? null,
+                ];
+
+                $totalTienThue += $tienThue;
             }
 
-            return redirect()->route('reservation-cart.index')->with('success', $message);
+            $tongTien = $totalTienCoc + $totalTienThue + $totalTienShip;
+
+            $checkoutData = [
+                'reader_id' => $reader->id,
+                'reader_name' => $reader->name ?? ($user->name ?? ''),
+                'reader_phone' => $reader->phone ?? ($user->phone ?? ''),
+                'tinh_thanh' => $reader->tinh_thanh ?? '',
+                'xa' => $reader->xa ?? '',
+                'so_nha' => $reader->so_nha ?? '',
+                'notes' => $request->notes ?? '',
+                'checkout_source' => 'reservation_cart',
+                'items' => $itemsData,
+                'total_tien_coc' => $totalTienCoc,
+                'total_tien_thue' => $totalTienThue,
+                'total_tien_ship' => $totalTienShip,
+                'tong_tien' => $tongTien,
+                'voucher_id' => null,
+                'discount_amount' => 0,
+                'ngay_muon' => $request->pickup_date,
+            ];
+
+            // Lưu thông tin checkout vào session để chuyển sang trang checkout (orders.checkout)
+            $sessionItems = [];
+            foreach ($cart->items as $item) {
+                $sessionItems[] = [
+                    'ten_sach' => $item->book->ten_sach ?? '',
+                    'tac_gia' => $item->book->tac_gia ?? '',
+                    'quantity' => $item->quantity ?? 1,
+                    'total_price' => ($item->daily_fee ?? 5000) * ($item->days ?? 1) * ($item->quantity ?? 1),
+                ];
+            }
+
+            \Illuminate\Support\Facades\Session::put('checkout_items', [
+                'reservation_cart' => true,
+                'items' => $sessionItems,
+                'total' => $tongTien,
+            ]);
+
+            return redirect()->route('checkout');
+
         } catch (\Exception $e) {
-            return back()->with('error', 'Có lỗi khi gửi yêu cầu: ' . $e->getMessage());
+            return back()->with('error', 'Có lỗi khi chuyển đến trang thanh toán: ' . $e->getMessage());
         }
     }
 

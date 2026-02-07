@@ -29,6 +29,26 @@ class VnPayController extends Controller
     public function createPayment(Request $request)
     {
         try {
+            // Nếu có pending payment từ reservation cart (đặt trước), dùng session để tạo URL
+            $sessionPaymentId = session('vnpay_payment_id');
+            $sessionTxnRef = session('vnpay_transaction_code') ?: session('vnpay_txn_ref');
+            if ($sessionPaymentId && $sessionTxnRef) {
+                $payment = BorrowPayment::find($sessionPaymentId);
+                if ($payment) {
+                    $paymentData = [
+                        'amount' => $payment->amount,
+                        'order_info' => 'Thanh toán đặt trước - ' . ($payment->note ?? ''),
+                        'order_id' => $sessionTxnRef,
+                        'order_type' => 'billpayment',
+                        'bank_code' => $request->bank_code
+                    ];
+
+                    // tạo url và redirect
+                    $paymentUrl = $this->vnpayService->createPaymentUrl($paymentData, $request);
+                    return redirect($paymentUrl);
+                }
+            }
+
             $request->validate([
                 'borrow_id' => 'required|exists:borrows,id',
                 'amount' => 'required|numeric|min:1000',
@@ -347,6 +367,61 @@ class VnPayController extends Controller
 
         } catch (\Exception $e) {
             Log::error('VnPay Create Cart Payment Error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * API: Tạo thanh toán cho giỏ đặt trước (ReservationCart)
+     */
+    public function createPaymentFromReservationCart(Request $request)
+    {
+        try {
+            $request->validate([
+                'reservation_cart_id' => 'required|exists:reservation_carts,id',
+                'amount' => 'required|numeric|min:1000',
+                'transaction_code' => 'required|string'
+            ]);
+
+            $cartId = $request->reservation_cart_id;
+            $amount = $request->amount;
+            $txnRef = $request->transaction_code;
+
+            $cart = \App\Models\ReservationCart::with('reader')->findOrFail($cartId);
+
+            $orderInfo = sprintf(
+                "Thanh toán giỏ đặt trước #%d - %s",
+                $cartId,
+                $cart->reader->name ?? 'Khách hàng'
+            );
+
+            $paymentData = [
+                'amount' => $amount,
+                'order_info' => $orderInfo,
+                'order_id' => $txnRef,
+                'order_type' => 'billpayment',
+                'bank_code' => $request->bank_code ?? ''
+            ];
+
+            // Lưu một số thông tin tạm (không bắt buộc)
+            session([
+                'vnpay_reservation_cart_id' => $cartId,
+                'vnpay_txn_ref' => $txnRef
+            ]);
+
+            $paymentUrl = $this->vnpayService->createPaymentUrl($paymentData, $request);
+
+            return response()->json([
+                'success' => true,
+                'payment_url' => $paymentUrl
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('VnPay Create Reservation Cart Payment Error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
