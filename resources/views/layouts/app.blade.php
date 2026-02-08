@@ -166,6 +166,8 @@
 </head>
 
 <body>
+    @stack('scripts')
+
     <!-- Loading Spinner -->
     <div class="loading-spinner" id="loadingSpinner">
         <div class="spinner-border text-primary" role="status">
@@ -312,8 +314,14 @@
         });
     </script>
 
-    @include('partials.global-modal')
+ 
+        @include('partials.global-modal')
+
     @yield('scripts')
+    @stack('scripts')
+</body>
+</html>
+
 </body>
 
 </html>

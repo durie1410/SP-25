@@ -21,13 +21,25 @@ use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\BorrowItemController;
 use App\Http\Controllers\ShippingLogController;
 use App\Http\Controllers\VnPayController;
-use App\Http\Controllers\MomoController;
 use App\Http\Controllers\Admin\InventoryReservationController;
 use App\Http\Controllers\ReservationCartController;
 use App\Http\Controllers\NotificationBellController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\Admin\BookDeleteRequestController;
 
+use App\Http\Controllers\MomoController;
 
+Route::post('/momo/create', [MomoController::class, 'createPayment'])
+    ->name('momo.create');
+
+Route::get('/momo/return', [MomoController::class, 'return'])
+    ->name('momo.return');
+
+Route::post('/momo/ipn', [MomoController::class, 'ipn'])
+    ->name('momo.ipn');
+
+Route::post('/orders/store', [OrderController::class, 'store'])
+    ->name('orders.store');
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -655,8 +667,6 @@ Route::prefix('vnpay')->name('vnpay.')->middleware('auth')->group(function () {
 // VnPay Callback (không cần auth vì VnPay gọi trực tiếp)
 Route::get('vnpay/callback', [VnPayController::class, 'callback'])->name('vnpay.callback');
 
-// Momo QR generator (simple QR redirect to Google Charts). Public access for UAT.
-Route::get('/momo/qr/{order_number}', [MomoController::class, 'qr'])->name('momo.qr');
 
 // Debug VnPay Payment URL
 Route::get('debug-vnpay-payment', function() {

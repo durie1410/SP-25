@@ -11,6 +11,7 @@ use App\Models\Borrow;
 use App\Models\Reader;
 use App\Models\Wallet;
 use App\Models\BorrowPayment;
+ use App\Services\MomoService;
 use App\Services\ShippingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -337,23 +338,20 @@ class OrderController extends Controller
                 ]);
                 
                 // If payment via Momo, return QR info so frontend can display it instead of redirecting
-                if ($request->payment_method === 'momo') {
-                    \Log::info('🎉 Returning Momo QR response', [
-                        'order_number' => $order->order_number,
-                    ]);
-                    
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'Đặt hàng thành công! Vui lòng quét mã Momo để thanh toán.',
-                        'order_number' => $order->order_number,
-                        'momo_qr_url' => route('momo.qr', ['order_number' => $order->order_number]),
-                        'momo_number' => '090-123-4567',
-                        'momo_content' => 'PAY-' . $order->order_number
-                    ], 200)->header('Content-Type', 'application/json')
-                      ->header('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0')
-                      ->header('Pragma', 'no-cache')
-                      ->header('Expires', '0');
-                }
+if ($request->payment_method === 'momo') {
+
+    // Gọi sang MomoController để tạo payment
+
+
+$momoService = new MomoService();
+$payUrl = $momoService->createPayment($order);
+
+return response()->json([
+    'success' => true,
+    'payUrl' => $payUrl
+]);
+}
+
                 
                 \Log::info('Returning COD/other response', [
                     'payment_method' => $request->payment_method,
