@@ -131,10 +131,30 @@ function updateQuantity(input){
     });
 }
 
+function ensureDateStatusEl(){
+    let statusMsg = document.getElementById('date-update-status');
+    if(statusMsg) return statusMsg;
+
+    statusMsg = document.createElement('div');
+    statusMsg.id = 'date-update-status';
+    statusMsg.style.cssText = 'position:fixed;top:20px;right:20px;background:#22c55e;color:white;padding:10px 20px;border-radius:5px;z-index:9999;display:none;max-width:320px;';
+    document.body.appendChild(statusMsg);
+    return statusMsg;
+}
+
 function updateDatesForAll(){
     const pickup = document.getElementById('pickup-date-global').value;
     const ret = document.getElementById('return-date-global').value;
     if(!pickup || !ret) return;
+
+    const statusMsg = ensureDateStatusEl();
+    statusMsg.style.display = 'block';
+    statusMsg.style.background = '#3b82f6';
+    statusMsg.textContent = 'Đang cập nhật ngày...';
+
+    let successCount = 0;
+    let errorCount = 0;
+    const totalItems = document.querySelectorAll('.days-display').length;
 
     document.querySelectorAll('.days-display').forEach(el=>{
         const bookId = el.dataset.bookId;
@@ -151,13 +171,36 @@ function updateDatesForAll(){
                 return_date: ret
             })
         })
-        .then(r=>r.json())
+        .then(async (r)=>{
+            const data = await r.json().catch(() => ({}));
+            if(!r.ok || data.success === false){
+                throw new Error(data.message || 'Cập nhật thất bại');
+            }
+            return data;
+        })
         .then(d=>{
+            successCount++;
             el.textContent = d.days;
             document.querySelector(`.item-price[data-book-id="${bookId}"]`)
                 .textContent = formatCurrency(d.item_price);
             document.getElementById('total-price')
                 .textContent = formatCurrency(d.total_price);
+        })
+        .catch(err => {
+            errorCount++;
+        })
+        .finally(() => {
+            if(successCount + errorCount !== totalItems) return;
+
+            if(errorCount > 0){
+                statusMsg.style.background = '#ef4444';
+                statusMsg.textContent = 'Có ' + errorCount + ' sách cập nhật ngày bị lỗi. Vui lòng chọn lại ngày hợp lệ.';
+                setTimeout(() => { statusMsg.style.display = 'none'; }, 4000);
+            } else {
+                statusMsg.style.background = '#22c55e';
+                statusMsg.textContent = 'Đã cập nhật ngày thành công!';
+                setTimeout(() => { statusMsg.style.display = 'none'; }, 2000);
+            }
         });
     });
 }

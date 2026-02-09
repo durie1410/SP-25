@@ -176,7 +176,7 @@ class ReservationCartController extends Controller
                 'tong_tien' => $tongTien,
                 'voucher_id' => null,
                 'discount_amount' => 0,
-                'ngay_muon' => $request->pickup_date,
+                'ngay_muon' => $earliestPickup,
             ];
 
             // Lưu thông tin checkout vào session để chuyển sang trang checkout (orders.checkout)
