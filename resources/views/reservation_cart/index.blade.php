@@ -17,7 +17,12 @@
 @endforeach
 
 @if($items->count() === 0)
-    <div style="padding:20px;color:#64748b;">Giỏ đặt trước đang trống.</div>
+    <div style="padding:20px;color:#64748b;text-align:center;">
+        <div style="margin-bottom:20px;">Giỏ đặt trước đang trống.</div>
+        <a href="{{ url('/') }}" class="btn btn-secondary" style="text-decoration:none;">
+            <i class="fas fa-home"></i> Trở về trang chủ
+        </a>
+    </div>
 @else
 
 {{-- NGÀY CHUNG --}}

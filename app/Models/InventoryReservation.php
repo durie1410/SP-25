@@ -17,6 +17,9 @@ class InventoryReservation extends Model
         'borrow_id',
         'user_id',
         'reader_id',
+        'pickup_date',
+        'return_date',
+        'total_fee',
         'status',
         'notes',
         'admin_note',
@@ -27,6 +30,9 @@ class InventoryReservation extends Model
     ];
 
     protected $casts = [
+        'pickup_date' => 'date',
+        'return_date' => 'date',
+        'total_fee' => 'decimal:2',
         'ready_at' => 'datetime',
         'fulfilled_at' => 'datetime',
         'cancelled_at' => 'datetime',

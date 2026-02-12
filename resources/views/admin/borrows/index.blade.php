@@ -157,11 +157,9 @@ tạo phiếu mượn    </a>
                     <th style="width: 80px;">Mã phiếu</th>
                     <th>Độc giả</th>
                     <th>Tên khách hàng</th>
-                    <th style="width: 100px;">Tiền cọc</th>
-                    <th style="width: 100px;">Tiền ship</th>
                     <th style="width: 100px;">Tiền thuê</th>
                     <th style="width: 100px;">Voucher</th>
-<th style="min-width: 200px;">Trạng thái Items</th>
+                    <th style="min-width: 200px;">Trạng thái Items</th>
                     <th style="width: 120px;">Tổng tiền</th>
                     <th style="width: 100px;">Chi tiết</th>
                     <th style="width: 180px;">Hành động</th>
@@ -203,42 +201,16 @@ tạo phiếu mượn    </a>
    
     @php
         // Tính tổng từ items nếu có, nếu không thì dùng giá trị từ borrow
-        // Luôn ưu tiên tính từ items nếu items tồn tại
         if ($borrow->relationLoaded('items') && $borrow->items && $borrow->items->count() > 0) {
-            // Tính từ items - sử dụng sum với giá trị mặc định 0 cho null
-            $tienCoc = $borrow->items->sum(function($item) {
-                return floatval($item->tien_coc ?? 0);
-            });
             $tienThue = $borrow->items->sum(function($item) {
                 return floatval($item->tien_thue ?? 0);
             });
         } else {
-            // Fallback về giá trị từ bảng borrow
-            $tienCoc = floatval($borrow->tien_coc ?? 0);
             $tienThue = floatval($borrow->tien_thue ?? 0);
         }
         
-        // Tiền ship: Ưu tiên lấy từ bảng borrow, nếu = 0 hoặc null thì sum từ items
-        // Phí ship tính theo đơn nên thường chỉ có ở item đầu tiên
-        $tienShipFromBorrow = floatval($borrow->tien_ship ?? 0);
-        $tienShipFromItems = 0;
-        
-        if ($borrow->relationLoaded('items') && $borrow->items && $borrow->items->count() > 0) {
-            $tienShipFromItems = $borrow->items->sum(function($item) {
-                return floatval($item->tien_ship ?? 0);
-            });
-        }
-        
-        // Sử dụng giá trị từ borrow nếu có, nếu không thì dùng từ items
-        $tienShip = $tienShipFromBorrow > 0 ? $tienShipFromBorrow : $tienShipFromItems;
-        
-        // Nếu ship = 0, mặc định 20k
-        if ($tienShip == 0) {
-            $tienShip = 20000;
-        }
-        
-        // Tính tổng tiền từ các khoản đã tính
-        $tongTien = $tienCoc + $tienThue + $tienShip;
+        // Tổng tiền lúc này chỉ còn là tiền thuê
+        $tongTien = $tienThue;
         
         // Áp dụng voucher nếu có
         if ($borrow->relationLoaded('voucher') && $borrow->voucher) {
@@ -252,12 +224,6 @@ tạo phiếu mượn    </a>
         }
     @endphp
     
-    <td>
-        {{ number_format($tienCoc) }}₫
-    </td>
-    <td>
-        {{ number_format($tienShip) }}₫
-    </td>
     <td>
         {{ number_format($tienThue) }}₫
     </td>
@@ -383,7 +349,7 @@ if ($borrow->items && $borrow->items->count() > 0) {
     $hasChoDuyet = $borrow->items->isNotEmpty() && $borrow->items->contains(fn($item) => $item->trang_thai === 'Cho duyet');
 @endphp
 
-@if($hasChoDuyet)
+@if($hasChoDuyet && auth()->user() && auth()->user()->isAdmin())
     <form action="{{ route('admin.borrows.approve', $borrow->id) }}" method="POST" style="display:inline-block;">
         @csrf
         <button type="submit" class="btn btn-sm btn-success mb-0" title="Duyệt phiếu mượn" onclick="return confirm('Xác nhận duyệt phiếu mượn này?')">
@@ -419,8 +385,6 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                 <th style="width: 50px;">ID</th>
                                 <th>Tên sách</th>
                                 <th style="width: 150px;">Tác giả</th>
-                                <th style="width: 100px;">Tiền cọc</th>
-                                <th style="width: 100px;">Tiền ship</th>
                                 <th style="width: 100px;">Tiền thuê</th>
                                 <th style="width: 120px;">Ngày hẹn trả</th>
                                 <th style="width: 130px;">Trạng thái</th>
@@ -440,8 +404,6 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                     @endif
                                 </td>
                                 <td>{{ $item->book->tac_gia ?? 'N/A' }}</td>
-                                <td>{{ number_format($item->tien_coc ?? 0) }}₫</td>
-                                <td>{{ number_format($item->tien_ship ?? 0) }}₫</td>
                                 <td>{{ number_format($item->tien_thue ?? 0) }}₫</td>
                                 <td>
                                     @if($item->ngay_hen_tra)

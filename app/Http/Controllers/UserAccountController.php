@@ -47,6 +47,7 @@ class UserAccountController extends Controller
                 'phone' => 'nullable|string|max:20',
                 'province' => 'required|string|max:255',
                 'district' => 'required|string|max:255',
+                'xa' => 'required|string|max:255',
                 'address' => 'required|string|max:500',
                 'so_cccd' => 'required|string|max:20',
                 'ngay_sinh' => 'nullable|date|before:today',
@@ -63,7 +64,8 @@ class UserAccountController extends Controller
             $request->validate($validationRules, [
                 'province.required' => 'Vui lòng chọn Tỉnh/Thành phố',
                 'district.required' => 'Vui lòng chọn Quận/Huyện',
-                'address.required' => 'Vui lòng nhập địa chỉ nhận hàng',
+                'xa.required' => 'Vui lòng chọn Xã/Phường',
+                'address.required' => 'Vui lòng nhập số nhà, tên đường',
                 'so_cccd.required' => 'Vui lòng nhập số CCCD/CMND',
                 'cccd_image.required' => 'Vui lòng upload ảnh CCCD/CMND',
                 'cccd_image.image' => 'File phải là ảnh (JPG, PNG, WEBP)',
@@ -72,6 +74,7 @@ class UserAccountController extends Controller
                 'address.max' => 'Địa chỉ không được vượt quá 500 ký tự',
                 'province.max' => 'Tỉnh/Thành phố không được vượt quá 255 ký tự',
                 'district.max' => 'Quận/Huyện không được vượt quá 255 ký tự',
+                'xa.max' => 'Xã/Phường không được vượt quá 255 ký tự',
             ]);
 
             // Xử lý upload ảnh CCCD
@@ -100,6 +103,7 @@ class UserAccountController extends Controller
             $user->phone = $request->phone ?? null;
             $user->province = $request->province ?? null;
             $user->district = $request->district ?? null;
+            $user->xa = $request->xa ?? null;
             $user->address = $request->address ?? null;
             $user->so_cccd = $request->so_cccd ?? null;
             $user->ngay_sinh = $request->ngay_sinh ?? null;
@@ -118,7 +122,19 @@ class UserAccountController extends Controller
                 $reader->so_cccd = $user->so_cccd;
                 $reader->ngay_sinh = $user->ngay_sinh;
                 $reader->gioi_tinh = $user->gioi_tinh;
-                $reader->dia_chi = $user->address;
+                
+                // Đồng bộ địa chỉ chi tiết sang reader
+                $reader->tinh_thanh = $user->province;
+                $reader->huyen = $user->district;
+                $reader->xa = $user->xa;
+                $reader->so_nha = $user->address;
+                
+                // Ghép thành địa chỉ đầy đủ
+                $fullAddress = collect([$user->address, $user->xa, $user->district, $user->province])
+                    ->filter()
+                    ->implode(', ');
+                $reader->dia_chi = $fullAddress;
+                
                 $reader->save();
             }
 

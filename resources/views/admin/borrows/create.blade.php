@@ -8,18 +8,19 @@
 
     <form action="{{ route('admin.borrows.store') }}" method="POST" id="borrowForm">
         @csrf
+        <input type="hidden" name="reservation_id" value="{{ request('reservation_id') }}">
 
         {{-- Thông tin người mượn --}}
        <div class="mb-3">
                     <label class="form-label">Độc giả <span class="text-danger">*</span></label>
                     <div class="position-relative">
                         <input type="text" id="readerSearch" class="form-control" placeholder="Tìm kiếm độc giả..." autocomplete="off">
-                        <input type="hidden" name="reader_id" id="readerId" required>
+                        <input type="hidden" name="reader_id" id="readerId" value="{{ $prefillReader->id ?? '' }}" required>
                         <div id="readerDropdown" class="dropdown-menu w-100" style="display:none; max-height:200px; overflow-y:auto;"></div>
                     </div>
-                    <div id="selectedReader" class="mt-2" style="display:none;">
+                    <div id="selectedReader" class="mt-2" style="display: {{ isset($prefillReader) ? 'block' : 'none' }};">
                         <div class="alert alert-info">
-                            <strong>Đã chọn:</strong> <span id="readerName"></span>
+                            <strong>Đã chọn:</strong> <span id="readerName">{{ isset($prefillReader) ? ($prefillReader->ho_ten . ' (' . $prefillReader->so_the_doc_gia . ')') : '' }}</span>
                             <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearReader()">Xóa</button>
                         </div>
                     </div>
@@ -29,27 +30,22 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">Tên người mượn</label>
-                <input type="text" name="ten_nguoi_muon" class="form-control">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Tỉnh / Thành</label>
-                <input type="text" name="tinh_thanh" class="form-control">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Huyện / Quận</label>
-                <input type="text" name="huyen" class="form-control">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Xã / Phường</label>
-                <input type="text" name="xa" class="form-control">
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">Số nhà / Đường</label>
-                <input type="text" name="so_nha" class="form-control">
+                <input type="text" name="ten_nguoi_muon" id="tenNguoiMuon" class="form-control" value="{{ $prefillReader->ho_ten ?? '' }}" readonly>
             </div>
             <div class="col-md-6">
                 <label class="form-label">Số điện thoại</label>
-                <input type="text" name="so_dien_thoai" class="form-control">
+                <input type="text" name="so_dien_thoai" id="soDienThoai" class="form-control" value="{{ $prefillReader->so_dien_thoai ?? '' }}" readonly>
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <label class="form-label">Địa chỉ</label>
+                <input type="text" name="dia_chi" id="diaChi" class="form-control" value="{{ $prefillReader->tinh_thanh ?? ($prefillReader->dia_chi ?? '') }}" readonly>
+                {{-- Giữ các hidden input để không làm hỏng logic lưu của Backend nếu cần --}}
+                <input type="hidden" name="tinh_thanh" id="tinhThanh" value="{{ $prefillReader->tinh_thanh ?? ($prefillReader->dia_chi ?? '') }}">
+                <input type="hidden" name="huyen" id="huyen" value="{{ $prefillReader->huyen ?? '' }}">
+                <input type="hidden" name="xa" id="xa" value="{{ $prefillReader->xa ?? '' }}">
+                <input type="hidden" name="so_nha" id="soNha" value="{{ $prefillReader->so_nha ?? '' }}">
             </div>
         </div>
         {{-- Chọn sách --}}
@@ -69,7 +65,9 @@
                 <select name="librarian_id" class="form-control">
                     <option value="">-- Chọn thủ thư --</option>
                     @foreach($librarians as $librarian)
-                        <option value="{{ $librarian->id }}">{{ $librarian->name }}</option>
+                        <option value="{{ $librarian->id }}" {{ (old('librarian_id') ?? auth()->id()) == $librarian->id ? 'selected' : '' }}>
+                            {{ $librarian->name }}
+                        </option>
                     @endforeach
                 </select>
             </div>
@@ -79,7 +77,7 @@
         <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">Ngày mượn</label>
-                <input type="date" name="ngay_muon" class="form-control" value="{{ now()->toDateString() }}">
+                <input type="date" name="ngay_muon" class="form-control" value="{{ request('ngay_muon', now()->toDateString()) }}">
             </div>
             <div class="col-md-6">
                 <label class="form-label">Trạng thái</label>
@@ -155,10 +153,17 @@ document.getElementById('readerSearch').addEventListener('input', function() {
 });
 
 function searchReaders(query) {
-    fetch(`/admin/autocomplete/readers?q=${encodeURIComponent(query)}`)
+    // Sử dụng route chính xác đã được định nghĩa trong web.php
+    fetch(`{{ route('admin.autocomplete.readers') }}?q=${encodeURIComponent(query)}`)
         .then(res => res.json())
         .then(data => showReaderDropdown(data))
-        .catch(err => console.error(err));
+        .catch(err => {
+            console.error('Error fetching readers:', err);
+            // Fallback nếu route name không hoạt động
+            fetch(`/admin/autocomplete/readers?q=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(data => showReaderDropdown(data));
+        });
 }
 
 function showReaderDropdown(readers) {
@@ -182,10 +187,30 @@ function showReaderDropdown(readers) {
 function selectReader(reader) {
     document.getElementById('readerId').value = reader.id;
     document.getElementById('readerName').textContent = `${reader.ho_ten} (${reader.so_the_doc_gia})`;
+    
+    // Tự động điền thông tin địa chỉ và số điện thoại
+    if (reader) {
+        document.getElementById('tenNguoiMuon').value = reader.ho_ten || '';
+        document.getElementById('soDienThoai').value = reader.so_dien_thoai || '';
+        
+        // Ghép địa chỉ đầy đủ để hiển thị vào ô duy nhất
+        const parts = [reader.so_nha, reader.xa, reader.huyen, reader.tinh_thanh].filter(p => p && p.trim() !== '');
+        const fullAddress = parts.length > 0 ? parts.join(', ') : (reader.dia_chi || '');
+        
+        document.getElementById('diaChi').value = fullAddress;
+        
+        // Cập nhật các hidden fields để backend vẫn nhận đủ dữ liệu tách biệt
+        document.getElementById('tinhThanh').value = reader.tinh_thanh || '';
+        document.getElementById('huyen').value = reader.huyen || '';
+        document.getElementById('xa').value = reader.xa || '';
+        document.getElementById('soNha').value = reader.so_nha || '';
+    }
+
     document.getElementById('readerSearch').value = '';
     document.getElementById('selectedReader').style.display = 'block';
     hideReaderDropdown();
-        const bookId = document.getElementById('bookId').value;
+    
+    const bookId = document.getElementById('bookId').value;
     if (bookId) {
         const bookPriceText = document.getElementById('bookPrice').textContent.replace(/[^\d]/g, '');
         const bookPrice = parseInt(bookPriceText) || 0;
@@ -193,12 +218,20 @@ function selectReader(reader) {
         const deposit = bookPrice;
         document.getElementById('depositInput').value = deposit;
     }
-
 }
 
 function clearReader() {
     document.getElementById('readerId').value = '';
     document.getElementById('selectedReader').style.display = 'none';
+    
+    // Xóa trắng thông tin địa chỉ và số điện thoại
+    document.getElementById('tenNguoiMuon').value = '';
+    document.getElementById('soDienThoai').value = '';
+    document.getElementById('diaChi').value = '';
+    document.getElementById('tinhThanh').value = '';
+    document.getElementById('huyen').value = '';
+    document.getElementById('xa').value = '';
+    document.getElementById('soNha').value = '';
 }
 
 function hideReaderDropdown() { document.getElementById('readerDropdown').style.display = 'none'; }
@@ -291,6 +324,30 @@ document.addEventListener('click', function(e){
     if(!e.target.closest('#readerSearch') && !e.target.closest('#readerDropdown')) hideReaderDropdown();
     if(!e.target.closest('#bookSearch') && !e.target.closest('#bookDropdown')) hideBookDropdown();
 });
+
+// Tự động điền thông tin nếu có prefillReader (trường hợp Fulfill)
+@if(isset($prefillReader))
+    document.addEventListener('DOMContentLoaded', function() {
+        const reader = {
+            ho_ten: "{{ $prefillReader->ho_ten }}",
+            so_dien_thoai: "{{ $prefillReader->so_dien_thoai }}",
+            tinh_thanh: "{{ $prefillReader->tinh_thanh }}",
+            huyen: "{{ $prefillReader->huyen }}",
+            xa: "{{ $prefillReader->xa }}",
+            so_nha: "{{ $prefillReader->so_nha }}",
+            dia_chi: "{{ $prefillReader->dia_chi }}"
+        };
+        
+        document.getElementById('tenNguoiMuon').value = reader.ho_ten || '';
+        document.getElementById('soDienThoai').value = reader.so_dien_thoai || '';
+        
+        // Hiển thị fallback từ dia_chi nếu các trường chi tiết rỗng
+        document.getElementById('tinhThanh').value = reader.tinh_thanh || (reader.tinh_thanh === '' ? reader.dia_chi : '');
+        document.getElementById('huyen').value = reader.huyen || '';
+        document.getElementById('xa').value = reader.xa || '';
+        document.getElementById('soNha').value = reader.so_nha || '';
+    });
+@endif
     
 </script>
 @endpush

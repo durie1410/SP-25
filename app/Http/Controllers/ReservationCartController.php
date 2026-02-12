@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Book;
+use App\Models\InventoryReservation;
 use App\Models\ReservationCart;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReservationCartController extends Controller
 {
@@ -111,95 +113,51 @@ class ReservationCartController extends Controller
         }
 
         try {
-                // Kiểm tra các item đã có pickup_date/return_date
-                $itemsMissingDates = $cart->items->filter(function ($it) {
-                    return empty($it->pickup_date) || empty($it->return_date);
-                })->count();
-
-                if ($itemsMissingDates > 0) {
-                    return back()->with('error', 'Vui lòng chọn ngày lấy và ngày trả cho tất cả sách trước khi thanh toán.');
-                }
-
-                // Lấy ngày lấy sớm nhất từ các item để kiểm tra yêu cầu 3 ngày
-                $earliestPickup = $cart->items->pluck('pickup_date')->filter()->min();
-                if (!$earliestPickup) {
-                    return back()->with('error', 'Không tìm thấy ngày lấy hợp lệ.');
-                }
-
-                if (\Carbon\Carbon::parse($earliestPickup)->lt(\Carbon\Carbon::now()->addDays(2))) {
-                    return back()->with('error', 'Ngày lấy sách phải cách hôm nay tối thiểu 3 ngày.');
-                }
-
-                // Lưu pickup_date vào cart (dùng earliest)
-                $cart->update(['pickup_date' => $earliestPickup]);
-
-            // Chuẩn bị thông tin thanh toán tạm (giống flow từ giỏ mượn)
-            $itemsData = [];
-            $totalTienThue = 0;
-            $totalTienCoc = 0;
-            $totalTienShip = 0;
+            DB::beginTransaction();
 
             foreach ($cart->items as $item) {
-                $book = $item->book;
-                $borrowDays = (int) ($item->days ?? 1);
                 $quantity = (int) ($item->quantity ?? 1);
-                $tienThue = ($item->daily_fee ?? 5000) * $borrowDays * $quantity;
 
-                $itemsData[] = [
-                    'book_id' => $item->book_id,
-                    'inventorie_id' => $item->inventorie_id ?? null,
-                    'borrow_days' => $borrowDays,
-                    'tien_coc' => 0,
-                    'tien_thue' => $tienThue,
-                    'tien_ship' => 0,
-                    'note' => $item->notes ?? null,
-                ];
+                $pickupDate = $item->pickup_date ? \Carbon\Carbon::parse($item->pickup_date) : null;
+                $returnDate = $item->return_date ? \Carbon\Carbon::parse($item->return_date) : null;
 
-                $totalTienThue += $tienThue;
+                $borrowDays = 1;
+                if ($pickupDate && $returnDate && $returnDate->greaterThan($pickupDate)) {
+                    $borrowDays = max(1, $pickupDate->diffInDays($returnDate));
+                } else {
+                    $borrowDays = (int) ($item->days ?? 1);
+                }
+
+                $dailyFee = (float) ($item->daily_fee ?? 5000);
+                $tienThue = $dailyFee * $borrowDays;
+
+                // Tạo N bản ghi dựa trên số lượng
+                for ($i = 0; $i < $quantity; $i++) {
+                    \App\Models\InventoryReservation::create([
+                        'book_id' => $item->book_id,
+                        'user_id' => $user->id,
+                        'reader_id' => $reader->id,
+                        'pickup_date' => $item->pickup_date,
+                        'return_date' => $item->return_date,
+                        'total_fee' => $tienThue,
+                        'notes' => $request->notes,
+                        'status' => 'pending',
+                    ]);
+                }
             }
 
-            $tongTien = $totalTienCoc + $totalTienThue + $totalTienShip;
+            // Xóa giỏ hàng sau khi gửi thành công
+            $cart->items()->delete();
+            $cart->delete();
 
-            $checkoutData = [
-                'reader_id' => $reader->id,
-                'reader_name' => $reader->name ?? ($user->name ?? ''),
-                'reader_phone' => $reader->phone ?? ($user->phone ?? ''),
-                'tinh_thanh' => $reader->tinh_thanh ?? '',
-                'xa' => $reader->xa ?? '',
-                'so_nha' => $reader->so_nha ?? '',
-                'notes' => $request->notes ?? '',
-                'checkout_source' => 'reservation_cart',
-                'items' => $itemsData,
-                'total_tien_coc' => $totalTienCoc,
-                'total_tien_thue' => $totalTienThue,
-                'total_tien_ship' => $totalTienShip,
-                'tong_tien' => $tongTien,
-                'voucher_id' => null,
-                'discount_amount' => 0,
-                'ngay_muon' => $earliestPickup,
-            ];
+            DB::commit();
 
-            // Lưu thông tin checkout vào session để chuyển sang trang checkout (orders.checkout)
-            $sessionItems = [];
-            foreach ($cart->items as $item) {
-                $sessionItems[] = [
-                    'ten_sach' => $item->book->ten_sach ?? '',
-                    'tac_gia' => $item->book->tac_gia ?? '',
-                    'quantity' => $item->quantity ?? 1,
-                    'total_price' => ($item->daily_fee ?? 5000) * ($item->days ?? 1) * ($item->quantity ?? 1),
-                ];
-            }
-
-            \Illuminate\Support\Facades\Session::put('checkout_items', [
-                'reservation_cart' => true,
-                'items' => $sessionItems,
-                'total' => $tongTien,
-            ]);
-
-            return redirect()->route('checkout');
+            return redirect()->route('reservation-cart.index')
+                ->with('success', 'Yêu cầu đặt trước của bạn đã được gửi thành công. Thủ thư sẽ sớm kiểm tra và phản hồi.');
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Có lỗi khi chuyển đến trang thanh toán: ' . $e->getMessage());
+            DB::rollBack();
+            return back()->with('error', 'Có lỗi khi gửi yêu cầu: ' . $e->getMessage());
         }
     }
 

@@ -97,108 +97,14 @@ class InventoryReservationController extends Controller
             return back()->with('error', 'Yêu cầu này không thể hoàn thành.');
         }
 
-        $request->validate([
-            'borrow_type' => 'nullable|in:take_home,onsite',
-            'ngay_muon' => 'nullable|date',
-            'ngay_hen_tra' => 'nullable|date',
+        // Chuyển hướng sang trang tạo phiếu mượn kèm dữ liệu pre-fill
+        return redirect()->route('admin.borrows.create', [
+            'reader_id' => $reservation->reader_id,
+            'book_id' => $reservation->book_id,
+            'reservation_id' => $reservation->id,
+            'ngay_muon' => $reservation->pickup_date ? $reservation->pickup_date->format('Y-m-d') : now()->format('Y-m-d'),
+            'ngay_hen_tra' => $reservation->return_date ? $reservation->return_date->format('Y-m-d') : now()->addDays(14)->format('Y-m-d'),
         ]);
-
-        // Nếu đã chuyển sang phiếu mượn rồi thì không tạo lại
-        if ($reservation->borrow_id) {
-            return back()->with('info', 'Yêu cầu này đã được chuyển sang phiếu mượn trước đó.');
-        }
-
-        DB::beginTransaction();
-        try {
-            // Ensure inventory is assigned. If pending, try auto assign like ready.
-            $inventory = $reservation->inventory;
-            if (!$inventory) {
-                $inventory = Inventory::where('book_id', $reservation->book_id)
-                    ->where('status', 'Co san')
-                    ->orderBy('id', 'asc')
-                    ->lockForUpdate()
-                    ->first();
-
-                if (!$inventory) {
-                    DB::rollBack();
-                    return back()->with('error', 'Không có bản sao nào đang "Có sẵn" để tạo phiếu mượn.');
-                }
-
-                $reservation->update([
-                    'inventory_id' => $inventory->id,
-                    'status' => 'ready',
-                    'processed_by' => Auth::id(),
-                    'ready_at' => now(),
-                ]);
-            }
-
-            $borrowType = $request->input('borrow_type', 'take_home');
-            $ngayMuon = $request->input('ngay_muon', now()->toDateString());
-            $ngayHenTra = $request->input('ngay_hen_tra', now()->addDays(14)->toDateString());
-
-            // Tạo Borrow header (tối thiểu các field bắt buộc)
-            $reader = $reservation->reader;
-            $borrow = Borrow::create([
-                'reader_id' => $reservation->reader_id,
-                'librarian_id' => Auth::id(),
-                'ten_nguoi_muon' => $reader?->ho_ten ?? ($reservation->user?->name ?? 'Độc giả'),
-                'so_dien_thoai' => $reader?->so_dien_thoai ?? ($reservation->user?->so_dien_thoai ?? ''),
-                'tinh_thanh' => $reader?->tinh_thanh ?? '',
-                'huyen' => $reader?->huyen ?? '',
-                'xa' => $reader?->xa ?? '',
-                'so_nha' => $reader?->so_nha ?? '',
-                'ngay_muon' => $ngayMuon,
-                'trang_thai' => 'Dang muon',
-            ]);
-
-            // Tính phí theo policy
-            $fees = PricingService::calculateFees(
-                $reservation->book,
-                $inventory,
-                $ngayMuon,
-                $ngayHenTra,
-                (bool) $reader
-            );
-
-            BorrowItem::create([
-                'borrow_id' => $borrow->id,
-                'book_id' => $reservation->book_id,
-                'inventorie_id' => $inventory->id,
-                'tien_coc' => $borrowType === 'onsite' ? 0 : $fees['tien_coc'],
-                'tien_thue' => $fees['tien_thue'],
-                'tien_ship' => 0,
-                'tien_phat' => 0,
-                'ngay_muon' => $ngayMuon,
-                'ngay_hen_tra' => $ngayHenTra,
-                'trang_thai' => 'Dang muon',
-                'borrow_type' => $borrowType,
-                'trang_thai_coc' => $borrowType === 'onsite' ? 'da_hoan' : 'da_thu',
-                'tien_coc_da_thu' => $borrowType === 'onsite' ? 0 : ($fees['tien_coc'] ?? 0),
-                'ngay_thu_coc' => $borrowType === 'onsite' ? null : $ngayMuon,
-            ]);
-
-            // Update inventory status
-            Inventory::where('id', $inventory->id)->update([
-                'status' => 'Dang muon',
-                'updated_at' => now(),
-            ]);
-
-            $borrow->recalculateTotals();
-
-            // Link back
-            $reservation->update([
-                'status' => 'fulfilled',
-                'borrow_id' => $borrow->id,
-                'processed_by' => Auth::id(),
-                'fulfilled_at' => now(),
-            ]);
-
-            DB::commit();
-            return back()->with('success', 'Đã tạo phiếu mượn #' . $borrow->id . ' từ yêu cầu đặt trước.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Có lỗi khi tạo phiếu mượn: ' . $e->getMessage());
-        }
     }
 
     public function cancel(Request $request, $id)

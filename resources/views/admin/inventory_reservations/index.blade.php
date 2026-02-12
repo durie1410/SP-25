@@ -49,10 +49,11 @@
                     <th>ID</th>
                     <th>Sách</th>
                     <th>Độc giả</th>
+                    <th>Giá thuê</th>
+                    <th>Ngày lấy/trả</th>
                     <th>Trạng thái</th>
                     <th>Bản sao</th>
                     <th>Ghi chú</th>
-                    <th>Thời gian</th>
                     <th>Thao tác</th>
                 </tr>
             </thead>
@@ -67,6 +68,17 @@
                         <td>
                             <div style="font-weight:600;">{{ $r->reader->ho_ten ?? ($r->user->name ?? 'N/A') }}</div>
                             <div style="font-size:12px; color: var(--text-muted);">{{ $r->reader->so_the_doc_gia ?? '' }}</div>
+                        </td>
+                        <td>
+                            <div style="font-weight:700; color: #e67e22;">{{ number_format($r->total_fee ?? 0, 0, ',', '.') }}đ</div>
+                        </td>
+                        <td>
+                            @if($r->pickup_date)
+                                <div style="font-size:13px;"><strong>Lấy:</strong> {{ \Carbon\Carbon::parse($r->pickup_date)->format('d/m/Y') }}</div>
+                                <div style="font-size:13px;"><strong>Trả:</strong> {{ \Carbon\Carbon::parse($r->return_date)->format('d/m/Y') }}</div>
+                            @else
+                                <span class="text-muted">N/A</span>
+                            @endif
                         </td>
                         <td>
                             @php
@@ -94,15 +106,6 @@
                                 <div style="font-size:12px; color: var(--text-muted); margin-top: 6px;">
                                     <strong>Admin:</strong> {{ $r->admin_note }}
                                 </div>
-                            @endif
-                        </td>
-                        <td style="white-space:nowrap;">
-                            <div style="font-size:12px; color: var(--text-muted);">Tạo: {{ optional($r->created_at)->format('d/m/Y H:i') }}</div>
-                            @if($r->ready_at)
-                                <div style="font-size:12px; color: var(--text-muted);">Ready: {{ $r->ready_at->format('d/m/Y H:i') }}</div>
-                            @endif
-                            @if($r->fulfilled_at)
-                                <div style="font-size:12px; color: var(--text-muted);">Nhận: {{ $r->fulfilled_at->format('d/m/Y H:i') }}</div>
                             @endif
                         </td>
                         <td style="white-space:nowrap;">

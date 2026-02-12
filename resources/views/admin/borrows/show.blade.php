@@ -167,47 +167,19 @@
                     <span class="text-danger fw-bold">{{ number_format($borrow->phi_hong_sach) }}₫</span>
                 </p>
                 @endif
-                
-                <p class="mb-1">
-                    <strong>Tiền cọc:</strong>
-                    <span class="fw-bold">{{ number_format($borrow->tien_coc ?? 0) }}₫</span>
-                </p>
+
                 <p class="mb-1">
                     <strong>Tiền thuê:</strong>
                     <span class="fw-bold">{{ number_format($borrow->tien_thue ?? 0) }}₫</span>
                 </p>
-                <p class="mb-1">
-                    <strong>Tiền ship:</strong>
-                    <span class="fw-bold">
-                        @php
-                            // Tính tổng phí ship từ items nếu borrow->tien_ship = 0
-                            $shippingFeeDisplay = $borrow->tien_ship ?? 0;
-                            if ($shippingFeeDisplay == 0 && $borrow->items) {
-                                $shippingFeeDisplay = $borrow->items->sum('tien_ship');
-                            }
-                            // Nếu vẫn = 0, mặc định là 20k
-                            if ($shippingFeeDisplay == 0) {
-                                $shippingFeeDisplay = 20000;
-                            }
-                        @endphp
-                        {{ number_format($shippingFeeDisplay, 0) }}₫
-                    </span>
-                </p>
-                @if($borrow->tien_coc_hoan_tra !== null)
-                <p class="mb-1">
-                    <strong>Tiền cọc hoàn trả:</strong>
-                    <span class="text-success fw-bold">{{ number_format($borrow->tien_coc_hoan_tra) }}₫</span>
-                </p>
-                @endif
+
                 <p class="mb-1">
                     <strong>Tổng tiền:</strong>
                     <span class="fw-bold text-success">
                         @php
-                            // Tính lại tổng tiền = cọc + thuê + ship
-                            $tienCocTotal = $borrow->tien_coc ?? 0;
                             $tienThueTotal = $borrow->tien_thue ?? 0;
-                            $tienShipTotal = $shippingFeeDisplay; // Đã tính ở trên
-                            $tongTienTotal = $tienCocTotal + $tienThueTotal + $tienShipTotal;
+                            $tienPhatTotal = $borrow->items->sum('tien_phat') ?? 0;
+                            $tongTienTotal = $tienThueTotal + $tienPhatTotal;
                         @endphp
                         {{ number_format($tongTienTotal, 0) }}₫
                     </span>
@@ -321,9 +293,10 @@
                         </td>
                         <td>
                             <div class="small">
-                                <div><strong>Cọc:</strong> {{ number_format($item->tien_coc) }}₫</div>
                                 <div><strong>Thuê:</strong> {{ number_format($item->tien_thue) }}₫</div>
-                                <div><strong>Ship:</strong> {{ number_format($item->tien_ship) }}₫</div>
+                                @if($item->tien_phat > 0)
+                                    <div class="text-danger"><strong>Phạt:</strong> {{ number_format($item->tien_phat) }}₫</div>
+                                @endif
                             </div>
                         </td>
                         <td>{{ $item->ngay_hen_tra->format('d/m/Y') }}</td>

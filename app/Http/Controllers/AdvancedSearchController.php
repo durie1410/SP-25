@@ -194,7 +194,7 @@ class AdvancedSearchController extends Controller
                   ->orWhere('email', 'like', "%{$query}%");
             })
             ->limit(10)
-            ->get(['id', 'ho_ten', 'so_the_doc_gia', 'email']);
+            ->get(['id', 'ho_ten', 'so_the_doc_gia', 'email', 'so_dien_thoai', 'tinh_thanh', 'huyen', 'xa', 'so_nha']);
 
         return response()->json($readers);
     }

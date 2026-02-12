@@ -67,12 +67,7 @@ class BorrowController extends Controller
         }
 
         if (!$request->filled('trang_thai')) {
-            $query->orderByRaw("EXISTS (
-                SELECT 1 FROM borrow_items 
-                WHERE borrow_items.borrow_id = borrows.id 
-                AND borrow_items.trang_thai = 'Cho duyet'
-            ) DESC")
-                ->orderBy('created_at', 'desc');
+            $query->orderBy('created_at', 'desc');
         } else {
             $query->orderBy('created_at', 'desc');
         }
@@ -83,15 +78,6 @@ class BorrowController extends Controller
         $borrows->getCollection()->transform(function ($borrow) {
             // Reload hoàn toàn từ database để tránh cache
             $borrow = Borrow::with(['reader', 'librarian', 'items.book', 'voucher'])->find($borrow->id);
-
-            // Đồng bộ tien_ship từ items lên borrow nếu borrow->tien_ship = 0
-            if ($borrow && $borrow->items && $borrow->items->count() > 0) {
-                $tienShipFromItems = $borrow->items->sum('tien_ship');
-                if (floatval($borrow->tien_ship ?? 0) == 0 && $tienShipFromItems > 0) {
-                    $borrow->tien_ship = $tienShipFromItems;
-                    $borrow->save();
-                }
-            }
 
             return $borrow;
         });
@@ -121,13 +107,20 @@ class BorrowController extends Controller
     /* ============================================================
         2) TẠO PHIẾU MƯỢN
     ============================================================ */
-    public function create()
+    public function create(Request $request)
     {
         $readers = Reader::where('trang_thai', 'Hoat dong')->get();
         $books = Book::all();
-        $librarians = User::where('role', 'admin')->get();
+        $librarians = User::whereIn('role', ['admin', 'staff'])->get();
 
-        return view('admin.borrows.create', compact('readers', 'books', 'librarians'));
+        // Xử lý prefill nếu có reader_id từ request (ví từ reservation)
+        $prefillReader = null;
+        if ($request->has('reader_id')) {
+            $prefillReader = Reader::select('id', 'ho_ten', 'so_the_doc_gia', 'so_dien_thoai', 'tinh_thanh', 'huyen', 'xa', 'so_nha', 'dia_chi')
+                ->find($request->reader_id);
+        }
+
+        return view('admin.borrows.create', compact('readers', 'books', 'librarians', 'prefillReader'));
     }
 
     public function store(Request $request)
@@ -137,18 +130,90 @@ class BorrowController extends Controller
             'librarian_id' => 'required|exists:users,id',
             'ten_nguoi_muon' => 'required|string|max:255',
             'so_dien_thoai' => 'required|string|max:20',
-            'tinh_thanh' => 'required|string|max:255',
-            'huyen' => 'required|string|max:255',
-            'xa' => 'required|string|max:255',
-            'so_nha' => 'required|string|max:255',
+            'tinh_thanh' => 'nullable|string|max:255',
+            'huyen' => 'nullable|string|max:255',
+            'xa' => 'nullable|string|max:255',
+            'so_nha' => 'nullable|string|max:255',
             'ngay_muon' => 'required|date',
             'ghi_chu' => 'nullable|string|max:500',
+            'reservation_id' => 'nullable|exists:inventory_reservations,id',
         ]);
 
-        Borrow::create($request->all());
+        $data = $request->all();
+        
+        // Tránh trùng lặp địa chỉ: Nếu đã gộp vào dia_chi thì xóa các trường lẻ để view không cộng dồn
+        if ($request->filled('dia_chi') && empty($data['so_nha'])) {
+            $data['so_nha'] = $request->dia_chi;
+            $data['tinh_thanh'] = null;
+            $data['huyen'] = null;
+            $data['xa'] = null;
+        }
 
-        return redirect()->route('admin.borrows.index')
-            ->with('success', 'Cho mượn sách thành công!');
+        DB::beginTransaction();
+        try {
+            // Mặc định trạng thái chi tiết là đơn hàng mới nếu tạo từ admin
+            $data['trang_thai_chi_tiet'] = Borrow::STATUS_DON_HANG_MOI;
+            $borrow = Borrow::create($data);
+
+            // Nếu có reservation_id, tạo BorrowItem tương ứng
+            if ($request->filled('reservation_id')) {
+                $reservation = \App\Models\InventoryReservation::with('book')->find($request->reservation_id);
+                if ($reservation) {
+                    $rentalFee = (float) ($reservation->total_fee ?? 0);
+                    if ($rentalFee <= 0) {
+                        // Fallback: tính lại theo số ngày đặt trước nếu total_fee chưa có
+                        $pickup = $reservation->pickup_date ? \Carbon\Carbon::parse($reservation->pickup_date) : null;
+                        $ret = $reservation->return_date ? \Carbon\Carbon::parse($reservation->return_date) : null;
+                        $days = 1;
+                        if ($pickup && $ret && $ret->greaterThan($pickup)) {
+                            $days = max(1, $pickup->diffInDays($ret));
+                        }
+                        $dailyFee = (float) ($reservation->book?->daily_fee ?? 5000);
+                        $rentalFee = $dailyFee * $days;
+                    }
+
+                    // Tạo dòng sách mượn (không tiền cọc, không tiền ship)
+                    \App\Models\BorrowItem::create([
+                        'borrow_id' => $borrow->id,
+                        'book_id' => $reservation->book_id,
+                        'inventorie_id' => $reservation->inventory_id, // Có thể null nếu chưa gán
+                        'tien_coc' => 0,
+                        'tien_thue' => $rentalFee,
+                        'tien_ship' => 0,
+                        'ngay_muon' => $borrow->ngay_muon,
+                        'ngay_hen_tra' => $reservation->return_date ? \Carbon\Carbon::parse($reservation->return_date)->toDateString() : \Carbon\Carbon::parse($borrow->ngay_muon)->addDays(14)->toDateString(),
+                        'trang_thai' => 'Cho duyet',
+                        'borrow_type' => 'take_home',
+                    ]);
+
+                    // Update header totals = chỉ tiền thuê
+                    $borrow->update([
+                        'tien_coc' => 0,
+                        'tien_ship' => 0,
+                        'tien_thue' => $rentalFee,
+                        'tong_tien' => $rentalFee,
+                    ]);
+
+                    // Cập nhật yêu cầu đặt trước
+                    $reservation->update([
+                        'status' => 'fulfilled',
+                        'borrow_id' => $borrow->id,
+                        'processed_by' => Auth::id(),
+                        'fulfilled_at' => now(),
+                    ]);
+                }
+            }
+
+            // Không sync tiền ship / tiền cọc từ items cho phiếu đặt trước
+
+            DB::commit();
+            return redirect()->route('admin.borrows.index')
+                ->with('success', 'Cho mượn sách thành công!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error storing borrow: ' . $e->getMessage());
+            return back()->with('error', 'Có lỗi khi lưu phiếu mượn: ' . $e->getMessage());
+        }
     }
 
 
@@ -240,16 +305,6 @@ class BorrowController extends Controller
         $borrow = Borrow::with(['reader', 'librarian', 'items.book'])
             ->findOrFail($id);
         
-        // Đảm bảo tien_ship được đồng bộ từ items nếu borrow->tien_ship = 0
-        if (($borrow->tien_ship ?? 0) == 0 && $borrow->items && $borrow->items->count() > 0) {
-            $tienShipFromItems = $borrow->items->sum('tien_ship');
-            if ($tienShipFromItems > 0) {
-                $borrow->tien_ship = $tienShipFromItems;
-                // 重新计算总金额
-                $borrow->tong_tien = ($borrow->tien_coc ?? 0) + ($borrow->tien_thue ?? 0) + $tienShipFromItems;
-                $borrow->save();
-            }
-        }
 
         return view('admin.borrows.show', [
             'borrow' => $borrow,
@@ -472,6 +527,11 @@ class BorrowController extends Controller
     ============================================================ */
     public function approve($id)
     {
+        // Chỉ cho phép Admin duyệt phiếu mượn
+        if (!auth()->user()->isAdmin()) {
+            return back()->with('error', 'Bạn không có quyền thực hiện thao tác này. Chỉ Admin mới có quyền duyệt phiếu mượn.');
+        }
+
         $borrow = Borrow::with('items')->findOrFail($id);
 
         // Kiểm tra xem có items nào đang ở trạng thái "Cho duyet" không
@@ -527,13 +587,13 @@ class BorrowController extends Controller
         ]);
 
         // Cập nhật trạng thái của borrow:
-        // Khi admin duyệt phiếu, phía User sẽ thấy luôn trạng thái "Đang chuẩn bị sách"
+        // Khi admin duyệt phiếu, chuyển sang trạng thái "Đang mượn"
         $borrow->update([
-            'trang_thai' => 'Cho duyet',
-            'trang_thai_chi_tiet' => \App\Models\Borrow::STATUS_DANG_CHUAN_BI_SACH,
+            'trang_thai' => 'Dang muon',
+            'trang_thai_chi_tiet' => \App\Models\Borrow::STATUS_DA_MUON_DANG_LUU_HANH,
         ]);
 
-        return back()->with('success', 'Đã duyệt phiếu mượn thành công! Đơn hàng chuyển sang trạng thái \"Đang chuẩn bị sách\".');
+        return back()->with('success', 'Đã duyệt phiếu mượn thành công! Đơn hàng chuyển sang trạng thái "Đang mượn".');
     }
 
     /* ============================================================

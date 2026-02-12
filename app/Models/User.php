@@ -29,6 +29,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'phone',
         'province',
         'district',
+        'xa',
         'address',
         'so_cccd',
         'cccd_image',

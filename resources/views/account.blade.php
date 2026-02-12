@@ -189,20 +189,15 @@
             </div>
         </div>
         <div class="form-group full-width">
-            <label for="address">Địa chỉ nhận hàng <small style="color: #666;">(Nhập địa chỉ để tự động điền
-                    Tỉnh/Thành phố và Quận/Huyện)</small> <span style="color: red;">*</span></label>
+            <label for="address">Số nhà, tên đường <span style="color: red;">*</span></label>
             <div class="input-with-icon">
                 <input type="text" id="address" name="address"
-                    placeholder="Ví dụ: 123 Nguyễn Văn A, Quận 1, Hồ Chí Minh" value="{{ $user->address ?? '' }}"
+                    placeholder="Ví dụ: 123 Nguyễn Văn A" value="{{ $user->address ?? '' }}"
                     autocomplete="off" required>
                 <span class="input-icon">🏠</span>
             </div>
-            <small style="color: #666; display: block; margin-top: 5px;">
-                💡 Gợi ý: Nhập địa chỉ đầy đủ, hệ thống sẽ tự động nhận diện và điền Tỉnh/Thành phố,
-                Quận/Huyện. Hoặc bạn có thể chọn trực tiếp từ danh sách bên dưới.
-            </small>
         </div>
-        <div class="form-group half-width">
+        <div class="form-group third-width">
             <label for="province">Tỉnh/Thành phố <span style="color: red;">*</span></label>
             <div class="input-with-icon">
                 <select id="province" name="province" required>
@@ -211,13 +206,20 @@
                 <span class="input-icon arrow-down">▼</span>
             </div>
         </div>
-        <div class="form-group half-width">
+        <div class="form-group third-width">
             <label for="district">Quận/Huyện <span style="color: red;">*</span></label>
             <div class="input-with-icon">
                 <select id="district" name="district" required>
                     <option value="">-- Chọn Quận/Huyện --</option>
                 </select>
                 <span class="input-icon arrow-down">▼</span>
+            </div>
+        </div>
+        <div class="form-group third-width">
+            <label for="xa">Xã/Phường <span style="color: red;">*</span></label>
+            <div class="input-with-icon">
+                <input type="text" id="xa" name="xa" placeholder="Nhập Xã/Phường" value="{{ $user->xa ?? '' }}" required>
+                <span class="input-icon">🏘️</span>
             </div>
         </div>
         <div class="form-actions">

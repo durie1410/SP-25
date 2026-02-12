@@ -252,20 +252,20 @@ class Borrow extends Model
 
     public function recalculateTotals()
     {
-        // Tính tổng các khoản
-        $this->tien_coc = $this->borrowItems()->sum('tien_coc');
+        // Tính tổng các khoản (Chỉ tính tiền thuê và tiền phạt)
+        $this->tien_coc = 0;
+        $this->tien_ship = 0;
         $this->tien_thue = $this->borrowItems()->sum('tien_thue');
-        $this->tien_ship = $this->borrowItems()->sum('tien_ship');
 
         $tien_phat = $this->borrowItems()->sum('tien_phat');
 
-        // Tổng trước khi áp dụng voucher
-        $this->tong_tien = $this->tien_coc + $this->tien_thue + $this->tien_ship + $tien_phat;
+        // Tổng tiền lúc này chỉ bao gồm tiền thuê và tiền phạt
+        $this->tong_tien = $this->tien_thue + $tien_phat;
 
         // Nếu có voucher, áp dụng giảm giá
         if ($this->voucher) {
             $voucher = $this->voucher;
-            $tongTienTruocGiam = $this->tien_coc + $this->tien_thue + $this->tien_ship + $tien_phat;
+            $tongTienTruocGiam = $this->tong_tien;
 
             if ($voucher->loai === 'percentage') {
                 $discount = ($tongTienTruocGiam * $voucher->gia_tri) / 100;
