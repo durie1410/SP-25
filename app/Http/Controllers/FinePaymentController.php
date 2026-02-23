@@ -31,7 +31,7 @@ class FinePaymentController extends Controller
             BorrowPayment::create([
                 'borrow_id' => $borrow->id,
                 'amount' => $totalAmount,
-                'payment_type' => 'fine',
+                'payment_type' => 'damage_fee',
                 'payment_method' => 'cash',
                 'payment_status' => 'success',
                 'transaction_code' => 'CASH-' . time(),
@@ -70,7 +70,7 @@ class FinePaymentController extends Controller
                 BorrowPayment::create([
                     'borrow_id' => $borrowId,
                     'amount' => $borrowFines->sum('amount'),
-                    'payment_type' => 'fine',
+                    'payment_type' => 'damage_fee',
                     'payment_method' => 'cash',
                     'payment_status' => 'success',
                     'transaction_code' => 'CASH-' . $reader->id . '-' . time(),
@@ -142,7 +142,7 @@ class FinePaymentController extends Controller
                 BorrowPayment::create([
                     'borrow_id' => $borrow->id,
                     'amount' => $amount,
-                    'payment_type' => 'fine',
+                    'payment_type' => 'damage_fee',
                     'payment_method' => 'momo',
                     'payment_status' => 'pending',
                     'transaction_code' => $orderId,
@@ -212,7 +212,7 @@ class FinePaymentController extends Controller
                     BorrowPayment::create([
                         'borrow_id' => $borrowId,
                         'amount' => $borrowFines->sum('amount'),
-                        'payment_type' => 'fine',
+                        'payment_type' => 'damage_fee',
                         'payment_method' => 'momo',
                         'payment_status' => 'pending',
                         'transaction_code' => $orderId,
