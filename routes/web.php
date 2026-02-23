@@ -28,6 +28,9 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\Admin\BookDeleteRequestController;
 
 use App\Http\Controllers\MomoController;
+use App\Http\Controllers\ReturnController;
+use App\Http\Controllers\FinePaymentController;
+use App\Http\Controllers\FinePaymentsController;
 
 Route::post('/momo/create', [MomoController::class, 'createPayment'])
     ->name('momo.create');
@@ -249,6 +252,7 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::get('/logout', [AuthController::class, 'logout']);
 
 // User Dashboard Route (for authenticated users)
 Route::middleware('auth')->group(function () {
@@ -309,8 +313,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         Route::resource('authors', App\Http\Controllers\Admin\AuthorController::class)->middleware('permission:view-readers');
       // Vô hiệu hóa create và store - sách mới chỉ được tạo từ quản lý kho
       Route::resource('books', BookController::class)->middleware('permission:view-books')->except(['create', 'store', 'edit', 'update', 'destroy']);
-      Route::get('books/create', [BookController::class, 'create'])->name('books.create')->middleware('permission:create-books');
-      Route::post('books', [BookController::class, 'store'])->name('books.store')->middleware('permission:create-books');
+      Route::get('books/create', [BookController::class, 'create'])->name('books.create')->middleware('admin-only');
+      Route::post('books', [BookController::class, 'store'])->name('books.store')->middleware('admin-only');
       Route::get('books/{book}/edit', [BookController::class, 'edit'])->name('books.edit')->middleware('permission:edit-books');
       Route::put('books/{book}', [BookController::class, 'update'])->name('books.update')->middleware('permission:edit-books');
       Route::delete('books/{book}', [BookController::class, 'destroy'])->name('books.destroy')->middleware('permission:delete-books');
@@ -460,12 +464,29 @@ Route::resource('vouchers', VoucherController::class);
       Route::post('comments/{id}/approve', [CommentController::class, 'approve'])->name('comments.approve')->middleware('permission:approve-reviews');
       Route::post('comments/{id}/reject', [CommentController::class, 'reject'])->name('comments.reject')->middleware('permission:approve-reviews');
       
-      // Fines routes
-      Route::resource('fines', FineController::class)->middleware('permission:view-fines');
-      Route::post('fines/{id}/mark-paid', [FineController::class, 'markAsPaid'])->name('fines.mark-paid')->middleware('permission:edit-fines');
-      Route::post('fines/{id}/waive', [FineController::class, 'waive'])->name('fines.waive')->middleware('permission:waive-fines');
-      Route::post('fines/create-late-returns', [FineController::class, 'createLateReturnFines'])->name('fines.create-late-returns')->middleware('permission:create-fines');
-      Route::get('fines-report', [FineController::class, 'report'])->name('fines.report')->middleware('permission:view-reports');
+    // Fines routes
+    Route::resource('fines', FineController::class)->middleware('permission:view-fines');
+    Route::post('fines/{id}/mark-paid', [FineController::class, 'markAsPaid'])->name('fines.mark-paid')->middleware('permission:edit-fines');
+    Route::post('fines/{id}/waive', [FineController::class, 'waive'])->name('fines.waive')->middleware('permission:waive-fines');
+    Route::post('fines/create-late-returns', [FineController::class, 'createLateReturnFines'])->name('fines.create-late-returns')->middleware('permission:create-fines');
+    Route::get('fines-report', [FineController::class, 'report'])->name('fines.report')->middleware('permission:view-reports');
+
+    // Fine Payment Routes (Tiền mặt & MoMo cũ)
+    Route::post('borrows/{borrow}/fine-pay-cash', [FinePaymentController::class, 'payCash'])->name('borrows.fine-pay-cash');
+    Route::post('borrows/{borrow}/fine-momo/create', [FinePaymentController::class, 'createMomoPayment'])->name('borrows.fine-momo.create');
+
+    // Màn hình trả sách theo TÊN khách (tick chọn nhiều sách, nhập tình trạng từng quyển)
+    Route::get('returns', [ReturnController::class, 'index'])->name('returns.index');
+    Route::post('returns/process', [ReturnController::class, 'processReturn'])->name('returns.process');
+
+    // Màn hình Thanh toán phạt (lọc theo độc giả)
+    Route::get('fine-payments', [FinePaymentsController::class, 'index'])->name('fine-payments.index');
+    Route::post('fine-payments/{reader}/pay-cash', [FinePaymentController::class, 'payCashByReader'])->name('fine-payments.pay-cash');
+    Route::post('fine-payments/{reader}/momo/create', [FinePaymentController::class, 'createMomoPaymentByReader'])->name('fine-payments.momo.create');
+
+    // MoMo callbacks cho phạt (tách biệt với Order)
+    Route::get('borrows/fine-momo/return', [FinePaymentController::class, 'momoReturn'])->name('admin.borrows.fine-momo.return');
+    Route::post('borrows/fine-momo/ipn', [FinePaymentController::class, 'momoIpn'])->name('admin.borrows.fine-momo.ipn');
       
       // Reservations routes - Đã xóa (thay bằng giỏ hàng)
       Route::post('fines/{id}/restore', [FineController::class, 'restore'])->name('fines.restore')->middleware('permission:edit-fines');

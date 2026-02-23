@@ -302,7 +302,7 @@ class BorrowController extends Controller
     ============================================================ */
     public function show($id)
     {
-        $borrow = Borrow::with(['reader', 'librarian', 'items.book'])
+        $borrow = Borrow::with(['reader', 'librarian', 'items.book', 'fines'])
             ->findOrFail($id);
         
 
@@ -1307,7 +1307,7 @@ class BorrowController extends Controller
      */
     public function confirmReceiveAndCheck($id)
     {
-        $borrow = Borrow::findOrFail($id);
+        $borrow = Borrow::with(['items.book', 'items.inventory', 'reader'])->findOrFail($id);
 
         $request = request();
         $request->validate([
@@ -1329,6 +1329,51 @@ class BorrowController extends Controller
             }
 
             $borrow->save();
+
+            // =====================
+            // TÍNH PHẠT QUÁ HẠN (THEO ITEM) + TẠO FINE
+            // =====================
+            $returnDate = now();
+            foreach ($borrow->items as $item) {
+                // chỉ tính cho các item đang mượn / đang trong flow trả
+                if (!$item->ngay_hen_tra) {
+                    continue;
+                }
+
+                $dueDate = Carbon::parse($item->ngay_hen_tra)->startOfDay();
+                $paidLateFine = \App\Services\PricingService::calculateLateReturnFine($dueDate, $returnDate, 1);
+
+                // Cập nhật tiền phạt lên item (cộng dồn với phạt hỏng/mất nếu đã set ở nơi khác)
+                if ($paidLateFine > 0) {
+                    $current = (float) ($item->tien_phat ?? 0);
+                    $item->tien_phat = max($current, $paidLateFine);
+                    $item->save();
+
+                    // Tránh tạo trùng fine quá hạn
+                    $existingLateFine = Fine::where('borrow_id', $borrow->id)
+                        ->where('borrow_item_id', $item->id)
+                        ->where('type', 'late_return')
+                        ->where('status', 'pending')
+                        ->first();
+
+                    if (!$existingLateFine) {
+                        Fine::create([
+                            'borrow_id' => $borrow->id,
+                            'borrow_item_id' => $item->id,
+                            'reader_id' => $borrow->reader_id,
+                            'amount' => $paidLateFine,
+                            'type' => 'late_return',
+                            'description' => 'Phạt trả sách trễ hạn',
+                            'status' => 'pending',
+                            'due_date' => $returnDate->toDateString(),
+                            'created_by' => auth()->id() ?? 1,
+                        ]);
+                    }
+                }
+            }
+
+            // Recalc tổng tiền (tiền thuê + tổng tiền phạt từ items)
+            $borrow->recalculateTotals();
             
             // Kiểm tra và xử lý trễ lâu (khóa tài khoản)
             $isLongOverdue = false;
@@ -1418,7 +1463,13 @@ class BorrowController extends Controller
      */
     public function completeOrder($id)
     {
-        $borrow = Borrow::with(['reader', 'items'])->findOrFail($id);
+        $borrow = Borrow::with(['reader', 'items', 'fines'])->findOrFail($id);
+
+        // Kiểm tra xem còn phạt chưa thanh toán không
+        $pendingFinesCount = $borrow->fines()->where('status', 'pending')->count();
+        if ($pendingFinesCount > 0) {
+            return back()->with('error', "Không thể hoàn tất đơn hàng. Vui lòng thanh toán dứt điểm {$pendingFinesCount} khoản phạt trước.");
+        }
 
         try {
             DB::beginTransaction();

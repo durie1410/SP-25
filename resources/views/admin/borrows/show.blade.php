@@ -299,7 +299,7 @@
                                 @endif
                             </div>
                         </td>
-                        <td>{{ $item->ngay_hen_tra->format('d/m/Y') }}</td>
+                        <td>{{ $item->ngay_hen_tra ? $item->ngay_hen_tra->format('d/m/Y') : '---' }}</td>
                         <td>
                             @php
                                 $statusClass = str_replace(' ', '-', $item->trang_thai);
@@ -314,6 +314,61 @@
             </table>
         </div>
     </div>
+
+    @php
+        $pendingFines = $borrow->fines->where('status', 'pending');
+        $totalPendingFine = $pendingFines->sum('amount');
+    @endphp
+
+    @if($pendingFines->count() > 0)
+    <div class="card mt-4 border-danger shadow-sm">
+        <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+            <span class="fw-bold"><i class="fas fa-exclamation-triangle me-2"></i> Khoản phạt chưa thanh toán</span>
+            <span class="badge bg-white text-danger fw-bold fs-6">{{ number_format($totalPendingFine) }}₫</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Loại phạt</th>
+                            <th>Nội dung</th>
+                            <th>Số tiền</th>
+                            <th>Ngày tạo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($pendingFines as $fine)
+                        <tr>
+                            <td>
+                                <span class="badge bg-outline-danger text-danger border border-danger">
+                                    {{ $fine->type == 'late_return' ? 'Trả trễ' : ($fine->type == 'damaged_book' ? 'Hỏng sách' : 'Mất sách') }}
+                                </span>
+                            </td>
+                            <td>{{ $fine->description }}</td>
+                            <td class="fw-bold text-danger">{{ number_format($fine->amount) }}₫</td>
+                            <td>{{ $fine->created_at->format('d/m/Y H:i') }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="d-flex justify-content-end gap-2 mt-2">
+                <form action="{{ route('borrows.fine-pay-cash', $borrow->id) }}" method="POST" onsubmit="return confirm('Xác nhận độc giả đã thanh toán {{ number_format($totalPendingFine) }}₫ tiền mặt?')">
+                    @csrf
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-money-bill-wave me-1"></i> Thu tiền mặt
+                    </button>
+                </form>
+                
+                <button type="button" class="btn btn-danger" onclick="payFineWithMomo()">
+                    <i class="fas fa-mobile-alt me-1"></i> Thanh toán MoMo
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
 
     @if($borrow->trang_thai_chi_tiet === \App\Models\Borrow::STATUS_DANG_VAN_CHUYEN_TRA_VE)
     <div class="card mt-4 border-warning shadow-sm">
