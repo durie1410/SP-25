@@ -134,7 +134,7 @@ class ReturnController extends Controller
                         'reader_id' => $reader->id,
                         'amount' => $lateFine,
                         'type' => 'late_return',
-                        'description' => "Phạt trễ hạn sách: {$item->book->ten_sach}",
+                        'description' => "Phạt trễ hạn sách: " . ($item->book?->ten_sach ?? 'Không xác định'),
                         'status' => 'pending',
                         'due_date' => $returnDate->toDateString(),
                         'created_by' => auth()->id() ?? 1,
@@ -148,10 +148,10 @@ class ReturnController extends Controller
                         'reader_id' => $reader->id,
                         'amount' => $damageFine,
                         'type' => $condition === 'mat_sach' ? 'lost_book' : 'damaged_book',
-                        'description' => "Phạt " . ($condition === 'mat_sach' ? 'mất' : 'hỏng') . " sách: {$item->book->ten_sach}",
+                        'description' => "Phạt " . ($condition === 'mat_sach' ? 'mất' : 'hỏng') . " sách: " . ($item->book?->ten_sach ?? 'Không xác định'),
                         'status' => 'pending',
                         'due_date' => $returnDate->toDateString(),
-                        'created_by' => auth()->id(),
+                        'created_by' => auth()->id() ?? 1,
                     ]);
                 }
 
