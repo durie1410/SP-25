@@ -136,7 +136,8 @@ class ReturnController extends Controller
                         'type' => 'late_return',
                         'description' => "Phạt trễ hạn sách: {$item->book->ten_sach}",
                         'status' => 'pending',
-                        'created_by' => auth()->id(),
+                        'due_date' => $returnDate->toDateString(),
+                        'created_by' => auth()->id() ?? 1,
                     ]);
                 }
 
@@ -149,6 +150,7 @@ class ReturnController extends Controller
                         'type' => $condition === 'mat_sach' ? 'lost_book' : 'damaged_book',
                         'description' => "Phạt " . ($condition === 'mat_sach' ? 'mất' : 'hỏng') . " sách: {$item->book->ten_sach}",
                         'status' => 'pending',
+                        'due_date' => $returnDate->toDateString(),
                         'created_by' => auth()->id(),
                     ]);
                 }
