@@ -383,12 +383,9 @@
                 @endif
                 
                 @php
-                    // Lấy thông tin giao hàng thất bại nếu có
-                    $failureShippingLog = $borrow->shippingLogs->where('status', 'giao_hang_that_bai')->first();
-                    $failureReason = $failureShippingLog->failure_reason ?? null;
-                    $failureProofImage = ($failureShippingLog && $failureShippingLog->failure_proof_image)
-                        ? asset('storage/' . $failureShippingLog->failure_proof_image)
-                        : null;
+                    // ShippingLog đã bị xóa, không còn thông tin giao hàng thất bại
+                    $failureReason = null;
+                    $failureProofImage = null;
                 @endphp
                 
                 @if($borrow->trang_thai_chi_tiet === 'giao_hang_that_bai' && $failureReason)
@@ -472,32 +469,27 @@
             <!-- Thanh toán -->
             <div class="detail-section">
                 <div class="section-title"><i class="fas fa-money-bill-wave"></i> Thông tin thanh toán</div>
+                @php
+                    // Định nghĩa biến shippingFeeDisplay (luôn = 0 vì đã bỏ ship)
+                    $shippingFeeDisplay = $borrow->tien_ship ?? 0;
+                @endphp
                 <div class="price-summary">
+                    {{-- Ẩn tiền cọc
                     <div class="price-row">
                         <span>Tiền cọc:</span>
                         <span>{{ number_format($borrow->tien_coc, 0, ',', '.') }}₫</span>
                     </div>
+                    --}}
                     <div class="price-row">
                         <span>Tiền thuê:</span>
                         <span>{{ number_format($borrow->tien_thue, 0, ',', '.') }}₫</span>
                     </div>
+                    {{-- Ẩn tiền ship
                     <div class="price-row">
                         <span>Tiền ship:</span>
-                        <span>
-                            @php
-                                // Tính tổng phí ship từ items nếu borrow->tien_ship = 0
-                                $shippingFeeDisplay = $borrow->tien_ship ?? 0;
-                                if ($shippingFeeDisplay == 0 && $borrow->items) {
-                                    $shippingFeeDisplay = $borrow->items->sum('tien_ship');
-                                }
-                                // Nếu vẫn = 0, mặc định là 20k
-                                if ($shippingFeeDisplay == 0) {
-                                    $shippingFeeDisplay = 20000;
-                                }
-                            @endphp
-                            {{ number_format($shippingFeeDisplay, 0, ',', '.') }}₫
-                        </span>
+                        <span>{{ number_format($shippingFeeDisplay, 0, ',', '.') }}₫</span>
                     </div>
+                    --}}
                     @if($borrow->voucher)
                         <div class="price-row">
                             <span>Giảm giá ({{ $borrow->voucher->ma_voucher }}):</span>

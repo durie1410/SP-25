@@ -286,11 +286,6 @@ class Borrow extends Model
         return $this->hasMany(BorrowPayment::class);
     }
 
-    public function shippingLogs()
-    {
-        return $this->hasMany(ShippingLog::class);
-    }
-
     // 🔹 Người chuẩn bị hàng
     public function nguoiChuanBi()
     {

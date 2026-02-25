@@ -398,9 +398,7 @@ return response()->json([
     public function show($id)
     {
         try {
-            $borrow = Borrow::with(['items.book', 'items.inventory', 'reader', 'payments', 'voucher', 'shippingLogs' => function($query) {
-                $query->where('status', 'giao_hang_that_bai')->latest()->first();
-            }])
+            $borrow = Borrow::with(['items.book', 'items.inventory', 'reader', 'payments', 'voucher'])
                 ->findOrFail($id);
             
             // Đảm bảo tien_ship được đồng bộ từ items nếu borrow->tien_ship = 0
@@ -473,9 +471,7 @@ return response()->json([
             $reader = Auth::user()->reader;
             if ($reader) {
                 // Lấy tất cả đơn mượn của reader, bao gồm cả giao_hang_that_bai
-                $orders = Borrow::with(['items.book', 'reader', 'librarian', 'payments', 'shippingLogs' => function($query) {
-                    $query->where('status', 'giao_hang_that_bai')->latest()->first();
-                }])
+                $orders = Borrow::with(['items.book', 'reader', 'librarian', 'payments'])
                     ->where('reader_id', $reader->id)
                     ->orderBy('created_at', 'desc')
                     ->paginate(10);

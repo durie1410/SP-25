@@ -10,7 +10,7 @@ use App\Models\Voucher;
 use App\Models\Inventory;
 use App\Models\BorrowItem;
 use App\Models\BorrowPayment;
-use App\Models\ShippingLog;
+
 use App\Models\Wallet;
 use App\Models\Fine;
 use App\Services\FileUploadService;
@@ -509,12 +509,6 @@ class BorrowController extends Controller
             ]);
         }
 
-        ShippingLog::create([
-            'borrow_id' => $borrow->id,
-            'status' => 'don_hang_moi',
-            'shipper_note' => 'Phiếu mượn đã xác nhận.',
-        ]);
-
         $borrow->update([
             'trang_thai' => 'Dang muon'
         ]);
@@ -579,13 +573,6 @@ class BorrowController extends Controller
             ]);
         }
 
-        // Tạo shipping log
-        ShippingLog::create([
-            'borrow_id' => $borrow->id,
-            'status' => 'don_hang_moi',
-            'shipper_note' => 'Phiếu mượn đã được duyệt và chuyển sang đang mượn.',
-        ]);
-
         // Cập nhật trạng thái của borrow:
         // Khi admin duyệt phiếu, chuyển sang trạng thái "Đang mượn"
         $borrow->update([
@@ -613,18 +600,65 @@ class BorrowController extends Controller
         $paymentMethod = $request->payment_method;
         $paymentMethodText = $paymentMethod === 'offline' ? 'tiền mặt' : 'quét mã';
 
-        // Cập nhật payment pending sang success và cập nhật payment_method
+        // Cập nhật payment pending sang success, giữ nguyên amount gốc (không update)
+        $payment = $borrow->payments()->where('payment_status', 'pending')->first();
+        
+        if (!$payment) {
+            return back()->with('info', 'Không có thanh toán nào đang chờ xác nhận.');
+        }
+
         $updated = $borrow->payments()
             ->where('payment_status', 'pending')
             ->update([
                 'payment_method' => $paymentMethod,
                 'payment_status' => 'success',
-                'note' => DB::raw("CONCAT(COALESCE(note, ''), ' - Đã xác nhận thanh toán " . $paymentMethodText . " bởi: " . auth()->user()->name . " lúc " . now()->format('d/m/Y H:i') . "')"),
+                'note' => DB::raw("CONCAT(COALESCE(note, ''), ' - Đã xác nhận thanh toán " . $paymentMethodText . " bởi: " . auth()->user()->name . " lúc " . now()->format('d/m/Y H:i') . " - Số tiền: " . number_format($payment->amount ?? 0) . "₫')"),
                 'updated_at' => now()
             ]);
 
         if ($updated > 0) {
-            return back()->with('success', 'Đã xác nhận thanh toán ' . $paymentMethodText . ' thành công!');
+            // Tự động gán reader_id nếu chưa có (để hiện lịch sử cho user)
+            if (!$borrow->reader_id && $borrow->so_dien_thoai) {
+                $reader = Reader::where('so_dien_thoai', $borrow->so_dien_thoai)->first();
+                
+                if ($reader) {
+                    $borrow->update(['reader_id' => $reader->id]);
+                    \Log::info('Auto-assigned reader to borrow after payment', [
+                        'borrow_id' => $borrow->id,
+                        'reader_id' => $reader->id
+                    ]);
+                } else {
+                    // Tìm user theo số điện thoại và tạo reader mới nếu có user
+                    $user = \App\Models\User::where('phone', $borrow->so_dien_thoai)->first();
+                    
+                    if ($user) {
+                        // Tạo reader mới cho user
+                        $reader = Reader::create([
+                            'user_id' => $user->id,
+                            'ho_ten' => $borrow->ten_nguoi_muon ?? $user->name,
+                            'email' => $user->email,
+                            'so_dien_thoai' => $borrow->so_dien_thoai,
+                            'dia_chi' => $borrow->so_nha . ', ' . $borrow->xa . ', ' . $borrow->tinh_thanh,
+                            'tinh_thanh' => $borrow->tinh_thanh,
+                            'xa' => $borrow->xa,
+                            'so_nha' => $borrow->so_nha,
+                            'trang_thai' => 'Hoat dong',
+                            'ngay_cap_the' => now(),
+                            'ngay_het_han' => now()->addYear(),
+                        ]);
+                        
+                        $borrow->update(['reader_id' => $reader->id]);
+                        
+                        \Log::info('Auto-created reader and assigned to borrow after payment', [
+                            'borrow_id' => $borrow->id,
+                            'reader_id' => $reader->id,
+                            'user_id' => $user->id
+                        ]);
+                    }
+                }
+            }
+
+            return back()->with('success', 'Đã xác nhận thanh toán ' . $paymentMethodText . ' thành công! Số tiền: ' . number_format($payment->amount ?? 0) . '₫');
         } else {
             return back()->with('info', 'Không có thanh toán nào đang chờ xác nhận.');
         }
@@ -638,18 +672,23 @@ class BorrowController extends Controller
         $reader = Reader::where('user_id', Auth::id())->first();
 
         if (!$reader) {
-            return view('borrow.index', ['borrow_items' => collect(), 'total' => 0]);
+            return view('borrow.index', ['borrows' => collect(), 'total' => 0]);
         }
 
-        $borrow_items = BorrowItem::with(['book', 'borrow'])
-            ->whereHas('borrow', fn($q) => $q->where('reader_id', $reader->id))
+        // Hiển thị theo từng đơn mượn (giống admin)
+        // Chỉ hiển thị những đơn đã thanh toán thành công
+        $borrows = Borrow::with(['reader', 'items.book', 'payments'])
+            ->where('reader_id', $reader->id)
+            ->whereHas('payments', function ($q) {
+                $q->where('payment_status', 'success');
+            })
             ->orderBy('created_at', 'DESC')
             ->paginate(10);
 
-        // Tính tổng tiền cọc tất cả phiếu mượn của reader
-        $total = $borrow_items->sum(fn($item) => $item->borrow->tong_tien ?? 0);
+        // Tính tổng tiền cọc tất cả phiếu mượn của reader (chỉ những đã thanh toán)
+        $total = $borrows->sum(fn($borrow) => $borrow->tong_tien ?? 0);
 
-        return view('borrow.index', compact('borrow_items', 'total'));
+        return view('borrow.index', compact('borrows', 'total'));
 
     }
 
@@ -773,13 +812,6 @@ class BorrowController extends Controller
                 request('ghi_chu'),
                 auth()->id()
             );
-
-            // Tạo shipping log
-            ShippingLog::create([
-                'borrow_id' => $borrow->id,
-                'status' => 'dang_giao',
-                'shipper_note' => request('ghi_chu') ?? 'Đã bàn giao cho đơn vị vận chuyển.',
-            ]);
 
             return back()->with('success', 'Đã bàn giao cho đơn vị vận chuyển. Đang giao hàng.');
         } catch (\Exception $e) {
@@ -916,17 +948,6 @@ class BorrowController extends Controller
                         'updated_at' => now()
                     ]);
 
-                // Cập nhật ShippingLog nếu có
-                foreach ($borrow->shippingLogs as $log) {
-                    if ($log->status === 'dang_giao_hang') {
-                        $log->update([
-                            'status' => 'giao_hang_thanh_cong',
-                            'ngay_giao_thanh_cong' => now(),
-                            'delivered_at' => now(),
-                        ]);
-                    }
-                }
-
             } elseif ($borrow->trang_thai_chi_tiet === Borrow::STATUS_GIAO_HANG_THANH_CONG) {
                 // Nếu đã ở trạng thái "Giao hàng Thành công", chuyển sang "Đang mượn" khi khách xác nhận
                 $borrow->trang_thai_chi_tiet = Borrow::STATUS_DA_MUON_DANG_LUU_HANH;
@@ -1060,17 +1081,6 @@ class BorrowController extends Controller
 
             // Lưu lại thay đổi
             $borrow->save();
-
-            // Cập nhật ShippingLog nếu có
-            foreach ($borrow->shippingLogs as $log) {
-                if (in_array($log->status, ['dang_giao_hang', 'giao_hang_thanh_cong'])) {
-                    $log->update([
-                        'status' => 'giao_hang_that_bai',
-                        'ngay_that_bai_giao_hang' => now(),
-                        'ghi_chu' => ($log->ghi_chu ?? '') . $rejectionNote,
-                    ]);
-                }
-            }
 
             // LƯU Ý: KHÔNG hoàn tiền ngay khi từ chối nhận hàng
             // Tiền sẽ chỉ được hoàn về ví khi đơn hàng được hoàn tất (completeOrder)
@@ -1250,16 +1260,6 @@ class BorrowController extends Controller
                 $ghiChu,
                 auth()->id()
             );
-
-            // Cập nhật ShippingLog nếu có
-            foreach ($borrow->shippingLogs as $log) {
-                if ($log->status === 'da_nhan' || $log->status === 'cho_tra_sach') {
-                    $log->update([
-                        'status' => 'dang_van_chuyen_tra_ve',
-                        'ngay_bat_dau_tra' => now(),
-                    ]);
-                }
-            }
 
             \Log::info('Customer return book confirmed, status changed', [
                 'borrow_id' => $borrow->id,
@@ -2087,6 +2087,53 @@ class BorrowController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
             // Không throw exception để không làm gián đoạn quá trình trả sách
+        }
+    }
+
+    /* ============================================================
+        GIA HẠN PHIẾU MƯỢN (THÊM 5 NGÀY + 25,000Đ)
+    ============================================================ */
+    public function extend($id)
+    {
+        if (!auth()->check() || !auth()->user()->can('edit-borrows')) {
+            return back()->with('error', 'Bạn không có quyền thực hiện thao tác này.');
+        }
+
+        $borrow = Borrow::with('items')->findOrFail($id);
+
+        // Kiểm tra có sách đang mượn không
+        $itemsDangMuon = collect($borrow->items)->filter(function($item) {
+            return $item->trang_thai === 'Dang muon';
+        });
+        
+        if ($itemsDangMuon->isEmpty()) {
+            return back()->with('error', 'Không có sách nào đang mượn để gia hạn.');
+        }
+
+        $extendedCount = 0;
+        $totalExtensionFee = 0;
+        $days = 5; // Gia hạn 5 ngày
+        $dailyFee = 5000; // 5000đ/ngày
+
+        foreach ($itemsDangMuon as $item) {
+            if ($item->canExtend()) {
+                if ($item->extend($days, $dailyFee)) {
+                    $extendedCount++;
+                    $totalExtensionFee += ($days * $dailyFee);
+                }
+            }
+        }
+
+        if ($extendedCount > 0) {
+            // Cập nhật tổng tiền thuê của phiếu mượn
+            $borrow->update([
+                'tien_thue' => ($borrow->tien_thue ?? 0) + $totalExtensionFee,
+                'tong_tien' => ($borrow->tong_tien ?? 0) + $totalExtensionFee,
+            ]);
+
+            return back()->with('success', "Đã gia hạn thành công {$extendedCount} sách. Thêm {$days} ngày và " . number_format($totalExtensionFee) . "₫ tiền thuê.");
+        } else {
+            return back()->with('error', 'Không thể gia hạn. Các sách đã quá hạn hoặc đã gia hạn đủ số lần cho phép.');
         }
     }
 

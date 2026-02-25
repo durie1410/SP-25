@@ -232,9 +232,7 @@ class UserAccountController extends Controller
                         ->orWhere('trang_thai_chi_tiet', 'giao_hang_thanh_cong')
                         ->orWhere('trang_thai_chi_tiet', 'giao_hang_that_bai');
                 })
-                ->with(['borrowItems.book', 'borrowItems.inventory', 'librarian', 'reader', 'shippingLogs' => function($query) {
-                    $query->where('status', 'giao_hang_that_bai')->latest()->first();
-                }])
+                ->with(['borrowItems.book', 'borrowItems.inventory', 'librarian', 'reader'])
                 ->orderBy('ngay_muon', 'desc')
                 ->paginate(12);
 

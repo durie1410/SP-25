@@ -110,7 +110,7 @@ class BorrowItem extends Model
         return $this->trang_thai === 'Dang muon' && $this->so_lan_gia_han < 2 && !$this->isOverdue();
     }
 
-    public function extend($days = 7)
+    public function extend($days = 5, $dailyFee = 5000)
     {
         if (!$this->canExtend())
             return false;
@@ -121,8 +121,12 @@ class BorrowItem extends Model
             $ngayHenTra = Carbon::parse($ngayHenTra);
         }
 
+        // Tính tiền gia hạn (5000đ/ngày x số ngày)
+        $extensionFee = $days * $dailyFee;
+
         $this->update([
             'ngay_hen_tra' => $ngayHenTra->copy()->addDays($days),
+            'tien_thue' => ($this->tien_thue ?? 0) + $extensionFee,
             'so_lan_gia_han' => $this->so_lan_gia_han + 1,
             'ngay_gia_han_cuoi' => now()->toDateString(),
         ]);
@@ -133,11 +137,6 @@ class BorrowItem extends Model
     public function payments()
     {
         return $this->hasMany(BorrowPayment::class);
-    }
-
-    public function shippingLogs()
-    {
-        return $this->hasMany(ShippingLog::class);
     }
 
     public function fines()

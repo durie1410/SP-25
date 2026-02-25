@@ -67,13 +67,6 @@ class AutoConfirmDelivery extends Command
                         'updated_at' => now()
                     ]);
 
-                // Cập nhật ShippingLog
-                foreach ($borrow->shippingLogs as $log) {
-                    if ($log->status === 'giao_hang_thanh_cong') {
-                        // Log đã được cập nhật rồi
-                    }
-                }
-
                 $count++;
                 $this->info("✓ Đã tự động xác nhận đơn hàng #{$borrow->id}");
             } catch (\Exception $e) {

@@ -49,16 +49,6 @@ try {
                 'ngay_muon' => $borrow->customer_confirmed_delivery_at ?? now(),
             ]);
             
-            // Cập nhật ShippingLog
-            foreach ($borrow->shippingLogs as $log) {
-                if ($log->status === 'giao_hang_thanh_cong') {
-                    $log->update([
-                        'status' => 'da_muon_dang_luu_hanh',
-                        'ngay_bat_dau_luu_hanh' => $borrow->customer_confirmed_delivery_at ?? now(),
-                    ]);
-                }
-            }
-            
             echo "  ✓ Đã chuyển đơn #{$borrow->id} sang trạng thái 'Đã Mượn (Đang Lưu hành)'\n";
             
         } catch (\Exception $e) {

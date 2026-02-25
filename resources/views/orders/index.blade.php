@@ -412,22 +412,12 @@
                                     </td>
                                     <td>
                                         @php
-                                            // Tính lại tổng tiền = cọc + thuê + ship
+                                            // Tính lại tổng tiền = cọc + thuê (không ship)
                                             $tienCoc = $order->tien_coc ?? 0;
                                             $tienThue = $order->tien_thue ?? 0;
-                                            $tienShip = $order->tien_ship ?? 0;
                                             
-                                            // Nếu ship = 0, tính từ items
-                                            if ($tienShip == 0 && $order->items && $order->items->count() > 0) {
-                                                $tienShip = $order->items->sum('tien_ship');
-                                            }
-                                            // Nếu vẫn = 0, mặc định 20k
-                                            if ($tienShip == 0) {
-                                                $tienShip = 20000;
-                                            }
-                                            
-                                            // Tính lại tổng tiền
-                                            $tongTienDisplay = $tienCoc + $tienThue + $tienShip;
+                                            // Tính lại tổng tiền (không cộng ship)
+                                            $tongTienDisplay = $tienCoc + $tienThue;
                                         @endphp
                                         <span class="order-amount">{{ number_format($tongTienDisplay, 0, ',', '.') }}₫</span>
                                     </td>

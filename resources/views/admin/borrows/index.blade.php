@@ -413,6 +413,16 @@ if ($borrow->items && $borrow->items->count() > 0) {
     </a>
 @endif
 
+{{-- Nút gia hạn: hiện khi đã thanh toán và có sách đang mượn --}}
+@if($hasPaidPayment && $hasDangMuon && auth()->check() && auth()->user()->can('edit-borrows'))
+    <form action="{{ route('admin.borrows.extend', $borrow->id) }}" method="POST" style="display:inline-block;">
+        @csrf
+        <button type="submit" class="btn btn-sm btn-warning mb-0" title="Gia hạn 5 ngày (+25,000₫)" onclick="return confirm('Xác nhận gia hạn 5 ngày và cộng 25,000₫ tiền thuê?')">
+            <i class="fas fa-clock"></i> Gia hạn
+        </button>
+    </form>
+@endif
+
 @if($allChuaNhan)
     <form action="{{ route('admin.borrows.process', $borrow->id) }}" method="POST" style="display:inline-block;">
         @csrf

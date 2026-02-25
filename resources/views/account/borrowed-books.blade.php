@@ -540,14 +540,11 @@
             tien_ship: {{ $tienShip }},
             ghi_chu: {!! json_encode($borrow->ghi_chu ?? '') !!},
             @php
-                // Lấy thông tin giao hàng thất bại nếu có
-                $failureShippingLog = $borrow->shippingLogs->where('status', 'giao_hang_that_bai')->first();
-                $failureReason = $failureShippingLog->failure_reason ?? null;
+                // ShippingLog đã bị xóa, không còn thông tin giao hàng thất bại
+                $failureReason = null;
             @endphp
             @php
-                $failureProof = $failureShippingLog && $failureShippingLog->failure_proof_image
-                    ? asset('storage/' . $failureShippingLog->failure_proof_image)
-                    : null;
+                $failureProof = null;
             @endphp
             failure_reason: {!! json_encode($failureReason) !!},
             failure_reason_label: {!! json_encode($failureReason === 'loi_khach_hang' ? 'Lỗi do Khách hàng' : ($failureReason === 'loi_thu_vien' ? 'Lỗi do Sách/Thư viện' : null)) !!},
