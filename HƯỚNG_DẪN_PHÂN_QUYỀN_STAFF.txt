@@ -1,0 +1,215 @@
+# 📚 HƯỚNG DẪN PHÂN QUYỀN STAFF - QUẢN LÝ ĐƠN HÀNG, SÁCH & BÁOÁO
+
+## 🎯 Mục tiêu
+Cấp quyền cho nhân viên (staff) để:
+- ✅ Quản lý đơn hàng (mượn/trả sách)
+- ✅ Quản lý sách
+- ✅ Xem báo cáo
+
+---
+
+## 🚀 CÁCH THỰC HIỆN NHANH NHẤT
+
+### **Windows (Chạy file .bat):**
+```cmd
+PHÂN_QUYỀN_STAFF.bat
+```
+
+### **Linux/Mac (Chạy lệnh một):**
+```bash
+php artisan db:seed --class=RolePermissionSeeder && php artisan migrate && php artisan cache:clear
+```
+
+---
+
+## 📋 CHI TIẾT TỪNG BƯỚC
+
+### **Bước 1: Cập nhật Permissions và Roles**
+
+File đã được chỉnh sửa: `database/seeders/RolePermissionSeeder.php`
+
+Quyền của STAFF được thêm vào bao gồm:
+```
+✓ view-dashboard        - Xem dashboard
+✓ view-books           - Xem sách
+✓ create-books         - Thêm sách mới
+✓ edit-books           - Chỉnh sửa sách
+✓ view-categories      - Xem danh mục
+✓ view-borrows         - Xem đơn hàng
+✓ create-borrows       - Tạo đơn hàng
+✓ edit-borrows         - Chỉnh sửa đơn hàng
+✓ return-books         - Xử lý trả sách
+✓ view-reservations    - Xem đặt chỗ
+✓ confirm-reservations - Xác nhận đặt chỗ
+✓ view-readers         - Xem độc giả
+✓ view-reports         - Xem báo cáo
+✓ export-reports       - Xuất báo cáo
+✓ view-notifications   - Xem thông báo
+✓ view-reviews         - Xem đánh giá
+✓ approve-reviews      - Phê duyệt đánh giá
+```
+
+Chạy:
+```bash
+php artisan db:seed --class=RolePermissionSeeder
+```
+
+### **Bước 2: Tạo Staff User và Gán Role**
+
+File migration đã được tạo: `database/migrations/2026_01_26_000000_create_staff_user_and_assign_role.php`
+
+Tài khoản staff mẫu được tạo:
+- **Email**: staff@library.com
+- **Password**: 123456
+
+Chạy:
+```bash
+php artisan migrate
+```
+
+### **Bước 3: Xóa Cache**
+```bash
+php artisan cache:clear
+php artisan config:clear
+```
+
+---
+
+## 🔧 GÁN STAFF ROLE CHO USER CÓ SẴN
+
+### **Cách 1: Dùng Tinker (Nhanh nhất)**
+
+```bash
+php artisan tinker
+```
+
+Rồi gõ:
+```php
+$user = App\Models\User::find(2);  // Thay 2 bằng ID thực
+$user->assignRole('staff');
+$user->update(['role' => 'staff']);
+dd('Done');
+exit
+```
+
+### **Cách 2: Dùng PHP Script**
+
+```bash
+php assign_staff_role.php 2
+```
+
+(Thay 2 bằng ID user cần gán)
+
+### **Cách 3: Dùng SQL trực tiếp**
+
+Mở file `PHÂN_QUYỀN_STAFF.sql` và chạy các query tương ứng.
+
+Ví dụ gán cho user ID = 2:
+```sql
+SET @staff_role_id = (SELECT id FROM roles WHERE name = 'staff' LIMIT 1);
+INSERT INTO model_has_roles (role_id, model_type, model_id)
+VALUES (@staff_role_id, 'App\\Models\\User', 2);
+UPDATE users SET role = 'staff' WHERE id = 2;
+```
+
+---
+
+## ✅ KIỂM TRA KẾT QUẢ
+
+### Kiểm tra xem staff đã có quyền chưa:
+
+```bash
+php artisan tinker
+```
+
+```php
+$staff = App\Models\User::find(2);  // Thay 2 bằng ID staff
+$staff->role;                       // Xem role attribute
+$staff->getRoleNames();             // Xem tất cả role
+$staff->getPermissionNames();       // Xem tất cả quyền
+$staff->can('view-borrows');        // Kiểm tra permission cụ thể (return true/false)
+```
+
+---
+
+## 🎮 KIỂM THỬĐĂNG NHẬP
+
+1. Đăng nhập với tài khoản staff:
+   - Email: `staff@library.com`
+   - Password: `123456`
+
+2. Bạn sẽ có thể truy cập:
+   - ✅ Quản lý đơn hàng
+   - ✅ Quản lý sách
+   - ✅ Xem báo cáo
+   - ❌ Quản lý người dùng (chỉ admin)
+   - ❌ Cài đặt (chỉ admin)
+
+---
+
+## 📝 HƯỚNG DẪN CHI TIẾT
+
+Xem file `PHÂN_QUYỀN_STAFF.md` để có hướng dẫn chi tiết hơn bao gồm:
+- Cách bảo vệ routes
+- Cách kiểm tra quyền trong Blade template
+- Cách kiểm tra quyền trong Controller
+- Cách thêm quyền mới
+- Câu hỏi thường gặp
+- Và nhiều nội dung khác
+
+---
+
+## 🔄 CẬP NHẬT QUYỀN (Nếu cần thay đổi sau)
+
+### Thêm quyền mới cho staff:
+
+```bash
+php artisan tinker
+```
+
+```php
+$staffRole = Spatie\Permission\Models\Role::findByName('staff');
+$staffRole->givePermissionTo('delete-books');  // Thêm quyền xóa sách
+exit
+```
+
+### Loại bỏ quyền từ staff:
+
+```php
+$staffRole = Spatie\Permission\Models\Role::findByName('staff');
+$staffRole->revokePermissionTo('delete-books');  // Loại bỏ quyền xóa sách
+exit
+```
+
+---
+
+## ⚠️ LƯU Ý QUAN TRỌNG
+
+1. **Xóa Cache**: Nếu thay đổi quyền mà không thấy hiệu quả, chạy:
+   ```bash
+   php artisan cache:clear
+   ```
+
+2. **Kiểm tra Middleware**: Đảm bảo routes được bảo vệ bằng:
+   - `middleware('permission:view-borrows')`
+   - `middleware('staff')`
+
+3. **Kiểm tra Blade Template**: Sử dụng `@can` directive để kiểm soát hiển thị UI
+
+4. **Database Backup**: Nên backup database trước khi thay đổi quyền
+
+---
+
+## 📞 CẦN GIÚP?
+
+Các file tham khảo:
+- `PHÂN_QUYỀN_STAFF.md` - Hướng dẫn chi tiết
+- `PHÂN_QUYỀN_STAFF.sql` - Script SQL
+- `assign_staff_role.php` - Script PHP
+- `database/seeders/RolePermissionSeeder.php` - Cấu hình roles/permissions
+
+---
+
+**Tạo ngày**: 26/01/2026  
+**Phiên bản**: 1.0  
+**Hệ thống**: Laravel với Spatie Permission

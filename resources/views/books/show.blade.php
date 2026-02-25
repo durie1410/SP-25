@@ -303,19 +303,16 @@
         }
 
         .price,
-        .final-price {
-            font-weight: bold;
-            color: #cc0000;
-            font-size: 1.1em;
+        .final-price,
+        .total-price,
+        .price-breakdown,
+        .price-row,
+        .book-price {
+            display: none !important;
         }
 
         .total-price {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 0;
-            border-top: 1px solid #eee;
-            margin-top: 15px;
+            display: none !important;
         }
 
         .total-price span:first-child {
@@ -1301,7 +1298,7 @@
                             <td class="label">Nhà xuất bản:</td>
                             <td>{{ $book->publisher->ten_nha_xuat_ban ?? 'Chưa có thông tin' }}</td>
                             <td class="label">Giá sách:</td>
-                            <td>{{ $book->formatted_price }}</td>
+                            <td>—</td>
                         </tr>
                         <tr>
                             <td class="label">Số lượng:</td>
@@ -1395,12 +1392,6 @@
                                     <p class="book-title">{{ Str::limit($relatedBook->ten_sach, 50) }}</p>
                                     @if($relatedBook->tac_gia)
                                         <p class="book-author">{{ $relatedBook->tac_gia }}</p>
-                                    @endif
-                                    <div class="book-rating">
-                                        <span class="stars">★★★★★</span>
-                                    </div>
-                                    @if($relatedBook->gia && $relatedBook->gia > 0)
-                                        <p class="book-price">Chỉ từ {{ number_format($relatedBook->gia, 0, ',', '.') }}₫</p>
                                     @endif
                                 </a>
                             </div>

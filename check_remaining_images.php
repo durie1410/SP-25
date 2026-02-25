@@ -35,3 +35,6 @@ foreach ($booksWithNewImages as $book) {
 
 
 
+
+
+

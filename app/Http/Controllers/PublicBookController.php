@@ -200,28 +200,14 @@ class PublicBookController extends Controller
             });
         }
 
-        // Lọc theo giá
-        if ($request->has('price_min')) {
-            $priceMin = $request->price_min;
-            if ($priceMin !== null && $priceMin !== '') {
-                $query->where('gia', '>=', $priceMin);
-            }
-        }
-        if ($request->has('price_max')) {
-            $priceMax = $request->price_max;
-            if ($priceMax !== null && $priceMax !== '') {
-                $query->where('gia', '<=', $priceMax);
-            }
-        }
-
         // Sắp xếp
         $sort = $request->get('sort', 'new');
         switch ($sort) {
-            case 'price-asc':
-                $query->orderBy('gia', 'asc');
+            case 'name-asc':
+                $query->orderBy('ten_sach', 'asc');
                 break;
-            case 'price-desc':
-                $query->orderBy('gia', 'desc');
+            case 'name-desc':
+                $query->orderBy('ten_sach', 'desc');
                 break;
             case 'new':
             default:
@@ -230,7 +216,9 @@ class PublicBookController extends Controller
         }
 
         // Lấy danh sách sách sau khi lọc với phân trang
-        $books = !empty($bookIdsFromInventory) ? $query->paginate(12)->withQueryString() : collect()->paginate(12);
+        $books = !empty($bookIdsFromInventory)
+            ? $query->paginate(12)->appends($request->query())
+            : collect()->paginate(12);
 
         // Lấy danh sách thể loại để hiển thị dropdown (cached)
         $categories = CacheService::getActiveCategories();

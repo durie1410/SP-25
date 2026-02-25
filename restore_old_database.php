@@ -97,3 +97,6 @@ echo "Nếu bạn có backup ảnh cũ, vui lòng khôi phục thủ công.\n";
 
 
 
+
+
+

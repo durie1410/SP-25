@@ -3,8 +3,6 @@
 @section('title', 'Quản Lý Mượn/Trả Sách - WAKA Admin')
 
 @section('content')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-
 <!-- Page Header -->
 <div class="page-header">
     <div>
@@ -161,6 +159,7 @@ tạo phiếu mượn    </a>
                     <th style="width: 100px;">Voucher</th>
                     <th style="min-width: 200px;">Trạng thái Items</th>
                     <th style="width: 120px;">Tổng tiền</th>
+                    <th style="width: 150px;">Phương thức TT</th>
                     <th style="width: 100px;">Chi tiết</th>
                     <th style="width: 180px;">Hành động</th>
                 </tr>
@@ -289,6 +288,45 @@ if ($borrow->items && $borrow->items->count() > 0) {
       <td>
         {{ number_format($tongTien) }}₫
     </td>
+    <td>
+        @php
+            $latestPayment = $borrow->payments()->latest()->first();
+            $latestPendingPayment = $borrow->payments()->where('payment_status', 'pending')->latest()->first();
+        @endphp
+        
+        @if($latestPendingPayment)
+            {{-- Hiển thị dropdown chọn phương thức khi chưa thanh toán --}}
+            <select id="payment_method_{{ $borrow->id }}" class="form-select form-select-sm" style="font-size:12px;" required>
+                <option value="online" selected>Quét mã</option>
+                <option value="offline">Tiền mặt</option>
+            </select>
+            <div style="font-size: 11px; margin-top: 3px;">
+                <span class="text-warning">Chờ thanh toán</span>
+            </div>
+        @elseif($latestPayment)
+            {{-- Hiển thị phương thức và trạng thái khi đã có thanh toán --}}
+            @if($latestPayment->payment_method === 'offline')
+                <span class="badge badge-warning">
+                    <i class="fas fa-money-bill-wave"></i> Tiền mặt
+                </span>
+            @elseif($latestPayment->payment_method === 'online')
+                <span class="badge badge-info">
+                    <i class="fas fa-qrcode"></i> Quét mã
+                </span>
+            @endif
+            <div style="font-size: 11px; margin-top: 3px;">
+                @if($latestPayment->payment_status === 'pending')
+                    <span class="text-warning">Chờ thanh toán</span>
+                @elseif($latestPayment->payment_status === 'success')
+                    <span class="text-success">Đã thanh toán</span>
+                @elseif($latestPayment->payment_status === 'failed')
+                    <span class="text-danger">Thất bại</span>
+                @endif
+            </div>
+        @else
+            <span class="text-muted">-</span>
+        @endif
+    </td>
     <td style="text-align: center;">
         @if($borrow->items && $borrow->items->count() > 0)
         <button class="btn btn-sm btn-info toggle-items" 
@@ -332,24 +370,32 @@ if ($borrow->items && $borrow->items->count() > 0) {
                 <i class="fas fa-edit"></i>
             </a>
             
-            <form action="{{ route('admin.borrows.destroy', $borrow->id) }}" 
-                  method="POST" 
-                  style="display: inline;"
-                  onsubmit="return confirm('Xóa phiếu mượn này?')">
-                @csrf 
-                @method('DELETE')
-                <button type="submit" 
-                        class="btn btn-sm btn-danger"
-                        title="Xóa">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </form>
 @php
     $allChuaNhan = $borrow->items->isNotEmpty() && $borrow->items->every(fn($item) => $item->trang_thai === 'Chua nhan');
     $hasChoDuyet = $borrow->items->isNotEmpty() && $borrow->items->contains(fn($item) => $item->trang_thai === 'Cho duyet');
+    $hasDangMuon = $borrow->items->isNotEmpty() && $borrow->items->contains(fn($item) => $item->trang_thai === 'Dang muon');
+    
+    // Kiểm tra trạng thái thanh toán
+    $latestPendingPayment = $borrow->payments()->where('payment_status', 'pending')->latest()->first();
+    $latestSuccessPayment = $borrow->payments()->where('payment_status', 'success')->latest()->first();
+    $hasUnpaidPayment = (bool) $latestPendingPayment;
+    $hasPaidPayment = (bool) $latestSuccessPayment;
 @endphp
 
-@if($hasChoDuyet && auth()->user() && auth()->user()->isAdmin())
+{{-- Nút thu tiền: hiện khi có payment pending --}}
+@if($hasUnpaidPayment && auth()->check() && auth()->user()->can('edit-borrows'))
+    <form action="{{ route('admin.borrows.confirm-cash-payment', $borrow->id) }}" method="POST" style="display:inline-block;">
+        @csrf
+        <input type="hidden" name="payment_method" id="payment_method_input_{{ $borrow->id }}" value="online">
+        <button type="submit" class="btn btn-sm btn-success mb-0" title="Xác nhận đã thu tiền" 
+                onclick="document.getElementById('payment_method_input_{{ $borrow->id }}').value = document.getElementById('payment_method_{{ $borrow->id }}').value; return confirm('Xác nhận đã thu tiền từ khách hàng?')">
+            <i class="fas fa-money-bill-wave"></i> Thu tiền
+        </button>
+    </form>
+@endif
+
+{{-- Nút duyệt: hiện khi chờ duyệt và chưa có nút thanh toán --}}
+@if($hasChoDuyet && !$hasUnpaidPayment && auth()->check() && auth()->user()->can('edit-borrows'))
     <form action="{{ route('admin.borrows.approve', $borrow->id) }}" method="POST" style="display:inline-block;">
         @csrf
         <button type="submit" class="btn btn-sm btn-success mb-0" title="Duyệt phiếu mượn" onclick="return confirm('Xác nhận duyệt phiếu mượn này?')">
@@ -358,11 +404,20 @@ if ($borrow->items && $borrow->items->count() > 0) {
     </form>
 @endif
 
+{{-- Nút trả sách: hiện khi đã thanh toán thành công và có sách đang mượn --}}
+@if($hasPaidPayment && $hasDangMuon && auth()->check() && auth()->user()->can('return-books'))
+    <a href="{{ route('admin.borrows.show', $borrow->id) }}" 
+       class="btn btn-sm btn-info mb-0"
+       title="Xem chi tiết để trả sách">
+        <i class="fas fa-undo"></i> Trả sách
+    </a>
+@endif
+
 @if($allChuaNhan)
     <form action="{{ route('admin.borrows.process', $borrow->id) }}" method="POST" style="display:inline-block;">
         @csrf
         <button type="submit" class="btn btn-sm btn-primary mb-0" title="Xử lý phiếu mượn">
-            <i class="bi bi-check-circle"></i>
+            <i class="fas fa-check-circle"></i>
         </button>
     </form>
 @endif

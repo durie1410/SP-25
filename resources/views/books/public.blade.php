@@ -197,49 +197,6 @@
             color: var(--text-color);
         }
 
-        .price-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .price-btn {
-            padding: 8px 16px;
-            border: 2px solid var(--border-color);
-            border-radius: var(--radius-full);
-            background: white;
-            color: var(--text-color);
-            font-size: 0.85em;
-            font-weight: 500;
-            text-decoration: none;
-            transition: all var(--transition-normal);
-            cursor: pointer;
-        }
-
-        .price-btn:hover {
-            border-color: var(--primary-color);
-            color: var(--primary-color);
-            background: var(--primary-50);
-        }
-
-        .price-btn.active {
-            background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
-            color: white;
-            border-color: transparent;
-            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
-        }
-
-        .price-btn.clear-btn {
-            background: var(--danger-color);
-            color: white;
-            border-color: var(--danger-color);
-        }
-
-        .price-btn.clear-btn:hover {
-            background: #dc2626;
-            border-color: #dc2626;
-        }
-
         .sort-select {
             display: flex;
             align-items: center;
@@ -380,18 +337,6 @@
             margin-bottom: 10px;
         }
 
-        .book-card-price {
-            margin-top: auto;
-            font-weight: 700;
-            font-size: 1em;
-            color: var(--primary-color);
-            padding: 8px 14px;
-            background: var(--primary-50);
-            border-radius: var(--radius-full);
-            text-align: center;
-            display: inline-block;
-        }
-
         /* Empty state */
         .empty-state {
             text-align: center;
@@ -524,15 +469,6 @@
         }
 
         @media (max-width: 480px) {
-            .price-buttons {
-                gap: 6px;
-            }
-
-            .price-btn {
-                padding: 6px 12px;
-                font-size: 0.8em;
-            }
-
             .books-grid {
                 grid-template-columns: 1fr;
                 gap: 16px;
@@ -608,51 +544,6 @@
 
                 <!-- Filter Bar -->
                 <div class="filter-bar">
-                    <div class="filter-group">
-                        <span class="filter-label">Khoảng giá:</span>
-                        <div class="price-buttons">
-                            @php
-                                $currentPriceMin = request('price_min');
-                                $currentPriceMax = request('price_max');
-                                $priceRanges = [
-                                    ['min' => 0, 'max' => 50000, 'label' => 'Dưới 50k'],
-                                    ['min' => 50000, 'max' => 100000, 'label' => '50k - 100k'],
-                                    ['min' => 100000, 'max' => 200000, 'label' => '100k - 200k'],
-                                    ['min' => 200000, 'max' => 300000, 'label' => '200k - 300k'],
-                                    ['min' => 300000, 'max' => 500000, 'label' => '300k - 500k'],
-                                    ['min' => 500000, 'max' => null, 'label' => 'Trên 500k'],
-                                ];
-                            @endphp
-                            @foreach($priceRanges as $range)
-                                @php
-                                    $isActive = ($currentPriceMin == $range['min'] && $currentPriceMax == $range['max']);
-                                    $params = array_filter([
-                                        'keyword' => request('keyword'),
-                                        'category_id' => request('category_id'),
-                                        'sort' => request('sort'),
-                                        'price_min' => $range['min'],
-                                        'price_max' => $range['max']
-                                    ], function($value) {
-                                        return $value !== null && $value !== '';
-                                    });
-                                @endphp
-                                <a href="{{ route('books.public', $params) }}" 
-                                   class="price-btn {{ $isActive ? 'active' : '' }}">
-                                    {{ $range['label'] }}
-                                </a>
-                            @endforeach
-                            @if($currentPriceMin || $currentPriceMax)
-                                <a href="{{ route('books.public', array_filter([
-                                    'keyword' => request('keyword'),
-                                    'category_id' => request('category_id'),
-                                    'sort' => request('sort')
-                                ])) }}" 
-                                   class="price-btn clear-btn">
-                                    <i class="fas fa-times"></i> Xóa lọc
-                                </a>
-                            @endif
-                        </div>
-                    </div>
                     <div class="sort-select">
                         <span class="filter-label">Sắp xếp:</span>
                         <select id="sort-by" onchange="
@@ -664,17 +555,9 @@
                             @if(request('category_id'))
                                 url.searchParams.set('category_id', '{{ request('category_id') }}');
                             @endif
-                            @if(request('price_min'))
-                                url.searchParams.set('price_min', '{{ request('price_min') }}');
-                            @endif
-                            @if(request('price_max'))
-                                url.searchParams.set('price_max', '{{ request('price_max') }}');
-                            @endif
                             window.location.href = url.toString();
                         ">
                             <option value="new" {{ request('sort') == 'new' || !request('sort') ? 'selected' : '' }}>Mới nhất</option>
-                            <option value="price-asc" {{ request('sort') == 'price-asc' ? 'selected' : '' }}>Giá tăng dần</option>
-                            <option value="price-desc" {{ request('sort') == 'price-desc' ? 'selected' : '' }}>Giá giảm dần</option>
                             <option value="name-asc" {{ request('sort') == 'name-asc' ? 'selected' : '' }}>Tên A-Z</option>
                             <option value="name-desc" {{ request('sort') == 'name-desc' ? 'selected' : '' }}>Tên Z-A</option>
                         </select>
@@ -701,16 +584,6 @@
                                     @if($book->tac_gia)
                                         <p class="book-card-author">{{ $book->tac_gia }}</p>
                                     @endif
-                                    <div class="book-card-price">
-                                        @php
-                                            $price = $book->gia ?? 0;
-                                        @endphp
-                                        @if($price > 0)
-                                            Chỉ từ {{ number_format($price, 0, ',', '.') }}₫
-                                        @else
-                                            Liên hệ
-                                        @endif
-                                    </div>
                                 </a>
                             </article>
                         @endforeach

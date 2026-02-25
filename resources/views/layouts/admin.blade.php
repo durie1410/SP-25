@@ -1181,14 +1181,7 @@
                     </a>
                 @endif
 
-                <div class="menu-section-title">PHẠT</div>
-                @if(Route::has('admin.fines.index'))
-                    <a href="{{ route('admin.fines.index') }}"
-                        class="menu-item {{ request()->routeIs('admin.fines.*') ? 'active' : '' }}">
-                        <i class="fas fa-gavel"></i>
-                        <span>Quản lý phạt</span>
-                    </a>
-                @endif
+
 
                 <!-- Mượn trả sách -->
                 <div class="menu-section-title">MƯỢN TRẢ SÁCH</div>
@@ -1197,6 +1190,13 @@
                     <i class="fas fa-book-reader"></i>
                     <span>Quản lý đơn mượn</span>
                 </a>
+                                @if(Route::has('admin.fines.index'))
+                    <a href="{{ route('admin.fines.index') }}"
+                        class="menu-item {{ request()->routeIs('admin.fines.*') ? 'active' : '' }}">
+                        <i class="fas fa-gavel"></i>
+                        <span>trả sách</span>
+                    </a>
+                @endif
                 {{-- <a href="{{ route('admin.shipping_logs.index') }}" class="menu-item d-flex align-items-center gap-2 
                           {{ request()->routeIs('admin.shipping_logs.*') ? 'active' : '' }}">
                     <i class="bi bi-truck fs-5"></i>

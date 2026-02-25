@@ -1567,6 +1567,12 @@
     </script>
 
     <style>
+        .book-rating,
+        .book-price,
+        .collection-price {
+            display: none !important;
+        }
+
         .panel-link {
             text-decoration: none;
             color: inherit;

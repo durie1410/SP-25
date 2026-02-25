@@ -354,7 +354,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
          Route::post('{id}/cancel', [InventoryReservationController::class, 'cancel'])->name('cancel')->middleware('permission:edit-borrows');
      });
 
-     Route::resource('borrows', BorrowController::class)->middleware('permission:view-borrows');
+     Route::resource('borrows', BorrowController::class)
+         ->except(['destroy'])
+         ->middleware('permission:view-borrows');
       Route::post('borrows/{id}/return', [BorrowController::class, 'return'])->name('borrows.return')->middleware('permission:return-books');
       Route::post('borrows/{id}/extend', [BorrowController::class, 'extend'])->name('borrows.extend')->middleware('permission:edit-borrows');
       Route::get('borrows-dashboard', [App\Http\Controllers\BorrowDashboardController::class, 'index'])->name('borrows.dashboard')->middleware('permission:view-borrows');
@@ -366,6 +368,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
       
      Route::post('borrows/{id}/process', [BorrowController::class, 'processBorrow'])->name('borrows.process');
      Route::post('borrows/{id}/approve', [BorrowController::class, 'approve'])->name('borrows.approve')->middleware('permission:edit-borrows');
+     Route::post('borrows/{id}/confirm-cash-payment', [BorrowController::class, 'confirmCashPayment'])->name('borrows.confirm-cash-payment')->middleware('permission:edit-borrows');
 
      // ===== 11 TRẠNG THÁI MỚI - Quản lý quy trình vận chuyển =====
      Route::post('borrows/{id}/confirm-order', [BorrowController::class, 'confirmOrder'])->name('borrows.confirm-order')->middleware('permission:edit-borrows');
@@ -464,16 +467,16 @@ Route::resource('vouchers', VoucherController::class);
       Route::post('comments/{id}/approve', [CommentController::class, 'approve'])->name('comments.approve')->middleware('permission:approve-reviews');
       Route::post('comments/{id}/reject', [CommentController::class, 'reject'])->name('comments.reject')->middleware('permission:approve-reviews');
       
-    // Fines routes
-    Route::resource('fines', FineController::class)->middleware('permission:view-fines');
-    Route::post('fines/{id}/mark-paid', [FineController::class, 'markAsPaid'])->name('fines.mark-paid')->middleware('permission:edit-fines');
-    Route::post('fines/{id}/waive', [FineController::class, 'waive'])->name('fines.waive')->middleware('permission:waive-fines');
-    Route::post('fines/create-late-returns', [FineController::class, 'createLateReturnFines'])->name('fines.create-late-returns')->middleware('permission:create-fines');
-    Route::get('fines-report', [FineController::class, 'report'])->name('fines.report')->middleware('permission:view-reports');
+      // Fines routes
+      Route::resource('fines', FineController::class)->middleware('permission:view-fines');
+      Route::post('fines/{id}/mark-paid', [FineController::class, 'markAsPaid'])->name('fines.mark-paid')->middleware('permission:edit-fines');
+      Route::post('fines/{id}/waive', [FineController::class, 'waive'])->name('fines.waive')->middleware('permission:waive-fines');
+      Route::post('fines/create-late-returns', [FineController::class, 'createLateReturnFines'])->name('fines.create-late-returns')->middleware('permission:create-fines');
+      Route::get('fines-report', [FineController::class, 'report'])->name('fines.report')->middleware('permission:view-reports');
 
     // Fine Payment Routes (Tiền mặt & MoMo cũ)
     Route::post('borrows/{borrow}/fine-pay-cash', [FinePaymentController::class, 'payCash'])->name('borrows.fine-pay-cash');
-    Route::post('borrows/{borrow}/fine-momo/create', [FinePaymentController::class, 'createMomoPayment'])->name('borrows.fine-momo.create');
+    Route::post('borrows/{borrow}/fine-momo/create', [FinePaymentController::class, 'createMomoPayment'])->name('borrows.fine-momo.create-payment');
 
     // Màn hình trả sách theo TÊN khách (tick chọn nhiều sách, nhập tình trạng từng quyển)
     Route::get('returns', [ReturnController::class, 'index'])->name('returns.index');
@@ -482,11 +485,11 @@ Route::resource('vouchers', VoucherController::class);
     // Màn hình Thanh toán phạt (lọc theo độc giả)
     Route::get('fine-payments', [FinePaymentsController::class, 'index'])->name('fine-payments.index');
     Route::post('fine-payments/{reader}/pay-cash', [FinePaymentController::class, 'payCashByReader'])->name('fine-payments.pay-cash');
-    Route::post('fine-payments/{reader}/momo/create', [FinePaymentController::class, 'createMomoPaymentByReader'])->name('fine-payments.momo.create');
+    Route::post('fine-payments/{reader}/momo/create', [FinePaymentController::class, 'createMomoPaymentByReader'])->name('fine-payments.momo.create-payment');
 
     // MoMo callbacks cho phạt (tách biệt với Order)
-    Route::get('borrows/fine-momo/return', [FinePaymentController::class, 'momoReturn'])->name('admin.borrows.fine-momo.return');
-    Route::post('borrows/fine-momo/ipn', [FinePaymentController::class, 'momoIpn'])->name('admin.borrows.fine-momo.ipn');
+    Route::get('borrows/fine-momo/return', [FinePaymentController::class, 'momoReturn'])->name('borrows.fine-momo.return');
+    Route::post('borrows/fine-momo/ipn', [FinePaymentController::class, 'momoIpn'])->name('borrows.fine-momo.ipn');
       
       // Reservations routes - Đã xóa (thay bằng giỏ hàng)
       Route::post('fines/{id}/restore', [FineController::class, 'restore'])->name('fines.restore')->middleware('permission:edit-fines');

@@ -28,7 +28,7 @@ class BorrowController extends Controller
     public function index(Request $request)
     {
         // Sử dụng fresh() để đảm bảo load dữ liệu mới nhất từ database
-        $query = Borrow::with(['reader', 'librarian', 'items.book', 'voucher']);
+        $query = Borrow::with(['reader', 'librarian', 'items.book', 'voucher', 'payments']);
 
         if ($request->filled('keyword')) {
             $keyword = $request->keyword;
@@ -527,9 +527,9 @@ class BorrowController extends Controller
     ============================================================ */
     public function approve($id)
     {
-        // Chỉ cho phép Admin duyệt phiếu mượn
-        if (!auth()->user()->isAdmin()) {
-            return back()->with('error', 'Bạn không có quyền thực hiện thao tác này. Chỉ Admin mới có quyền duyệt phiếu mượn.');
+        // Cho phép người dùng có quyền chỉnh sửa đơn mượn duyệt phiếu
+        if (!auth()->check() || !auth()->user()->can('edit-borrows')) {
+            return back()->with('error', 'Bạn không có quyền thực hiện thao tác này.');
         }
 
         $borrow = Borrow::with('items')->findOrFail($id);
@@ -594,6 +594,40 @@ class BorrowController extends Controller
         ]);
 
         return back()->with('success', 'Đã duyệt phiếu mượn thành công! Đơn hàng chuyển sang trạng thái "Đang mượn".');
+    }
+
+    /* ============================================================
+        9B) XÁC NHẬN THANH TOÁN (TIỀN MẶT HOẶC QUÉT MÃ)
+    ============================================================ */
+    public function confirmCashPayment(Request $request, $id)
+    {
+        if (!auth()->check() || !auth()->user()->can('edit-borrows')) {
+            return back()->with('error', 'Bạn không có quyền thực hiện thao tác này.');
+        }
+
+        $request->validate([
+            'payment_method' => 'required|in:online,offline'
+        ]);
+
+        $borrow = Borrow::with('payments')->findOrFail($id);
+        $paymentMethod = $request->payment_method;
+        $paymentMethodText = $paymentMethod === 'offline' ? 'tiền mặt' : 'quét mã';
+
+        // Cập nhật payment pending sang success và cập nhật payment_method
+        $updated = $borrow->payments()
+            ->where('payment_status', 'pending')
+            ->update([
+                'payment_method' => $paymentMethod,
+                'payment_status' => 'success',
+                'note' => DB::raw("CONCAT(COALESCE(note, ''), ' - Đã xác nhận thanh toán " . $paymentMethodText . " bởi: " . auth()->user()->name . " lúc " . now()->format('d/m/Y H:i') . "')"),
+                'updated_at' => now()
+            ]);
+
+        if ($updated > 0) {
+            return back()->with('success', 'Đã xác nhận thanh toán ' . $paymentMethodText . ' thành công!');
+        } else {
+            return back()->with('info', 'Không có thanh toán nào đang chờ xác nhận.');
+        }
     }
 
     /* ============================================================
