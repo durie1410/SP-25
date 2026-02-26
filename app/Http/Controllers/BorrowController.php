@@ -517,7 +517,7 @@ class BorrowController extends Controller
     }
 
     /* ============================================================
-        9) DUYỆT PHIẾU MƯỢN (CHUYỂN TRẠNG THÁI TỪ "CHỜ DUYỆT" SANG "ĐANG MƯỢN")
+        9) DUYỆT PHIẾU MƯỢN (CHƯA DI CHUYỂN TRẠNG THÁI ITEMS - PHẢI CHỜ THANH TOÁN)
     ============================================================ */
     public function approve($id)
     {
@@ -535,29 +535,6 @@ class BorrowController extends Controller
             return back()->with('error', 'Không có sách nào đang chờ duyệt trong phiếu mượn này!');
         }
 
-        // Cập nhật trạng thái tất cả items từ "Cho duyet" sang "Dang muon"
-        foreach ($pendingItems as $item) {
-            $item->update([
-                'trang_thai' => 'Dang muon',
-                'ngay_muon' => $item->ngay_muon ?? now(),
-            ]);
-
-            // Cập nhật trạng thái inventory từ 'Co san' sang 'Dang muon'
-            if ($item->inventorie_id) {
-                \App\Models\Inventory::where('id', $item->inventorie_id)
-                    ->where('status', 'Co san')
-                    ->update([
-                        'status' => 'Dang muon',
-                        'updated_at' => now()
-                    ]);
-
-                \Log::info('Updated inventory status after approval', [
-                    'inventory_id' => $item->inventorie_id,
-                    'borrow_item_id' => $item->id
-                ]);
-            }
-        }
-
         // Kiểm tra và tạo payment nếu chưa có (chỉ tạo khi chưa có payment nào)
         $existingPayment = BorrowPayment::where('borrow_id', $borrow->id)->first();
 
@@ -573,14 +550,13 @@ class BorrowController extends Controller
             ]);
         }
 
-        // Cập nhật trạng thái của borrow:
-        // Khi admin duyệt phiếu, chuyển sang trạng thái "Đang mượn"
+        // Cập nhật trạng thái của borrow (nhưng vẫn để items ở "Cho duyet")
+        // Items sẽ chuyển sang "Dang muon" khi thanh toán được xác nhận
         $borrow->update([
-            'trang_thai' => 'Dang muon',
-            'trang_thai_chi_tiet' => \App\Models\Borrow::STATUS_DA_MUON_DANG_LUU_HANH,
+            'trang_thai_chi_tiet' => \App\Models\Borrow::STATUS_DON_HANG_MOI,
         ]);
 
-        return back()->with('success', 'Đã duyệt phiếu mượn thành công! Đơn hàng chuyển sang trạng thái "Đang mượn".');
+        return back()->with('success', 'Đã duyệt phiếu mượn thành công! Chờ khách hàng thanh toán để chuyển sách sang trạng thái "Đang mượn".');
     }
 
     /* ============================================================
@@ -617,6 +593,31 @@ class BorrowController extends Controller
             ]);
 
         if ($updated > 0) {
+            // Cập nhật trạng thái tất cả items từ "Cho duyet" sang "Dang muon" vì đã thanh toán
+            $choduyet_items = $borrow->items()->where('trang_thai', 'Cho duyet')->get();
+            foreach ($choduyet_items as $item) {
+                $item->update([
+                    'trang_thai' => 'Dang muon',
+                    'ngay_muon' => $item->ngay_muon ?? now(),
+                ]);
+
+                // Cập nhật trạng thái inventory từ 'Co san' sang 'Dang muon'
+                if ($item->inventorie_id) {
+                    \App\Models\Inventory::where('id', $item->inventorie_id)
+                        ->where('status', 'Co san')
+                        ->update([
+                            'status' => 'Dang muon',
+                            'updated_at' => now()
+                        ]);
+                }
+            }
+
+            // Cập nhật trạng thái borrow sang "Dang muon"
+            $borrow->update([
+                'trang_thai' => 'Dang muon',
+                'trang_thai_chi_tiet' => \App\Models\Borrow::STATUS_DA_MUON_DANG_LUU_HANH,
+            ]);
+
             // Tự động gán reader_id nếu chưa có (để hiện lịch sử cho user)
             if (!$borrow->reader_id && $borrow->so_dien_thoai) {
                 $reader = Reader::where('so_dien_thoai', $borrow->so_dien_thoai)->first();
