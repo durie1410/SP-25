@@ -140,6 +140,23 @@
     </div>
 </header>
 
+<script>
+    // Cho phép click vào cả vùng xám bao quanh để focus ô tìm kiếm
+    document.addEventListener('DOMContentLoaded', function () {
+        var searchBar = document.querySelector('.search-bar');
+        if (!searchBar) return;
+
+        var searchInput = searchBar.querySelector('.search-input');
+        if (!searchInput) return;
+
+        searchBar.addEventListener('click', function (e) {
+            // Giữ nguyên hành vi khi bấm nút "Tìm kiếm"
+            if (e.target.closest('button')) return;
+            searchInput.focus();
+        });
+    });
+</script>
+
 @auth
 <script>
     document.addEventListener('DOMContentLoaded', function () {
