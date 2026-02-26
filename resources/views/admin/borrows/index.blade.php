@@ -517,47 +517,6 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                                     <i class="fas fa-check"></i> Duyệt
                                                 </button>
                                             </form> --}}
-                                        @elseif($item->trang_thai == 'Dang muon')
-                                            {{-- 4 nút cho sách đang mượn --}}
-                                            
-                                            {{-- 1. Hoàn trả --}}
-                                            <form action="{{ route('admin.borrowitems.return', $item->id) }}" 
-                                                  method="POST" 
-                                                  style="display: inline;"
-                                                  onsubmit="return confirm('Xác nhận hoàn trả sách: {{ $item->book->ten_sach ?? 'N/A' }}?')">
-                                                @csrf
-                                                <button type="submit" 
-                                                        class="btn btn-sm btn-success"
-                                                        title="Hoàn trả sách">
-                                                    <i class="fas fa-undo"></i>
-                                                </button>
-                                            </form>
-                                            
-                                            {{-- 2. Quá hạn --}}
-                                            <form action="{{ route('admin.borrowitems.mark-overdue', $item->id) }}" 
-                                                  method="POST" 
-                                                  style="display: inline;"
-                                                  onsubmit="return confirm('Xác nhận đánh dấu quá hạn: {{ $item->book->ten_sach ?? 'N/A' }}?')">
-                                                @csrf
-                                                <button type="submit" 
-                                                        class="btn btn-sm btn-warning"
-                                                        title="Đánh dấu quá hạn">
-                                                    <i class="fas fa-clock"></i>
-                                                </button>
-                                            </form>
-                                            
-                                            {{-- 3. Báo hỏng --}}
-                                            <form action="{{ route('admin.borrowitems.report-damage', $item->id) }}" 
-                                                  method="POST" 
-                                                  style="display: inline;"
-                                                  onsubmit="return confirm('Xác nhận báo hỏng sách: {{ $item->book->ten_sach ?? 'N/A' }}?')">
-                                                @csrf
-                                                <button type="submit" 
-                                                        class="btn btn-sm btn-danger"
-                                                        title="Báo hỏng sách">
-                                                    <i class="fas fa-tools"></i>
-                                                </button>
-                                            </form>
                                         @endif
                                         
                                         {{-- 4. Xem chi tiết (luôn hiển thị) --}}
