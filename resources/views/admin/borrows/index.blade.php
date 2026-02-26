@@ -156,7 +156,6 @@ tạo phiếu mượn    </a>
                     <th>Độc giả</th>
                     <th>Tên khách hàng</th>
                     <th style="width: 100px;">Tiền thuê</th>
-                    <th style="width: 100px;">Voucher</th>
                     <th style="min-width: 200px;">Trạng thái Items</th>
                     <th style="width: 120px;">Tổng tiền</th>
                     <th style="width: 150px;">Phương thức TT</th>
@@ -208,32 +207,14 @@ tạo phiếu mượn    </a>
             $tienThue = floatval($borrow->tien_thue ?? 0);
         }
         
-        // Tổng tiền lúc này chỉ còn là tiền thuê
+        // Tổng tiền = tiền thuê (voucher column removed)
         $tongTien = $tienThue;
-        
-        // Áp dụng voucher nếu có
-        if ($borrow->relationLoaded('voucher') && $borrow->voucher) {
-            $voucher = $borrow->voucher;
-            if ($voucher->loai === 'phan_tram') {
-                $discount = $tongTien * $voucher->gia_tri / 100;
-            } else { // loai = 'tien_mat'
-                $discount = $voucher->gia_tri;
-            }
-            $tongTien = max(0, $tongTien - $discount);
-        }
     @endphp
     
     <td>
         {{ number_format($tienThue) }}₫
     </td>
-      {{-- voucher --}}
-    <td>
-        @if($borrow->voucher)
-            <span class="badge badge-info">{{ $borrow->voucher->ma }}</span>
-        @else
-            <span class="badge badge-secondary">Không có</span>
-        @endif
-@php
+    @php
 // Kiểm tra nếu có items
 if ($borrow->items && $borrow->items->count() > 0) {
     $statuses = $borrow->items->pluck('trang_thai')->toArray();
