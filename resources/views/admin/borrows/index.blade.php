@@ -159,6 +159,7 @@ tạo phiếu mượn    </a>
                     <th style="min-width: 200px;">Trạng thái Items</th>
                     <th style="width: 120px;">Tổng tiền</th>
                     <th style="width: 150px;">Phương thức TT</th>
+                    <th style="width: 120px;">Gia hạn</th>
                     <th style="width: 100px;">Chi tiết</th>
                     <th style="width: 180px;">Hành động</th>
                 </tr>
@@ -321,6 +322,21 @@ if ($borrow->items && $borrow->items->count() > 0) {
         <span class="text-muted">-</span>
         @endif
     </td>
+    {{-- Cột trạng thái gia hạn --}}
+    <td>
+        @if($borrow->customer_extension_requested)
+            <span class="badge bg-warning text-dark" style="font-size: 11px;">
+                Yêu cầu +{{ $borrow->customer_extension_days ?? 5 }} ngày
+            </span>
+            @if($borrow->customer_extension_requested_at)
+                <div style="font-size: 11px; color: #6c757d; margin-top: 2px;">
+                    {{ $borrow->customer_extension_requested_at->format('d/m H:i') }}
+                </div>
+            @endif
+        @else
+            <span class="text-muted" style="font-size: 11px;">Không có yêu cầu</span>
+        @endif
+    </td>
     <td>
         <div style="display: flex; gap: 5px; flex-wrap: wrap;">
             {{-- @if($borrow->trang_thai == 'Dang muon')
@@ -394,11 +410,11 @@ if ($borrow->items && $borrow->items->count() > 0) {
     </a>
 @endif
 
-{{-- Nút gia hạn: hiện khi đã thanh toán và có sách đang mượn --}}
-@if($hasPaidPayment && $hasDangMuon && auth()->check() && auth()->user()->can('edit-borrows'))
+{{-- Nút gia hạn: chỉ hiện khi đã thanh toán, có sách đang mượn và có yêu cầu gia hạn từ khách --}}
+@if($borrow->customer_extension_requested && $hasPaidPayment && $hasDangMuon && auth()->check() && auth()->user()->can('edit-borrows'))
     <form action="{{ route('admin.borrows.extend', $borrow->id) }}" method="POST" style="display:inline-block;">
         @csrf
-        <button type="submit" class="btn btn-sm btn-warning mb-0" title="Gia hạn 5 ngày (+25,000₫)" onclick="return confirm('Xác nhận gia hạn 5 ngày và cộng 25,000₫ tiền thuê?')">
+        <button type="submit" class="btn btn-sm btn-warning mb-0" title="Duyệt yêu cầu gia hạn (+5 ngày)" onclick="return confirm('Xác nhận duyệt yêu cầu gia hạn thêm 5 ngày và cộng phí gia hạn vào tiền thuê?')">
             <i class="fas fa-clock"></i> Gia hạn
         </button>
     </form>

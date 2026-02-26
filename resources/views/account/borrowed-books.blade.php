@@ -167,6 +167,28 @@
                         </div>
                         @if($borrow->borrowItems && $borrow->borrowItems->count() > 0)
                             <button type="button" class="btn-view-book" onclick="showBorrowDetail({{ $borrow->id }})">Xem chi tiết</button>
+                            @php
+                                $firstItemCanExtend = $firstItem && $firstItem->trang_thai === 'Dang muon' && !$hasOverdue && (($firstItem->so_lan_gia_han ?? 0) < 2);
+                            @endphp
+                            @if($firstItemCanExtend)
+                                @if($borrow->customer_extension_requested)
+                                    <p style="margin-top: 8px; font-size: 12px; color: #0d6efd;">
+                                        🔁 Bạn đã gửi yêu cầu gia hạn (+{{ $borrow->customer_extension_days ?? 5 }} ngày). Vui lòng chờ thư viện duyệt.
+                                    </p>
+                                @else
+                                    <form action="{{ route('account.borrows.extend', $borrow->id) }}" method="POST" style="margin-top: 10px;">
+                                        @csrf
+                                        <button type="submit" class="btn-extend-borrow"
+                                                onclick="return confirm('Gửi yêu cầu gia hạn thêm 5 ngày cho tất cả sách trong phiếu này. Thư viện sẽ kiểm tra và duyệt nếu phù hợp. Phí gia hạn sẽ được tính cùng lúc khi bạn trả sách.');">
+                                            🔁 Gửi yêu cầu gia hạn (+5 ngày)
+                                        </button>
+                                    </form>
+                                @endif
+                            @elseif($firstItem && $firstItem->so_lan_gia_han >= 2)
+                                <p style="margin-top: 8px; font-size: 12px; color: #999;">Đã gia hạn tối đa 2 lần, không thể gia hạn thêm.</p>
+                            @elseif($hasOverdue)
+                                <p style="margin-top: 8px; font-size: 12px; color: #dc3545;">Sách đã quá hạn, vui lòng hoàn trả hoặc liên hệ thư viện để xử lý.</p>
+                            @endif
                         @endif
                             @php
                                 // Cho phép xác nhận khi đang giao hàng hoặc đã giao hàng thành công
@@ -884,6 +906,24 @@
 
 .btn-return-book:hover {
     background-color: #218838;
+}
+
+.btn-extend-borrow {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px;
+    background-color: #0d6efd;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-extend-borrow:hover {
+    background-color: #0b5ed7;
 }
 </style>
 

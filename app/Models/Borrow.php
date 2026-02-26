@@ -99,11 +99,17 @@ class Borrow extends Model
         'ma_van_don_di',
         'ma_van_don_ve',
         'don_vi_van_chuyen',
+        // Khách yêu cầu gia hạn
+        'customer_extension_requested',
+        'customer_extension_days',
+        'customer_extension_requested_at',
     ];
 
     protected $casts = [
         'ngay_muon' => 'date',
         'anh_hoan_tra' => 'array',
+        'customer_extension_requested' => 'boolean',
+        'customer_extension_requested_at' => 'datetime',
     ];
 
 

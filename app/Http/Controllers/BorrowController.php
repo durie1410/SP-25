@@ -2092,7 +2092,7 @@ class BorrowController extends Controller
     }
 
     /* ============================================================
-        GIA HẠN PHIẾU MƯỢN (THÊM 5 NGÀY + 25,000Đ)
+        GIA HẠN PHIẾU MƯỢN (ADMIN - THÊM 5 NGÀY + 25,000Đ)
     ============================================================ */
     public function extend($id)
     {
@@ -2130,12 +2130,62 @@ class BorrowController extends Controller
             $borrow->update([
                 'tien_thue' => ($borrow->tien_thue ?? 0) + $totalExtensionFee,
                 'tong_tien' => ($borrow->tong_tien ?? 0) + $totalExtensionFee,
+                // Reset cờ yêu cầu gia hạn của khách (nếu có)
+                'customer_extension_requested' => false,
+                'customer_extension_days' => null,
+                'customer_extension_requested_at' => null,
             ]);
 
             return back()->with('success', "Đã gia hạn thành công {$extendedCount} sách. Thêm {$days} ngày và " . number_format($totalExtensionFee) . "₫ tiền thuê.");
         } else {
             return back()->with('error', 'Không thể gia hạn. Các sách đã quá hạn hoặc đã gia hạn đủ số lần cho phép.');
         }
+    }
+
+    /* ============================================================
+        KHÁCH HÀNG GỬI YÊU CẦU GIA HẠN (CHỜ ADMIN DUYỆT)
+       - Không thay đổi hạn trả / tiền ngay lập tức
+       - Admin dùng nút Gia hạn trong backend để xử lý khi phù hợp
+    ============================================================ */
+    public function customerExtendBorrow(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (!$user || !$user->reader) {
+            return redirect()->route('account.borrowed-books')
+                ->with('error', 'Bạn cần có thẻ độc giả để gửi yêu cầu gia hạn.');
+        }
+
+        $borrow = Borrow::with('items')
+            ->where('id', $id)
+            ->where('reader_id', $user->reader->id)
+            ->first();
+
+        if (!$borrow) {
+            return back()->with('error', 'Phiếu mượn không tồn tại hoặc không thuộc về bạn.');
+        }
+
+        // Chỉ cho phép gửi yêu cầu khi đơn đang mượn và chưa quá hạn theo policy chung
+        if (!$borrow->canExtend()) {
+            return back()->with('error', 'Không thể gửi yêu cầu gia hạn (đơn đã quá hạn hoặc đã gia hạn đủ số lần).');
+        }
+
+        // Nếu đã có yêu cầu gia hạn đang chờ, không cho gửi thêm
+        if ($borrow->customer_extension_requested) {
+            return back()->with('info', 'Bạn đã gửi yêu cầu gia hạn trước đó. Vui lòng chờ thư viện xử lý.');
+        }
+
+        $days = 5; // cố định +5 ngày
+
+        $borrow->update([
+            'customer_extension_requested' => true,
+            'customer_extension_days' => $days,
+            'customer_extension_requested_at' => now(),
+        ]);
+
+        return back()->with(
+            'success',
+            "Đã gửi yêu cầu gia hạn thêm {$days} ngày. Thư viện sẽ kiểm tra (ví dụ: có độc giả khác đặt mượn) và duyệt nếu phù hợp. Phí gia hạn sẽ được tính cùng lúc khi bạn trả sách."
+        );
     }
 
 }

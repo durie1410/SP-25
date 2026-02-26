@@ -555,10 +555,46 @@ function ensureDateStatusEl(){
     return statusMsg;
 }
 
+// Kiểm tra ngày lấy / ngày trả hợp lệ ở phía client
+function validateReservationDates(pickup, ret, showAlert = true){
+    if(!pickup || !ret){
+        if(showAlert){
+            alert('Vui lòng chọn đầy đủ ngày lấy và ngày trả.');
+        }
+        return false;
+    }
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const pickupDate = new Date(pickup);
+    const returnDate = new Date(ret);
+
+    if(pickupDate < today){
+        if(showAlert){
+            alert('Ngày lấy sách không được ở quá khứ.');
+        }
+        return false;
+    }
+
+    if(returnDate <= pickupDate){
+        if(showAlert){
+            alert('Ngày trả sách phải sau ngày lấy sách.');
+        }
+        return false;
+    }
+
+    return true;
+}
+
 function updateDatesForAll(){
     const pickup = document.getElementById('pickup-date-global').value;
     const ret = document.getElementById('return-date-global').value;
-    if(!pickup || !ret) return;
+
+    // Chặn ngay nếu ngày không hợp lệ
+    if(!validateReservationDates(pickup, ret, true)){
+        return;
+    }
 
     const statusMsg = ensureDateStatusEl();
     statusMsg.style.display = 'block';
@@ -622,10 +658,10 @@ function validateGlobalDates(){
     const pickup = document.getElementById('pickup-date-global').value;
     const ret = document.getElementById('return-date-global').value;
 
-    if(!pickup || !ret){
-        alert('Vui lòng chọn ngày lấy và ngày trả cho tất cả sách trước khi thanh toán.');
+    if(!validateReservationDates(pickup, ret, true)){
         return false;
     }
+
     return true;
 }
 </script>

@@ -292,6 +292,9 @@ Route::middleware('auth')->group(function () {
     
     // Customer return book routes (hoàn trả sách)
     Route::post('/account/borrows/{id}/return-book', [BorrowController::class, 'customerReturnBook'])->name('account.borrows.return-book');
+
+    // Customer extend borrow routes (gia hạn mượn)
+    Route::post('/account/borrows/{id}/extend', [BorrowController::class, 'customerExtendBorrow'])->name('account.borrows.extend');
 });
 
 // Admin Routes
