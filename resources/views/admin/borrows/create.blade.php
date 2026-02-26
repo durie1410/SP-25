@@ -98,26 +98,6 @@
             <textarea name="ghi_chu" class="form-control" rows="3"></textarea>
         </div>
 
-        {{-- Tiền --}}
-        {{-- <div class="row mb-3">
-            <div class="col-md-3">
-                <label class="form-label">Tiền cọc (₫)</label>
-                <input type="number" name="tien_coc" class="form-control" value="0">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Tiền ship (₫)</label>
-                <input type="number" name="tien_ship" class="form-control" value="0">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Tiền thuê (₫)</label>
-                <input type="number" name="tien_thue" class="form-control" value="0">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Tổng tiền (₫)</label>
-                <input type="number" name="tong_tien" class="form-control" value="0" readonly>
-            </div>
-        </div> --}}
-
         {{-- Voucher --}}
         {{-- <div class="mb-3">
             <label class="form-label">Voucher</label>
@@ -214,7 +194,7 @@ function selectReader(reader) {
     if (bookId) {
         const bookPriceText = document.getElementById('bookPrice').textContent.replace(/[^\d]/g, '');
         const bookPrice = parseInt(bookPriceText) || 0;
-        // Tiền cọc = giá sách (1:1)
+        // Phí thuê = giá sách theo số ngày
         const deposit = bookPrice;
         document.getElementById('depositInput').value = deposit;
     }
@@ -287,12 +267,11 @@ function selectBook(book) {
     }
     document.getElementById('bookPrice').textContent = price.toLocaleString('vi-VN') + '₫';
 
-    // --- Xác định tiền cọc ---
-    // Tiền cọc = giá sách (1:1) cho tất cả trường hợp
+    // --- Xác định phí thuê ---
     const deposit = price;
     document.getElementById('depositInput').value = deposit;
 
-    // --- Tiền ship để trống, người dùng nhập tay ---
+    // --- Không sử dụng phí ship ---
     document.getElementById('shipInput').value = '';
 
     document.getElementById('bookSearch').value = '';

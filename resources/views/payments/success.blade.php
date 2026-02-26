@@ -174,13 +174,13 @@
                 <span class="detail-value">
                     @switch($payment->payment_type)
                         @case('deposit')
-                            Tiền cọc
+                            Thanh toán đơn mượn
                             @break
                         @case('borrow_fee')
                             Tiền thuê sách
                             @break
                         @case('shipping_fee')
-                            Phí vận chuyển
+                            Phụ phí đơn mượn
                             @break
                         @case('damage_fee')
                             Phí đền bù

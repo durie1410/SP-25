@@ -962,12 +962,6 @@
                     <span class="detail-value">${borrow.ngay_yeu_cau_tra_sach || 'N/A'}</span>
                 </div>
                 ` : ''}
-                ${borrow.trang_thai_coc ? `
-                <div class="detail-row">
-                    <span class="detail-label">Trạng thái cọc:</span>
-                    <span class="detail-value">${borrow.trang_thai_coc}</span>
-                </div>
-                ` : ''}
                 ${borrow.ghi_chu ? `
                 <div class="detail-row">
                     <span class="detail-label">Ghi chú:</span>
@@ -986,16 +980,11 @@
                             <div style="margin-top: 8px; font-size: 0.9em; color: #856404;">
                                 <p style="margin: 4px 0;">• Lý do: Đổi ý, không nghe máy, từ chối nhận hàng...</p>
                                 <p style="margin: 4px 0;">• Hoàn: Phí thuê (100%)</p>
-                                <p style="margin: 4px 0;">• Hoàn: 80% tiền cọc (trừ 20% phí phạt)</p>
-                                <p style="margin: 4px 0; color: #dc3545;">• Khách mất: Phí ship (100%)</p>
-                                <p style="margin: 4px 0; color: #dc3545;">• Khách mất: 20% tiền cọc (phí phạt)</p>
                             </div>
                             ` : `
                             <div style="margin-top: 8px; font-size: 0.9em; color: #155724;">
                                 <p style="margin: 4px 0;">• Lý do: Sách rách, bẩn, sai tên sách, thiếu sách...</p>
-                                <p style="margin: 4px 0;">• Hoàn: 100% tiền cọc</p>
                                 <p style="margin: 4px 0;">• Hoàn: 100% phí thuê</p>
-                                <p style="margin: 4px 0;">• Hoàn: 100% phí ship</p>
                                 <p style="margin: 4px 0; font-weight: 600;">→ Khách được hoàn toàn bộ 100%</p>
                             </div>
                             `}
@@ -1056,204 +1045,18 @@
             `;
         }
 
-        // Hiển thị thông tin tài chính (luôn hiển thị)
+        // Hiển thị thông tin tài chính (đã bỏ tiền cọc/tiền ship)
         html += `
             <div class="detail-section">
                 <h3 class="detail-section-title">Thông tin tài chính</h3>
-                <div class="detail-row">
-                    <span class="detail-label">Tiền cọc:</span>
-                    <span class="detail-value">${new Intl.NumberFormat('vi-VN').format(borrow.tien_coc || 0)} đ</span>
-                </div>
                 <div class="detail-row">
                     <span class="detail-label">Tiền thuê:</span>
                     <span class="detail-value">${new Intl.NumberFormat('vi-VN').format(borrow.tien_thue || 0)} đ</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">Tiền ship:</span>
-                    <span class="detail-value">${new Intl.NumberFormat('vi-VN').format((function() {
-                        // Ưu tiên sử dụng giá trị từ PHP (đã tính từ items)
-                        if (borrow.tien_ship > 0) {
-                            return borrow.tien_ship;
-                        }
-                        // Nếu = 0, tính từ borrowItems
-                        if (borrow.borrowItems && borrow.borrowItems.length > 0) {
-                            const shipFromItems = borrow.borrowItems.reduce((sum, item) => sum + (parseFloat(item.tien_ship) || 0), 0);
-                            if (shipFromItems > 0) {
-                                return shipFromItems;
-                            }
-                        }
-                        // Mặc định là 20k nếu = 0
-                        return 20000;
-                    })())} đ</span>
-                </div>
-                ${borrow.trang_thai_chi_tiet === 'giao_hang_that_bai' && borrow.failure_reason === 'loi_khach_hang' ? `
-                <div class="detail-row" style="margin-top: 15px; padding-top: 15px; border-top: 2px dashed #ffc107;">
-                    <div style="width: 100%;">
-                        <div style="color: #dc3545; font-weight: 600; margin-bottom: 10px; font-size: 14px;">Chi tiết hoàn tiền (Lỗi khách hàng):</div>
-                        <div style="padding: 12px; background: #fff3cd; border-radius: 6px; margin-bottom: 10px;">
-                            ${(function() {
-                                const tienCoc = borrow.tien_coc || 0;
-                                const tienThue = borrow.tien_thue || 0;
-                                let tienShip = borrow.tien_ship || 0;
-                                
-                                if (tienShip == 0 && borrow.borrowItems && borrow.borrowItems.length > 0) {
-                                    tienShip = borrow.borrowItems.reduce((sum, item) => sum + (parseFloat(item.tien_ship) || 0), 0);
-                                }
-                                if (tienShip == 0) {
-                                    tienShip = 20000;
-                                }
-                                
-                                const phiPhat = tienCoc * 0.20;
-                                const tienCocHoan = tienCoc * 0.80;
-                                const tongTienKhachMat = phiPhat + tienShip;
-                                const tongTienHoan = tienThue + tienCocHoan;
-                                const tongTienGoc = tienCoc + tienThue + tienShip;
-                                const tongTienCuoi = tongTienGoc - tongTienKhachMat;
-                                
-                                return `
-                                    <div style="margin-bottom: 8px;">
-                                        <span style="color: #28a745;">✓ Hoàn phí thuê:</span>
-                                        <span style="float: right; font-weight: 600;">${new Intl.NumberFormat('vi-VN').format(tienThue)} đ</span>
-                                    </div>
-                                    <div style="margin-bottom: 8px;">
-                                        <span style="color: #28a745;">✓ Hoàn tiền cọc (80%):</span>
-                                        <span style="float: right; font-weight: 600;">${new Intl.NumberFormat('vi-VN').format(tienCocHoan)} đ</span>
-                                    </div>
-                                    <div style="margin-bottom: 8px; color: #dc3545;">
-                                        <span>✗ Trừ phí phạt (20% cọc):</span>
-                                        <span style="float: right; font-weight: 600;">- ${new Intl.NumberFormat('vi-VN').format(phiPhat)} đ</span>
-                                    </div>
-                                    <div style="margin-bottom: 8px; color: #dc3545;">
-                                        <span>✗ Không hoàn phí ship:</span>
-                                        <span style="float: right; font-weight: 600;">- ${new Intl.NumberFormat('vi-VN').format(tienShip)} đ</span>
-                                    </div>
-                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e0e0e0;">
-                                        <span style="font-weight: 600;">Tổng khách mất:</span>
-                                        <span style="float: right; color: #dc3545; font-weight: 600;">${new Intl.NumberFormat('vi-VN').format(tongTienKhachMat)} đ</span>
-                                    </div>
-                                    <div style="margin-top: 8px;">
-                                        <span style="font-weight: 600;">Tổng hoàn lại:</span>
-                                        <span style="float: right; color: #28a745; font-weight: 600;">${new Intl.NumberFormat('vi-VN').format(tongTienHoan)} đ</span>
-                                    </div>
-                                `;
-                            })()}
-                        </div>
-                        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e9ecef;">
-                            <div style="margin-bottom: 5px;">
-                                <span style="text-decoration: line-through; color: #999;">Tổng tiền ban đầu:</span>
-                                <span style="text-decoration: line-through; color: #999; float: right;">${new Intl.NumberFormat('vi-VN').format((function() {
-                                    const tienCoc = borrow.tien_coc || 0;
-                                    const tienThue = borrow.tien_thue || 0;
-                                    let tienShip = borrow.tien_ship || 0;
-                                    if (tienShip == 0 && borrow.borrowItems && borrow.borrowItems.length > 0) {
-                                        tienShip = borrow.borrowItems.reduce((sum, item) => sum + (parseFloat(item.tien_ship) || 0), 0);
-                                    }
-                                    if (tienShip == 0) tienShip = 20000;
-                                    return tienCoc + tienThue + tienShip;
-                                })())} đ</span>
-                            </div>
-                            <div>
-                                <span style="font-weight: 600; color: #dc3545;">Tổng tiền sau khi trừ:</span>
-                                <span style="font-weight: 600; color: #dc3545; float: right;">${new Intl.NumberFormat('vi-VN').format((function() {
-                                    const tienCoc = borrow.tien_coc || 0;
-                                    const tienThue = borrow.tien_thue || 0;
-                                    let tienShip = borrow.tien_ship || 0;
-                                    if (tienShip == 0 && borrow.borrowItems && borrow.borrowItems.length > 0) {
-                                        tienShip = borrow.borrowItems.reduce((sum, item) => sum + (parseFloat(item.tien_ship) || 0), 0);
-                                    }
-                                    if (tienShip == 0) tienShip = 20000;
-                                    const phiPhat = tienCoc * 0.20;
-                                    const tongTienGoc = tienCoc + tienThue + tienShip;
-                                    return tongTienGoc - phiPhat - tienShip;
-                                })())} đ</span>
-                            </div>
-                        </div>
-                        ${borrow.failure_proof_image ? `
-                        <div style="margin-top: 10px;">
-                            <span class="detail-label" style="display: block; margin-bottom: 6px;">Ảnh minh chứng:</span>
-                            <img src="${borrow.failure_proof_image}" alt="Ảnh minh chứng giao hàng thất bại" style="max-width: 240px; border-radius: 6px; border: 1px solid #ddd;">
-                </div>
-                ` : ''}
-                    </div>
-                </div>
-                ` : ''}
-                ${borrow.trang_thai_chi_tiet === 'giao_hang_that_bai' && borrow.failure_reason === 'loi_thu_vien' ? `
-                <div class="detail-row" style="margin-top: 15px; padding-top: 15px; border-top: 2px dashed #28a745;">
-                    <div style="width: 100%;">
-                        <div style="color: #28a745; font-weight: 600; margin-bottom: 10px; font-size: 14px;">Chi tiết hoàn tiền (Lỗi thư viện):</div>
-                        <div style="padding: 12px; background: #d4edda; border-radius: 6px;">
-                            ${(function() {
-                                const tienCoc = borrow.tien_coc || 0;
-                                const tienThue = borrow.tien_thue || 0;
-                                let tienShip = borrow.tien_ship || 0;
-                                
-                                if (tienShip == 0 && borrow.borrowItems && borrow.borrowItems.length > 0) {
-                                    tienShip = borrow.borrowItems.reduce((sum, item) => sum + (parseFloat(item.tien_ship) || 0), 0);
-                                }
-                                if (tienShip == 0) {
-                                    tienShip = 20000;
-                                }
-                                
-                                const tongTienHoan = tienCoc + tienThue + tienShip;
-                                
-                                return `
-                                    <div style="margin-bottom: 8px;">
-                                        <span style="color: #28a745;">✓ Hoàn 100% phí thuê:</span>
-                                        <span style="float: right; font-weight: 600;">${new Intl.NumberFormat('vi-VN').format(tienThue)} đ</span>
-                                    </div>
-                                    <div style="margin-bottom: 8px;">
-                                        <span style="color: #28a745;">✓ Hoàn 100% tiền cọc:</span>
-                                        <span style="float: right; font-weight: 600;">${new Intl.NumberFormat('vi-VN').format(tienCoc)} đ</span>
-                                    </div>
-                                    <div style="margin-bottom: 8px;">
-                                        <span style="color: #28a745;">✓ Hoàn 100% phí ship:</span>
-                                        <span style="float: right; font-weight: 600;">${new Intl.NumberFormat('vi-VN').format(tienShip)} đ</span>
-                                    </div>
-                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e0e0e0;">
-                                        <span style="font-weight: 600;">Tổng hoàn lại:</span>
-                                        <span style="float: right; color: #28a745; font-weight: 600;">${new Intl.NumberFormat('vi-VN').format(tongTienHoan)} đ</span>
-                                    </div>
-                                `;
-                            })()}
-                        </div>
-                        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e9ecef;">
-                            <span style="font-weight: 600; color: #28a745;">Tổng tiền hoàn lại:</span>
-                            <span style="font-weight: 600; color: #28a745; float: right;">${new Intl.NumberFormat('vi-VN').format((function() {
-                                const tienCoc = borrow.tien_coc || 0;
-                                const tienThue = borrow.tien_thue || 0;
-                                let tienShip = borrow.tien_ship || 0;
-                                if (tienShip == 0 && borrow.borrowItems && borrow.borrowItems.length > 0) {
-                                    tienShip = borrow.borrowItems.reduce((sum, item) => sum + (parseFloat(item.tien_ship) || 0), 0);
-                                }
-                                if (tienShip == 0) tienShip = 20000;
-                                return tienCoc + tienThue + tienShip;
-                            })())} đ</span>
-                        </div>
-                    </div>
-                </div>
-                ` : ''}
-                ${borrow.trang_thai_chi_tiet !== 'giao_hang_that_bai' ? `
-                <div class="detail-row">
                     <span class="detail-label">Tổng tiền:</span>
-                    <span class="detail-value" style="font-weight: 600; color: #d82329;">${new Intl.NumberFormat('vi-VN').format((function() {
-                        // Tính lại tổng tiền = cọc + thuê + ship
-                        const tienCoc = borrow.tien_coc || 0;
-                        const tienThue = borrow.tien_thue || 0;
-                        let tienShip = borrow.tien_ship || 0;
-                        
-                        // Nếu ship = 0, tính từ items
-                        if (tienShip == 0 && borrow.borrowItems && borrow.borrowItems.length > 0) {
-                            tienShip = borrow.borrowItems.reduce((sum, item) => sum + (parseFloat(item.tien_ship) || 0), 0);
-                        }
-                        // Nếu vẫn = 0, mặc định 20k
-                        if (tienShip == 0) {
-                            tienShip = 20000;
-                        }
-                        
-                        return tienCoc + tienThue + tienShip;
-                    })())} đ</span>
+                    <span class="detail-value" style="font-weight: 600; color: #d82329;">${new Intl.NumberFormat('vi-VN').format((borrow.tong_tien ?? borrow.tien_thue) || 0)} đ</span>
                 </div>
-                ` : ''}
             </div>
         `;
 
@@ -1319,9 +1122,7 @@
                             <div class="detail-row" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0;">
                                 <span class="detail-label">Chi phí:</span>
                                 <div style="flex: 1;">
-                                    <p style="margin: 5px 0;">Cọc: ${new Intl.NumberFormat('vi-VN').format(item.tien_coc || 0)} đ</p>
                                     <p style="margin: 5px 0;">Thuê: ${new Intl.NumberFormat('vi-VN').format(item.tien_thue || 0)} đ</p>
-                                    ${item.tien_ship > 0 ? `<p style="margin: 5px 0;">Ship: ${new Intl.NumberFormat('vi-VN').format(item.tien_ship)} đ</p>` : ''}
                                 </div>
                             </div>
                             ${item.ghi_chu ? `

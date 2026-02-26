@@ -44,17 +44,7 @@
                                 </div>
 
                                 <div class="mb-2">
-                                    <label for="depositInput" class="form-label">Tiền cọc (₫)</label>
-                                    <input type="text" name="tien_coc" id="depositInput" class="form-control" value="0" readonly>
-                                </div>
-
-                                <div class="mb-2">
-                                    <label for="shipInput" class="form-label">Tiền ship (₫)</label>
-                                    <input type="text" name="tien_ship" id="shipInput" class="form-control" value="20000" readonly>
-                                </div>
-
-                                <div class="mb-2">
-                                    <label for="trangThaiCoc" class="form-label">Trạng thái tiền cọc</label>
+                                    <label for="trangThaiCoc" class="form-label">Trạng thái thanh toán</label>
                                     <select name="trang_thai_coc" class="form-control">
                                         <option value="cho_xu_ly">Chờ xử lý</option>
                                         <option value="da_thu">Đã thu</option>
@@ -297,8 +287,6 @@ function updateMoneyFields(){
     // Nếu sách tham khảo
     if(selectedBook.loai_sach === 'tham_khao'){
         document.getElementById('tienThueInput').value = 'Không thể mượn online';
-        document.getElementById('depositInput').value = 'Không thể mượn online';
-        document.getElementById('shipInput').value = 'Không thể mượn online';
         document.getElementById('tongTien').textContent = 'Không thể mượn online';
         return;
     }
@@ -308,9 +296,7 @@ function updateMoneyFields(){
 
     if(selectedInventories.length === 0){
         setInputMoney('tienThueInput',0);
-        setInputMoney('depositInput',0);
-        setInputMoney('shipInput',20000);
-        updateTotal(0,0,20000);
+        updateTotal(0);
         return;
     }
 
@@ -331,37 +317,30 @@ function updateMoneyFields(){
     const dailyRate = 0.01; // 1% giá sách mỗi ngày
     const onsiteHourlyRate = 5000; // 5k/giờ
 
-    let totalCoc = 0, totalThue = 0, totalShip = 20000;
+    let totalThue = 0;
 
     if (borrowType === 'onsite') {
-        // Đọc tại chỗ: không cọc, thuê theo giờ
-        totalCoc = 0;
+        // Đọc tại chỗ: thuê theo giờ
         totalThue = selectedInventories.length * onsiteHourlyRate; // Tạm tính 1 giờ
         document.getElementById('ngayHenTraInput').value = document.getElementById('ngayMuonInput').value;
     } else {
-        // Mượn về: cọc 70%, thuê 1%/ngày
+        // Mượn về: thuê 1%/ngày
         selectedInventories.forEach(inp => {
             const inv = inventories.find(i => i.id == inp.value);
             let price = Number(selectedBook.gia);
-            let coc = 0, thue = 0;
+            let thue = 0;
 
             if(inv.status !== 'Hong' && inv.status !== 'Dang muon' && inv.status !== 'Mat'){
-                // Cọc = 70% giá sách, làm tròn đến hàng nghìn
-                coc = Math.round((price * 0.7) / 1000) * 1000;
-
                 // Thuê = 1% giá sách * số ngày, làm tròn đến hàng nghìn
                 thue = Math.round((price * dailyRate * soNgayMuon) / 1000) * 1000;
             }
 
-            totalCoc += coc;
             totalThue += thue;
         });
     }
 
     setInputMoney('tienThueInput', totalThue);
-    setInputMoney('depositInput', totalCoc);
-    setInputMoney('shipInput', totalShip);
-    updateTotal(totalThue,totalCoc,totalShip);
+    updateTotal(totalThue);
 }
 
 // Thêm event listener để tính lại khi thay đổi ngày mượn/hạn trả
@@ -380,21 +359,20 @@ document.addEventListener('DOMContentLoaded', function() {
 // -------------------- HỖ TRỢ --------------------
 function formatVND(number){ return Number(number).toLocaleString('vi-VN')+'₫'; }
 function setInputMoney(id,number){ const inp=document.getElementById(id); inp.dataset.realValue=number; inp.value=formatVND(number); }
-function updateTotal(thue,coc,ship){ document.getElementById('tongTien').textContent = formatVND(thue+coc+ship); }
+function updateTotal(thue){ document.getElementById('tongTien').textContent = formatVND(thue); }
 function clearBook(){
     selectedBook=null;
     inventories=[];
     document.getElementById('bookId').value='';
     document.getElementById('selectedBook').style.display='none';
-    setInputMoney('depositInput',0);
     setInputMoney('tienThueInput',0);
-    setInputMoney('shipInput',20000);
+    updateTotal(0);
 }
 function hideBookDropdown(){ document.getElementById('bookDropdown').style.display='none'; }
 document.addEventListener('click', e=>{ if(!e.target.closest('#bookSearch') && !e.target.closest('#bookDropdown')) hideBookDropdown(); });
 
 document.getElementById('borrowForm').addEventListener('submit', function(){
-    ['tienThueInput','depositInput','shipInput'].forEach(id=>{
+    ['tienThueInput'].forEach(id=>{
         const inp=document.getElementById(id);
         if(isNaN(Number(inp.dataset.realValue))){
             inp.value = 0;

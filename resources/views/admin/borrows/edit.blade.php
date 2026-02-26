@@ -193,8 +193,6 @@
                                     <th>Tên sách</th>
                                     <th>Tác giả</th>
                                     <th>vị trí</th>
-                                    <th>Tiền cọc</th>
-                                    <th>Tiền ship</th>
                                     <th>Tiền thuê</th>
                                     <th>Ngày hẹn trả</th>
                                     <th>Trạng thái</th>
@@ -209,9 +207,6 @@
     <span class="badge badge-info">ID: {{ $item->inventory->id }}</span>
     <span class="badge badge-secondary">Vị trí: {{ $item->inventory->location ?? 'Không có' }}</span>
 </td>
-
-                                    <td data-tien-coc="{{ $item->tien_coc }}">{{ number_format($item->tien_coc) }}₫</td>
-                                    <td data-tien-ship="{{ $item->tien_ship }}">{{ number_format($item->tien_ship) }}₫</td>
                                     <td>{{ number_format($item->tien_thue) }}₫</td>
                                     <td>{{ $item->ngay_hen_tra->format('d/m/Y') }}</td>
 <td>
@@ -250,8 +245,6 @@
                 @else
                     <p class="mb-1"><strong>Tổng tiền thuê:</strong> <span id="totalRent">{{ number_format($borrow->items->sum('tien_thue')) }}₫</span></p>
                 @endif
-                <p class="mb-1"><strong>Tổng tiền cọc:</strong> <span id="totalCoc">{{ number_format($borrow->items->sum('tien_coc')) }}₫</span></p>
-                <p class="mb-1"><strong>Tổng tiền ship:</strong> <span id="totalShip">{{ number_format($borrow->items->sum('tien_ship')) }}₫</span></p>
                 <p class="mb-1"><strong>Tổng thanh toán:</strong> <span class="fw-bold text-success" id="finalAmount">{{ number_format($borrow->tong_tien) }}₫</span></p>
                 <input type="hidden" name="tong_tien" id="tongTienInput" value="{{ $borrow->tong_tien }}">
 
@@ -268,13 +261,11 @@
 <script>
 // --- Tính tổng tiền ---
 function calculateTotal() {
-    let totalCoc = 0;
-    let totalShip = 0;
-
-    document.querySelectorAll('td[data-tien-coc]').forEach(td => totalCoc += parseFloat(td.dataset.tienCoc));
-    document.querySelectorAll('td[data-tien-ship]').forEach(td => totalShip += parseFloat(td.dataset.tienShip));
-
-    let finalAmount = totalCoc + totalShip;
+    let finalAmount = 0;
+    document.querySelectorAll('tbody tr td:nth-child(4)').forEach(td => {
+        const raw = (td.innerText || '').replace(/[^\d.-]/g, '');
+        finalAmount += parseFloat(raw || 0);
+    });
 
     document.getElementById('finalAmount').innerText = new Intl.NumberFormat().format(finalAmount) + '₫';
     document.getElementById('tongTienInput').value = finalAmount;

@@ -22,6 +22,7 @@
             <select name="status" class="form-control">
                 <option value="">-- Tất cả trạng thái --</option>
                 <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Đang chờ</option>
+                <option value="overdue" {{ request('status') === 'overdue' ? 'selected' : '' }}>Quá hạn</option>
                 <option value="ready" {{ request('status') === 'ready' ? 'selected' : '' }}>Đã sẵn sàng</option>
                 <option value="fulfilled" {{ request('status') === 'fulfilled' ? 'selected' : '' }}>Đã hoàn thành</option>
                 <option value="cancelled" {{ request('status') === 'cancelled' ? 'selected' : '' }}>Đã hủy</option>
@@ -82,15 +83,19 @@
                         </td>
                         <td>
                             @php
-                                $badgeClass = match($r->status) {
+                                $isOverduePickup = $r->status === 'pending' && $r->pickup_date && $r->pickup_date->lt(now()->startOfDay());
+
+                                $badgeClass = $isOverduePickup ? 'badge-danger' : match($r->status) {
                                     'pending' => 'badge-warning',
                                     'ready' => 'badge-success',
                                     'fulfilled' => 'badge-info',
                                     'cancelled' => 'badge-danger',
                                     default => 'badge-secondary',
                                 };
+
+                                $statusLabel = $isOverduePickup ? 'Quá hạn' : $r->getStatusLabel();
                             @endphp
-                            <span class="badge {{ $badgeClass }}">{{ $r->getStatusLabel() }}</span>
+                            <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
                         </td>
                         <td>
                             @if($r->inventory)
@@ -110,7 +115,7 @@
                         </td>
                         <td style="white-space:nowrap;">
                             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                                @if($r->status === 'pending')
+                                @if($r->status === 'pending' && !$isOverduePickup)
                                     <form method="POST" action="{{ route('admin.inventory-reservations.ready', $r->id) }}" style="display:inline;">
                                         @csrf
                                         <button type="submit" class="btn btn-sm btn-success confirm-submit-btn" data-confirm-message="Xác nhận sách sẵn sàng tại quầy? Hệ thống sẽ tự gán 1 bản copy đang có sẵn và gửi thông báo cho độc giả.">
@@ -119,7 +124,7 @@
                                     </form>
                                 @endif
 
-                                @if(in_array($r->status, ['pending', 'ready'], true))
+                                @if(in_array($r->status, ['pending', 'ready'], true) && !$isOverduePickup)
                                     <form method="POST" action="{{ route('admin.inventory-reservations.fulfill', $r->id) }}" style="display:inline;">
                                         @csrf
                                         <button type="submit" class="btn btn-sm btn-primary confirm-submit-btn" data-confirm-message="Đánh dấu độc giả đã nhận sách tại quầy?">
@@ -131,6 +136,17 @@
                                         @csrf
                                         <button type="submit" class="btn btn-sm btn-danger confirm-submit-btn" data-confirm-message="Hủy yêu cầu đặt trước này?">
                                             <i class="fas fa-times"></i> Hủy
+                                        </button>
+                                    </form>
+                                @endif
+
+                                @if($r->status === 'pending' && $isOverduePickup)
+                                    <form method="POST" action="{{ route('admin.inventory-reservations.cancel', $r->id) }}" style="display:inline;">
+                                        @csrf
+                                        <input type="hidden" name="mark_overdue" value="1">
+                                        <input type="hidden" name="admin_note" value="Quá hạn nhận sách: đã qua ngày lấy nhưng khách chưa đến nhận.">
+                                        <button type="submit" class="btn btn-sm btn-warning confirm-submit-btn" data-confirm-message="Ngày lấy đã qua nhưng khách chưa nhận. Đánh dấu quá hạn cho yêu cầu này?">
+                                            <i class="fas fa-clock"></i> Quá hạn
                                         </button>
                                     </form>
                                 @endif

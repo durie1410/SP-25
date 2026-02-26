@@ -22,7 +22,12 @@ class InventoryReservationController extends Controller
             ->orderBy('created_at', 'desc');
 
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            if ($request->status === 'overdue') {
+                $query->where('status', 'pending')
+                    ->whereDate('pickup_date', '<', now()->toDateString());
+            } else {
+                $query->where('status', $request->status);
+            }
         }
 
         $reservations = $query->paginate(20);
@@ -36,6 +41,10 @@ class InventoryReservationController extends Controller
 
         if ($reservation->status !== 'pending') {
             return back()->with('error', 'Yêu cầu này không còn ở trạng thái chờ.');
+        }
+
+        if ($reservation->pickup_date && $reservation->pickup_date->lt(now()->startOfDay())) {
+            return back()->with('error', 'Yêu cầu đã quá hạn ngày lấy. Vui lòng xử lý ở thao tác "Quá hạn".');
         }
 
         $request->validate([
@@ -97,6 +106,10 @@ class InventoryReservationController extends Controller
             return back()->with('error', 'Yêu cầu này không thể hoàn thành.');
         }
 
+        if ($reservation->status === 'pending' && $reservation->pickup_date && $reservation->pickup_date->lt(now()->startOfDay())) {
+            return back()->with('error', 'Yêu cầu đã quá hạn ngày lấy. Vui lòng xử lý ở thao tác "Quá hạn".');
+        }
+
         // Chuyển hướng sang trang tạo phiếu mượn kèm dữ liệu pre-fill
         return redirect()->route('admin.borrows.create', [
             'reader_id' => $reservation->reader_id,
@@ -117,14 +130,26 @@ class InventoryReservationController extends Controller
 
         $request->validate([
             'admin_note' => 'nullable|string|max:1000',
+            'mark_overdue' => 'nullable|boolean',
         ]);
+
+        $isMarkOverdue = (bool) $request->boolean('mark_overdue');
+        $adminNote = $request->admin_note;
+
+        if ($isMarkOverdue && empty($adminNote)) {
+            $adminNote = 'Quá hạn nhận sách: đã qua ngày lấy nhưng khách chưa đến nhận.';
+        }
 
         $reservation->update([
             'status' => 'cancelled',
-            'admin_note' => $request->admin_note,
+            'admin_note' => $adminNote,
             'processed_by' => Auth::id(),
             'cancelled_at' => now(),
         ]);
+
+        if ($isMarkOverdue) {
+            return back()->with('success', 'Đã đánh dấu quá hạn cho yêu cầu đặt trước.');
+        }
 
         return back()->with('success', 'Đã hủy yêu cầu đặt trước.');
     }

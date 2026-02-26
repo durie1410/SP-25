@@ -44,7 +44,6 @@
                         <tr>
                             <th>Tên sách</th>
                             <th>Tác giả</th>
-                            <th>Tiền cọc</th>
                             <th>Tiền thuê</th>
                         </tr>
                     </thead>
@@ -53,12 +52,11 @@
                         <tr>
                             <td>{{ $item->book->ten_sach ?? $item->book->title }}</td>
                             <td>{{ $item->book->author ?? '-' }}</td>
-                            <td>{{ number_format($item->tien_coc, 0, ',', '.') }} VND</td>
                             <td>{{ number_format($item->tien_thue, 0, ',', '.') }} VND</td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="4" class="text-center text-muted">Không có sách trong đơn</td>
+                            <td colspan="3" class="text-center text-muted">Không có sách trong đơn</td>
                         </tr>
                         @endforelse
                     </tbody>

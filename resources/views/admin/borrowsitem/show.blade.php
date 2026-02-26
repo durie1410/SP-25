@@ -44,11 +44,6 @@
                         <th class="text-end">{{ number_format($borrowItem->tien_thue) }}</th>
                     </tr>
                     @endif
-                    <tr>
-                        <th>{{ $index++ }}</th>
-                        <th>Tiền ship</th>
-                        <th class="text-end">{{ number_format($borrowItem->tien_ship) }}</th>
-                    </tr>
                 </tbody>
                 
             </table>
@@ -56,7 +51,7 @@
 <tfoot class="table-light fw-bold fs-5">
                     <tr>
                         <td colspan="2" class="text-end">Tổng cộng</td>
-                        <td class="text-end text-success">{{ number_format($borrowItem->tien_thue + $borrowItem->tien_ship) }}₫</td>
+                        <td class="text-end text-success">{{ number_format($borrowItem->tien_thue) }}₫</td>
                     </tr>
                 </tfoot>
             <!-- Status Badges -->
@@ -65,40 +60,19 @@
                     <p><strong>Trạng thái mượn:</strong> 
                         <span class="badge bg-gradient-info text-white px-3 py-2">{{ $borrowItem->trang_thai }}</span>
                     </p>
-                    <p><strong>Trạng thái cọc:</strong>
-                        @php
-                            $statusColors = [
-                                'cho_xu_ly' => 'secondary',
-                                'da_thu' => 'success',
-                                'da_hoan' => 'info',
-                                'tru_vao_phat' => 'warning',
-                            ];
-                            $statusLabels = [
-                                'cho_xu_ly' => 'Chờ xử lý',
-                                'da_thu' => 'Đã thu',
-                                'da_hoan' => 'Đã hoàn',
-                                'tru_vao_phat' => 'Trừ vào phạt',
-                            ];
-                        @endphp
-                        <span class="badge bg-gradient-{{ $statusColors[$borrowItem->trang_thai_coc] ?? 'secondary' }} text-white px-3 py-2">
-                            {{ $statusLabels[$borrowItem->trang_thai_coc] ?? $borrowItem->trang_thai_coc }}
-                        </span>
-                    </p>
+                    <p><strong>Ngày mượn:</strong> {{ $borrowItem->ngay_muon->format('d/m/Y') }}</p>
+                    <p><strong>Ngày hẹn trả:</strong> {{ $borrowItem->ngay_hen_tra->format('d/m/Y') }}</p>
                 </div>
                 <div class="text-end">
-                    <p><strong>Ngày mượn:</strong> {{ $borrowItem->ngay_muon->format('d/m/Y') }}</p>
-<p><strong>Ngày hẹn trả:</strong> {{ $borrowItem->ngay_hen_tra->format('d/m/Y') }}</p>
-
-<p><strong>Số ngày còn lại:</strong>
-    @if($borrowItem->days_remaining > 0)
-        <span class="text-success">quá hạn {{ $borrowItem->days_remaining }} ngày</span>
-    @elseif($borrowItem->days_remaining == 0)
-        <span class="text-warning">Hết hạn hôm nay</span>
-    @else
-        <span class="text-danger">còn {{ abs($borrowItem->days_remaining) }} ngày</span>
-    @endif
-</p>
-
+                    <p><strong>Số ngày:</strong>
+                        @if($borrowItem->days_remaining > 0)
+                            <span class="text-success">quá hạn {{ $borrowItem->days_remaining }} ngày</span>
+                        @elseif($borrowItem->days_remaining == 0)
+                            <span class="text-warning">Hết hạn hôm nay</span>
+                        @else
+                            <span class="text-danger">còn {{ abs($borrowItem->days_remaining) }} ngày</span>
+                        @endif
+                    </p>
                 </div>
             </div>
 
