@@ -29,7 +29,7 @@ class NotificationService
         if (!$template) {
             Log::warning("Notification template not found for type: {$type}");
 
-            // Fallback for reservation_ready notification if template is missing
+            // Fallback for reservation_ready / reservation_overdue notification if template is missing
             if ($type === 'reservation_ready') {
                 Log::info("Using fallback template for type: {$type}");
                 $template = (object) [
@@ -37,6 +37,14 @@ class NotificationService
                     'content' => 'Sách "{{book_title}}" đã sẵn sàng. Mời bạn đến quầy để nhận sách trước ngày {{expiry_date}}.',
                     'type' => 'reservation_ready',
                     'channel' => 'database', // Default to database channel
+                ];
+            } elseif ($type === 'reservation_overdue') {
+                Log::info("Using fallback template for type: {$type}");
+                $template = (object) [
+                    'subject' => 'Yêu cầu đặt trước đã quá hạn',
+                    'content' => 'Yêu cầu nhận sách "{{book_title}}" của bạn đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu đặt trước mới nếu vẫn còn nhu cầu.',
+                    'type' => 'reservation_overdue',
+                    'channel' => 'database',
                 ];
             } else {
                 return false; // Keep original behavior for other types

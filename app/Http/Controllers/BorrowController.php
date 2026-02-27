@@ -194,6 +194,19 @@ class BorrowController extends Controller
                         'tong_tien' => $rentalFee,
                     ]);
 
+                    // Tạo payment pending để hiển thị cột phương thức thanh toán ở danh sách quản lý
+                    $existingPayment = BorrowPayment::where('borrow_id', $borrow->id)->first();
+                    if (!$existingPayment) {
+                        BorrowPayment::create([
+                            'borrow_id' => $borrow->id,
+                            'amount' => $borrow->tong_tien ?? $rentalFee,
+                            'payment_type' => 'borrow_fee',
+                            'payment_method' => 'online',
+                            'payment_status' => 'pending',
+                            'note' => 'Thanh toán đơn mượn tạo từ yêu cầu đặt trước',
+                        ]);
+                    }
+
                     // Cập nhật yêu cầu đặt trước
                     $reservation->update([
                         'status' => 'fulfilled',

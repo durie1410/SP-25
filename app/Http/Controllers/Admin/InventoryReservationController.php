@@ -5,10 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Inventory;
 use App\Models\InventoryReservation;
-use App\Models\Borrow;
-use App\Models\BorrowItem;
 use App\Services\NotificationService;
-use App\Services\PricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +20,7 @@ class InventoryReservationController extends Controller
 
         if ($request->filled('status')) {
             if ($request->status === 'overdue') {
-                $query->where('status', 'pending')
+                $query->whereIn('status', ['pending', 'ready'])
                     ->whereDate('pickup_date', '<', now()->toDateString());
             } else {
                 $query->where('status', $request->status);
@@ -106,7 +103,7 @@ class InventoryReservationController extends Controller
             return back()->with('error', 'Yêu cầu này không thể hoàn thành.');
         }
 
-        if ($reservation->status === 'pending' && $reservation->pickup_date && $reservation->pickup_date->lt(now()->startOfDay())) {
+        if ($reservation->pickup_date && $reservation->pickup_date->lt(now()->startOfDay())) {
             return back()->with('error', 'Yêu cầu đã quá hạn ngày lấy. Vui lòng xử lý ở thao tác "Quá hạn".');
         }
 
@@ -122,7 +119,7 @@ class InventoryReservationController extends Controller
 
     public function cancel(Request $request, $id)
     {
-        $reservation = InventoryReservation::findOrFail($id);
+        $reservation = InventoryReservation::with(['book', 'reader', 'user'])->findOrFail($id);
 
         if (!in_array($reservation->status, ['pending', 'ready'], true)) {
             return back()->with('error', 'Yêu cầu này không thể hủy.');
@@ -148,6 +145,22 @@ class InventoryReservationController extends Controller
         ]);
 
         if ($isMarkOverdue) {
+            // Gửi thông báo cho khách khi yêu cầu bị quá hạn nhận sách
+            $userId = $reservation->reader?->user_id ?? $reservation->user_id;
+            if ($userId) {
+                $notification = app(NotificationService::class);
+                $notification->sendNotification(
+                    $userId,
+                    'reservation_overdue',
+                    [
+                        'reader_name' => $reservation->reader?->ho_ten ?? ($reservation->user?->name ?? 'Bạn'),
+                        'book_title' => $reservation->book?->ten_sach ?? 'Sách',
+                        'pickup_date' => $reservation->pickup_date ? $reservation->pickup_date->format('d/m/Y') : now()->format('d/m/Y'),
+                    ],
+                    ['database']
+                );
+            }
+
             return back()->with('success', 'Đã đánh dấu quá hạn cho yêu cầu đặt trước.');
         }
 

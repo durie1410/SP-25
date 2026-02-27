@@ -1,5 +1,5 @@
 @php
-    $currentRoute = request()->route()->getName();
+    $currentRoute = optional(request()->route())->getName();
     $user = auth()->user();
     // Load relationship reader để hiển thị "Sách đang mượn" nếu có
     if ($user) {
@@ -15,7 +15,7 @@
     @endif
     <nav class="account-nav">
         <ul>
-            @if($user->reader)
+            @if($user && $user->reader)
                 <li class="{{ $currentRoute === 'account.borrowed-books' ? 'active' : '' }}">
                     <a href="{{ route('account.borrowed-books') }}"><span class="icon">📚</span> Sách đang mượn</a>
                 </li>

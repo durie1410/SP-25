@@ -83,7 +83,9 @@
                         </td>
                         <td>
                             @php
-                                $isOverduePickup = $r->status === 'pending' && $r->pickup_date && $r->pickup_date->lt(now()->startOfDay());
+                                $isOverduePickup = in_array($r->status, ['pending', 'ready'], true)
+                                    && $r->pickup_date
+                                    && $r->pickup_date->lt(now()->startOfDay());
 
                                 $badgeClass = $isOverduePickup ? 'badge-danger' : match($r->status) {
                                     'pending' => 'badge-warning',
@@ -140,7 +142,7 @@
                                     </form>
                                 @endif
 
-                                @if($r->status === 'pending' && $isOverduePickup)
+                                @if(in_array($r->status, ['pending', 'ready'], true) && $isOverduePickup)
                                     <form method="POST" action="{{ route('admin.inventory-reservations.cancel', $r->id) }}" style="display:inline;">
                                         @csrf
                                         <input type="hidden" name="mark_overdue" value="1">

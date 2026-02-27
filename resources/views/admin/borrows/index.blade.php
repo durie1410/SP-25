@@ -157,10 +157,10 @@ tạo phiếu mượn    </a>
                     <th>Tên khách hàng</th>
                     <th style="width: 100px;">Tiền thuê</th>
                     <th style="min-width: 200px;">Trạng thái Items</th>
+                    <th style="width: 100px;">Chi tiết</th>
+                    <th style="width: 120px;">Gia hạn</th>
                     <th style="width: 120px;">Tổng tiền</th>
                     <th style="width: 150px;">Phương thức TT</th>
-                    <th style="width: 120px;">Gia hạn</th>
-                    <th style="width: 100px;">Chi tiết</th>
                     <th style="width: 180px;">Hành động</th>
                 </tr>
             </thead>
@@ -267,7 +267,35 @@ if ($borrow->items && $borrow->items->count() > 0) {
 
 </td>
 
-      <td>
+    <td style="text-align: center;">
+        @if($borrow->items && $borrow->items->count() > 0)
+        <button class="btn btn-sm btn-info toggle-items" 
+                data-borrow-id="{{ $borrow->id }}"
+                title="Xem danh sách sách"
+                style="white-space: nowrap;">
+            <i class="fas fa-chevron-down"></i>
+            {{ $borrow->items->count() }} sách
+        </button>
+        @else
+        <span class="text-muted">-</span>
+        @endif
+    </td>
+    {{-- Cột trạng thái gia hạn --}}
+    <td>
+        @if($borrow->customer_extension_requested)
+            <span class="badge bg-warning text-dark" style="font-size: 11px;">
+                Yêu cầu +{{ $borrow->customer_extension_days ?? 5 }} ngày
+            </span>
+            @if($borrow->customer_extension_requested_at)
+                <div style="font-size: 11px; color: #6c757d; margin-top: 2px;">
+                    {{ $borrow->customer_extension_requested_at->format('d/m H:i') }}
+                </div>
+            @endif
+        @else
+            <span class="text-muted" style="font-size: 11px;">Không có yêu cầu</span>
+        @endif
+    </td>
+    <td>
         {{ number_format($tongTien) }}₫
     </td>
     <td>
@@ -307,34 +335,6 @@ if ($borrow->items && $borrow->items->count() > 0) {
             </div>
         @else
             <span class="text-muted">-</span>
-        @endif
-    </td>
-    <td style="text-align: center;">
-        @if($borrow->items && $borrow->items->count() > 0)
-        <button class="btn btn-sm btn-info toggle-items" 
-                data-borrow-id="{{ $borrow->id }}"
-                title="Xem danh sách sách"
-                style="white-space: nowrap;">
-            <i class="fas fa-chevron-down"></i>
-            {{ $borrow->items->count() }} sách
-        </button>
-        @else
-        <span class="text-muted">-</span>
-        @endif
-    </td>
-    {{-- Cột trạng thái gia hạn --}}
-    <td>
-        @if($borrow->customer_extension_requested)
-            <span class="badge bg-warning text-dark" style="font-size: 11px;">
-                Yêu cầu +{{ $borrow->customer_extension_days ?? 5 }} ngày
-            </span>
-            @if($borrow->customer_extension_requested_at)
-                <div style="font-size: 11px; color: #6c757d; margin-top: 2px;">
-                    {{ $borrow->customer_extension_requested_at->format('d/m H:i') }}
-                </div>
-            @endif
-        @else
-            <span class="text-muted" style="font-size: 11px;">Không có yêu cầu</span>
         @endif
     </td>
     <td>
