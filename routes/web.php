@@ -370,6 +370,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
       Route::get('borrow-items/{id}', [BorrowItemController::class, 'show'])->name('borrowitems.show');
       
      Route::post('borrows/{id}/process', [BorrowController::class, 'processBorrow'])->name('borrows.process');
+     // Màn thanh toán cho phiếu mượn (sau khi duyệt)
+     Route::get('borrows/{id}/payment', [BorrowController::class, 'payment'])->name('borrows.payment')->middleware('permission:edit-borrows');
      Route::post('borrows/{id}/approve', [BorrowController::class, 'approve'])->name('borrows.approve')->middleware('permission:edit-borrows');
      Route::post('borrows/{id}/confirm-cash-payment', [BorrowController::class, 'confirmCashPayment'])->name('borrows.confirm-cash-payment')->middleware('permission:edit-borrows');
 

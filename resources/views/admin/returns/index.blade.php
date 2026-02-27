@@ -97,6 +97,7 @@
                                     <th>Phiếu</th>
                                     <th>Hẹn trả</th>
                                     <th>Tình trạng</th>
+                                    <th>Tiền thuê (bao gồm gia hạn)</th>
                                     <th>Phạt dự kiến</th>
                                 </tr>
                             </thead>
@@ -124,6 +125,12 @@
                                                 <option value="mat_sach">Mất sách</option>
                                             </select>
                                         </td>
+                                        <td class="fw-bold">
+                                            @php
+                                                $rentAmount = (int) ($item->tien_thue ?? 0);
+                                            @endphp
+                                            <span class="js-rent" data-value="{{ $rentAmount }}">{{ number_format($rentAmount) }}</span>₫
+                                        </td>
                                         <td class="text-danger fw-bold">
                                             <span class="js-fine" data-item-id="{{ $item->id }}" data-due="{{ $item->ngay_hen_tra }}">0</span>₫
                                         </td>
@@ -141,6 +148,10 @@
                 </form>
 
                 <div class="alert alert-secondary mt-3 mb-0">
+                    <div class="d-flex justify-content-between mb-1">
+                        <div><strong>Tổng tiền thuê (bao gồm gia hạn) cho sách được chọn:</strong></div>
+                        <div class="fw-bold"><span id="totalRent">0</span>₫</div>
+                    </div>
                     <div class="d-flex justify-content-between">
                         <div><strong>Tổng phạt dự kiến (chỉ tính trễ hạn):</strong></div>
                         <div class="fw-bold text-danger"><span id="totalFine">0</span>₫</div>
@@ -178,16 +189,28 @@
         return (threshold * fineDay1) + ((days - threshold) * fineDay2);
     }
 
-    function updateTotal(){
-        let total = 0;
+    function updateTotals(){
+        let totalFine = 0;
+        let totalRent = 0;
+        const fineEls = document.querySelectorAll('.js-fine');
+        const rentEls = document.querySelectorAll('.js-rent');
+
         document.querySelectorAll('.js-select-item').forEach(cb => {
-            const idx = cb.dataset.index;
-            const rowFineEl = document.querySelectorAll('.js-fine')[idx];
-            if(cb.checked && rowFineEl){
-                total += parseInt(rowFineEl.dataset.value || '0', 10);
+            const idx = parseInt(cb.dataset.index || '0', 10);
+            if (!cb.checked) return;
+
+            const rowFineEl = fineEls[idx];
+            const rowRentEl = rentEls[idx];
+
+            if (rowFineEl) {
+                totalFine += parseInt(rowFineEl.dataset.value || '0', 10);
+            }
+            if (rowRentEl) {
+                totalRent += parseInt(rowRentEl.dataset.value || '0', 10);
             }
         });
-        document.getElementById('totalFine').textContent = formatMoney(total);
+        document.getElementById('totalFine').textContent = formatMoney(totalFine);
+        document.getElementById('totalRent').textContent = formatMoney(totalRent);
     }
 
     document.addEventListener('DOMContentLoaded', function(){
@@ -206,11 +229,11 @@
                 if(conditionEl){
                     conditionEl.disabled = !this.checked;
                 }
-                updateTotal();
+                updateTotals();
             });
         });
 
-        updateTotal();
+        updateTotals();
     });
 </script>
 @endpush

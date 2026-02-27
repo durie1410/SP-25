@@ -401,13 +401,34 @@ return response()->json([
             $borrow = Borrow::with(['items.book', 'items.inventory', 'reader', 'payments', 'voucher'])
                 ->findOrFail($id);
             
-            // Đảm bảo tien_ship được đồng bộ từ items nếu borrow->tien_ship = 0
-            if (($borrow->tien_ship ?? 0) == 0 && $borrow->items && $borrow->items->count() > 0) {
-                $tienShipFromItems = $borrow->items->sum('tien_ship');
-                if ($tienShipFromItems > 0) {
+            // Đồng bộ dữ liệu tài chính từ items nếu bị lệch (đặc biệt tiền thuê bị 0)
+            if ($borrow->items && $borrow->items->count() > 0) {
+                $tienCocFromItems = (float) $borrow->items->sum('tien_coc');
+                $tienThueFromItems = (float) $borrow->items->sum('tien_thue');
+                $tienShipFromItems = (float) $borrow->items->sum('tien_ship');
+
+                $needSync = false;
+
+                if ((float) ($borrow->tien_coc ?? 0) !== $tienCocFromItems) {
+                    $borrow->tien_coc = $tienCocFromItems;
+                    $needSync = true;
+                }
+                if ((float) ($borrow->tien_thue ?? 0) !== $tienThueFromItems) {
+                    $borrow->tien_thue = $tienThueFromItems;
+                    $needSync = true;
+                }
+                if ((float) ($borrow->tien_ship ?? 0) !== $tienShipFromItems) {
                     $borrow->tien_ship = $tienShipFromItems;
-                    // 重新计算总金额
-                    $borrow->tong_tien = ($borrow->tien_coc ?? 0) + ($borrow->tien_thue ?? 0) + $tienShipFromItems;
+                    $needSync = true;
+                }
+
+                $tongTienFromItems = $tienCocFromItems + $tienThueFromItems + $tienShipFromItems;
+                if ((float) ($borrow->tong_tien ?? 0) !== $tongTienFromItems) {
+                    $borrow->tong_tien = $tongTienFromItems;
+                    $needSync = true;
+                }
+
+                if ($needSync) {
                     $borrow->save();
                 }
             }

@@ -1190,11 +1190,11 @@
                     <i class="fas fa-book-reader"></i>
                     <span>Quản lý đơn mượn</span>
                 </a>
-                                @if(Route::has('admin.fines.index'))
-                    <a href="{{ route('admin.fines.index') }}"
-                        class="menu-item {{ request()->routeIs('admin.fines.*') ? 'active' : '' }}">
-                        <i class="fas fa-gavel"></i>
-                        <span>trả sách</span>
+                @if(Route::has('admin.returns.index'))
+                    <a href="{{ route('admin.returns.index') }}"
+                        class="menu-item {{ request()->routeIs('admin.returns.*') ? 'active' : '' }}">
+                        <i class="fas fa-undo"></i>
+                        <span>Trả sách</span>
                     </a>
                 @endif
                 {{-- <a href="{{ route('admin.shipping_logs.index') }}" class="menu-item d-flex align-items-center gap-2 

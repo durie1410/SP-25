@@ -395,8 +395,8 @@ if ($borrow->items && $borrow->items->count() > 0) {
 @if($hasChoDuyet && !$hasUnpaidPayment && auth()->check() && auth()->user()->can('edit-borrows'))
     <form action="{{ route('admin.borrows.approve', $borrow->id) }}" method="POST" style="display:inline-block;">
         @csrf
-        <button type="submit" class="btn btn-sm btn-success mb-0" title="Duyệt phiếu mượn" onclick="return confirm('Xác nhận duyệt phiếu mượn này?')">
-            <i class="fas fa-check-circle"></i>
+        <button type="submit" class="btn btn-sm btn-success mb-0" title="Duyet & thanh toan" onclick="return confirm('Duyet phieu muon va chuyen sang man thanh toan?')">
+            <i class="fas fa-check-circle"></i> Duyet & thanh toan
         </button>
     </form>
 @endif

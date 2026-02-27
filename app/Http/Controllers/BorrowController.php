@@ -535,18 +535,28 @@ class BorrowController extends Controller
             return back()->with('error', 'Không có sách nào đang chờ duyệt trong phiếu mượn này!');
         }
 
-        // Kiểm tra và tạo payment nếu chưa có (chỉ tạo khi chưa có payment nào)
-        $existingPayment = BorrowPayment::where('borrow_id', $borrow->id)->first();
+        // Tính số tiền cần thanh toán (ưu tiên borrow->tien_thue; fallback sum từ items)
+        $tienThueFromItems = (float) $borrow->items->sum('tien_thue');
+        $amountToPay = (float) ($borrow->tien_thue ?? 0);
+        if ($amountToPay <= 0 && $tienThueFromItems > 0) {
+            $amountToPay = $tienThueFromItems;
+            // đồng bộ lại để admin & user thấy thống nhất
+            $borrow->tien_thue = $amountToPay;
+            $borrow->tong_tien = $amountToPay;
+            $borrow->save();
+        }
 
-        if (!$existingPayment) {
-            // Nếu chưa có payment, tạo mới với COD mặc định
+        // Kiểm tra và tạo payment pending nếu chưa có pending
+        $existingPendingPayment = $borrow->payments()->where('payment_status', 'pending')->first();
+        if (!$existingPendingPayment) {
             BorrowPayment::create([
                 'borrow_id' => $borrow->id,
-                'amount' => $borrow->tong_tien ?? 0,
-                'payment_type' => 'deposit',
+                'amount' => $amountToPay,
+                // payment_type là enum trong DB: deposit|borrow_fee|shipping_fee|damage_fee|refund
+                'payment_type' => 'borrow_fee',
                 'payment_method' => 'offline',
                 'payment_status' => 'pending',
-                'note' => 'Thanh toán khi nhận hàng (COD) - Tiền cọc, phí thuê và phí vận chuyển',
+                'note' => 'Thanh toán tiền thuê phiếu mượn #' . $borrow->id,
             ]);
         }
 
@@ -556,7 +566,27 @@ class BorrowController extends Controller
             'trang_thai_chi_tiet' => \App\Models\Borrow::STATUS_DON_HANG_MOI,
         ]);
 
-        return back()->with('success', 'Đã duyệt phiếu mượn thành công! Chờ khách hàng thanh toán để chuyển sách sang trạng thái "Đang mượn".');
+        // Sau khi duyệt, chuyển thẳng tới màn thanh toán
+        return redirect()
+            ->route('admin.borrows.payment', $borrow->id)
+            ->with('success', 'Đã duyệt phiếu mượn. Vui lòng thực hiện thanh toán để chuyển sang trạng thái "Đang mượn".');
+    }
+
+    /* ============================================================
+        9A) MÀN THANH TOÁN (ADMIN) - duyệt xong sẽ điều hướng sang đây
+    ============================================================ */
+    public function payment($id)
+    {
+        if (!auth()->check() || !auth()->user()->can('edit-borrows')) {
+            return back()->with('error', 'Bạn không có quyền thực hiện thao tác này.');
+        }
+
+        $borrow = Borrow::with(['items.book', 'reader', 'payments'])->findOrFail($id);
+
+        $pendingPayment = $borrow->payments()->where('payment_status', 'pending')->latest()->first();
+        $successPayment = $borrow->payments()->where('payment_status', 'success')->latest()->first();
+
+        return view('admin.borrows.payment', compact('borrow', 'pendingPayment', 'successPayment'));
     }
 
     /* ============================================================
@@ -2126,11 +2156,11 @@ class BorrowController extends Controller
         }
 
         if ($extendedCount > 0) {
-            // Cập nhật tổng tiền thuê của phiếu mượn
+            // Đồng bộ tổng tiền từ borrow_items để tránh lệch/nhân đôi tiền thuê
+            $borrow->recalculateTotals();
+
+            // Reset cờ yêu cầu gia hạn của khách (nếu có)
             $borrow->update([
-                'tien_thue' => ($borrow->tien_thue ?? 0) + $totalExtensionFee,
-                'tong_tien' => ($borrow->tong_tien ?? 0) + $totalExtensionFee,
-                // Reset cờ yêu cầu gia hạn của khách (nếu có)
                 'customer_extension_requested' => false,
                 'customer_extension_days' => null,
                 'customer_extension_requested_at' => null,

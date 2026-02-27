@@ -358,15 +358,15 @@
         </h1>
     </div>
 
-    @foreach (['success','error','info'] as $msg)
-        @if(session($msg))
-            <div class="alert alert-{{ $msg == 'error' ? 'danger' : $msg }}">
-                {{ session($msg) }}
-            </div>
-        @endif
-    @endforeach
+@foreach (['success','error','info'] as $msg)
+    @if(session($msg))
+        <div class="alert alert-{{ $msg == 'error' ? 'danger' : $msg }}">
+            {{ session($msg) }}
+        </div>
+    @endif
+@endforeach
 
-    @if($items->count() === 0)
+@if($items->count() === 0)
         <div class="reservation-empty">
             <div class="reservation-empty-icon">
                 <i class="fas fa-calendar-times"></i>
@@ -377,12 +377,12 @@
             </div>
             <a href="{{ route('books.public') }}" class="btn btn-primary reservation-empty-btn">
                 <i class="fas fa-book-open"></i> Khám phá kho sách
-            </a>
-        </div>
-    @else
+        </a>
+    </div>
+@else
         <div class="reservation-cart-grid">
             <div class="reservation-left-col">
-                {{-- NGÀY CHUNG --}}
+{{-- NGÀY CHUNG --}}
                 <div class="reservation-card">
                     <div class="reservation-card-header">
                         <h3 class="reservation-card-title">
@@ -396,16 +396,16 @@
                             <input type="date"
                                    id="pickup-date-global"
                                    class="form-control"
-                                   onchange="updateDatesForAll()">
-                        </div>
+               onchange="updateDatesForAll()">
+    </div>
                         <div class="reservation-date-group">
                             <span class="reservation-date-label">Ngày trả sách</span>
                             <input type="date"
                                    id="return-date-global"
                                    class="form-control"
-                                   onchange="updateDatesForAll()">
-                        </div>
-                    </div>
+               onchange="updateDatesForAll()">
+    </div>
+</div>
                 </div>
 
                 {{-- DANH SÁCH SÁCH ĐẶT TRƯỚC --}}
@@ -418,10 +418,10 @@
                     </div>
 
                     <div class="reservation-items-list">
-                        @foreach($items as $item)
+@foreach($items as $item)
                             <div class="reservation-item">
                                 <div class="reservation-item-img-box">
-                                    <img src="{{ $item->book->image_url ?? asset('images/default-book.png') }}"
+        <img src="{{ $item->book->image_url ?? asset('images/default-book.png') }}"
                                          alt="{{ $item->book->ten_sach }}">
                                 </div>
 
@@ -449,31 +449,31 @@
                                 <div class="reservation-item-actions">
                                     <div class="reservation-qty-wrapper">
                                         <span class="reservation-qty-label">Số lượng</span>
-                                        <input type="number"
-                                               value="{{ $item->quantity }}"
-                                               min="1"
-                                               data-book-id="{{ $item->book_id }}"
-                                               onchange="updateQuantity(this)"
+        <input type="number"
+               value="{{ $item->quantity }}"
+               min="1"
+               data-book-id="{{ $item->book_id }}"
+               onchange="updateQuantity(this)"
                                                class="form-control reservation-qty-input">
                                     </div>
 
                                     <div class="reservation-price">
-                                        <span class="item-price"
-                                              data-book-id="{{ $item->book_id }}">
-                                            {{ number_format($item->total_price,0,',','.') }}₫
-                                        </span>
+        <span class="item-price"
+              data-book-id="{{ $item->book_id }}">
+            {{ number_format($item->total_price,0,',','.') }}₫
+        </span>
                                     </div>
 
-                                    <form method="POST"
-                                          action="{{ route('reservation-cart.remove',$item->book_id) }}">
-                                        @csrf
+        <form method="POST"
+              action="{{ route('reservation-cart.remove',$item->book_id) }}">
+            @csrf
                                         <button class="btn btn-outline-danger btn-sm reservation-remove-btn" type="submit">
                                             <i class="fas fa-times"></i> Xóa
                                         </button>
-                                    </form>
+        </form>
                                 </div>
                             </div>
-                        @endforeach
+@endforeach
                     </div>
                 </div>
             </div>
@@ -496,9 +496,9 @@
                     <div class="reservation-summary-row total">
                         <span>Tổng tạm tính</span>
                         <span class="reservation-total-price" id="total-price">
-                            {{ number_format($cart->total_price,0,',','.') }}₫
-                        </span>
-                    </div>
+        {{ number_format($cart->total_price,0,',','.') }}₫
+    </span>
+</div>
 
                     <div class="reservation-summary-note">
                         <i class="fas fa-info-circle me-1"></i>
@@ -506,18 +506,18 @@
                         Giá có thể thay đổi nhẹ nếu thời gian mượn khác.
                     </div>
 
-                    <form method="POST"
-                          action="{{ route('reservation-cart.submit') }}"
-                          onsubmit="return validateGlobalDates()">
-                        @csrf
+<form method="POST"
+      action="{{ route('reservation-cart.submit') }}"
+      onsubmit="return validateGlobalDates()">
+    @csrf
                         <button class="btn btn-primary reservation-submit-btn" type="submit">
                             Gửi yêu cầu đặt trước <i class="fas fa-arrow-right ms-2"></i>
                         </button>
-                    </form>
+</form>
                 </div>
             </div>
         </div>
-    @endif
+@endif
 </div>
 
 <script>

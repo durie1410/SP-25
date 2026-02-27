@@ -293,7 +293,16 @@
                         </td>
                         <td>
                             <div class="small">
-                                <div><strong>Thuê:</strong> {{ number_format($item->tien_thue) }}₫</div>
+                                @php
+                                    // Tiền gia hạn ước tính: số lần gia hạn * 5 ngày * 5.000đ
+                                    $extensionFee = ($item->so_lan_gia_han ?? 0) * 5 * 5000;
+                                @endphp
+                                <div><strong>Thuê (bao gồm gia hạn):</strong> {{ number_format($item->tien_thue ?? 0) }}₫</div>
+                                @if($extensionFee > 0)
+                                    <div class="text-muted">
+                                        <small>Trong đó tiền gia hạn: {{ number_format($extensionFee) }}₫ ({{ $item->so_lan_gia_han }} lần)</small>
+                                    </div>
+                                @endif
                                 @if($item->tien_phat > 0)
                                     <div class="text-danger"><strong>Phạt:</strong> {{ number_format($item->tien_phat) }}₫</div>
                                 @endif

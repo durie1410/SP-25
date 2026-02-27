@@ -464,10 +464,24 @@
             <!-- Thanh toán -->
             <div class="detail-section">
                 <div class="section-title"><i class="fas fa-money-bill-wave"></i> Thông tin thanh toán</div>
+                @php
+                    // Đồng bộ hiển thị tài chính từ borrow_items để tránh lệch tiền thuê = 0
+                    $tienCocDisplay = ($borrow->items && $borrow->items->count() > 0)
+                        ? (float) $borrow->items->sum('tien_coc')
+                        : (float) ($borrow->tien_coc ?? 0);
+
+                    $tienThueDisplay = ($borrow->items && $borrow->items->count() > 0)
+                        ? (float) $borrow->items->sum('tien_thue')
+                        : (float) ($borrow->tien_thue ?? 0);
+
+                    $shippingFeeDisplay = ($borrow->items && $borrow->items->count() > 0)
+                        ? (float) $borrow->items->sum('tien_ship')
+                        : (float) ($borrow->tien_ship ?? 0);
+                @endphp
                 <div class="price-summary">
                     <div class="price-row">
                         <span>Tiền thuê:</span>
-                        <span>{{ number_format($borrow->tien_thue, 0, ',', '.') }}₫</span>
+                        <span>{{ number_format($tienThueDisplay, 0, ',', '.') }}₫</span>
                     </div>
                     @if($borrow->voucher)
                         <div class="price-row">
@@ -475,14 +489,107 @@
                             <span>-{{ number_format($borrow->voucher->gia_tri, 0, ',', '.') }}{{ $borrow->voucher->loai === 'phan_tram' ? '%' : '₫' }}</span>
                         </div>
                     @endif
+                    @if($borrow->trang_thai_chi_tiet === 'giao_hang_that_bai' && $failureReason === 'loi_khach_hang')
+                        @php
+                            // Tính toán chi tiết cho trường hợp lỗi khách hàng (dựa trên số liệu đã đồng bộ từ items)
+                            $tienCoc = $tienCocDisplay;
+                            $tienThue = $tienThueDisplay;
+                            $tienShip = $shippingFeeDisplay;
+                            $tongTienGoc = $tienCoc + $tienThue + $tienShip;
+                            
+                            // Tính phí phạt
+                            $phiPhat = $tienCoc * 0.20; // 20% tiền cọc
+                            $tienCocHoan = $tienCoc * 0.80; // 80% tiền cọc
+                            $tongTienKhachMat = $phiPhat + $tienShip; // Phí phạt + phí ship
+                            $tongTienHoan = $tienThue + $tienCocHoan; // Phí thuê + 80% cọc
+                            $tongTienCuoi = $tongTienGoc - $tongTienKhachMat; // Tổng sau khi trừ
+                        @endphp
+                        <div class="price-row" style="margin-top: 15px; padding-top: 15px; border-top: 2px dashed #ffc107;">
+                            <div style="width: 100%;">
+                                <div style="color: #dc3545; font-weight: 600; margin-bottom: 10px;">Chi tiết hoàn tiền (Lỗi khách hàng):</div>
+                                <div style="padding: 12px; background: #fff3cd; border-radius: 6px; margin-bottom: 10px;">
+                                    <div style="margin-bottom: 8px;">
+                                        <span style="color: #28a745;">✓ Hoàn phí thuê:</span>
+                                        <span style="float: right; font-weight: 600;">{{ number_format($tienThue, 0, ',', '.') }}₫</span>
+                                    </div>
+                                    <div style="margin-bottom: 8px;">
+                                        <span style="color: #28a745;">✓ Hoàn tiền cọc (80%):</span>
+                                        <span style="float: right; font-weight: 600;">{{ number_format($tienCocHoan, 0, ',', '.') }}₫</span>
+                                    </div>
+                                    <div style="margin-bottom: 8px; color: #dc3545;">
+                                        <span>✗ Trừ phí phạt (20% cọc):</span>
+                                        <span style="float: right; font-weight: 600;">- {{ number_format($phiPhat, 0, ',', '.') }}₫</span>
+                                    </div>
+                                    <div style="margin-bottom: 8px; color: #dc3545;">
+                                        <span>✗ Không hoàn phí ship:</span>
+                                        <span style="float: right; font-weight: 600;">- {{ number_format($tienShip, 0, ',', '.') }}₫</span>
+                                    </div>
+                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e0e0e0;">
+                                        <span style="font-weight: 600;">Tổng khách mất:</span>
+                                        <span style="float: right; color: #dc3545; font-weight: 600;">{{ number_format($tongTienKhachMat, 0, ',', '.') }}₫</span>
+                                    </div>
+                                    <div style="margin-top: 8px;">
+                                        <span style="font-weight: 600;">Tổng hoàn lại:</span>
+                                        <span style="float: right; color: #28a745; font-weight: 600;">{{ number_format($tongTienHoan, 0, ',', '.') }}₫</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="price-row" style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #e9ecef;">
+                            <span style="text-decoration: line-through; color: #999;">Tổng tiền ban đầu:</span>
+                            <span style="text-decoration: line-through; color: #999;">{{ number_format($tongTienGoc, 0, ',', '.') }}₫</span>
+                        </div>
+                        <div class="price-row">
+                            <span style="font-weight: 600; color: #dc3545;">Tổng tiền sau khi trừ:</span>
+                            <span style="font-weight: 600; color: #dc3545;">{{ number_format($tongTienCuoi, 0, ',', '.') }}₫</span>
+                        </div>
+                    @elseif($borrow->trang_thai_chi_tiet === 'giao_hang_that_bai' && $failureReason === 'loi_thu_vien')
+                        @php
+                            $tienCoc = $tienCocDisplay;
+                            $tienThue = $tienThueDisplay;
+                            $tienShip = $shippingFeeDisplay;
+                            $tongTienHoan = $tienCoc + $tienThue + $tienShip;
+                        @endphp
+                        <div class="price-row" style="margin-top: 15px; padding-top: 15px; border-top: 2px dashed #28a745;">
+                            <div style="width: 100%;">
+                                <div style="color: #28a745; font-weight: 600; margin-bottom: 10px;">Chi tiết hoàn tiền (Lỗi thư viện):</div>
+                                <div style="padding: 12px; background: #d4edda; border-radius: 6px;">
+                                    <div style="margin-bottom: 8px;">
+                                        <span style="color: #28a745;">✓ Hoàn 100% phí thuê:</span>
+                                        <span style="float: right; font-weight: 600;">{{ number_format($tienThue, 0, ',', '.') }}₫</span>
+                                    </div>
+                                    <div style="margin-bottom: 8px;">
+                                        <span style="color: #28a745;">✓ Hoàn 100% tiền cọc:</span>
+                                        <span style="float: right; font-weight: 600;">{{ number_format($tienCoc, 0, ',', '.') }}₫</span>
+                                    </div>
+                                    <div style="margin-bottom: 8px;">
+                                        <span style="color: #28a745;">✓ Hoàn 100% phí ship:</span>
+                                        <span style="float: right; font-weight: 600;">{{ number_format($tienShip, 0, ',', '.') }}₫</span>
+                                    </div>
+                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e0e0e0;">
+                                        <span style="font-weight: 600;">Tổng hoàn lại:</span>
+                                        <span style="float: right; color: #28a745; font-weight: 600;">{{ number_format($tongTienHoan, 0, ',', '.') }}₫</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="price-row" style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #e9ecef;">
+                            <span style="font-weight: 600; color: #28a745;">Tổng tiền hoàn lại:</span>
+                            <span style="font-weight: 600; color: #28a745;">{{ number_format($tongTienHoan, 0, ',', '.') }}₫</span>
+                        </div>
+                    @else
                     <div class="price-row">
                         <span>Tổng cộng:</span>
-                            <span>
-                                @php
-                                    $tongTien = $borrow->tong_tien ?? $borrow->tien_thue;
-                                @endphp
-                                {{ number_format($tongTien, 0, ',', '.') }}₫
-                            </span>
+                        <span>
+                            @php
+                                // Tính lại tổng tiền = cọc + thuê + ship (dựa trên số liệu display)
+                                $tienCoc = $tienCocDisplay;
+                                $tienThue = $tienThueDisplay;
+                                $tienShip = $shippingFeeDisplay; // Đã tính ở trên
+                                $tongTien = $tienCoc + $tienThue + $tienShip;
+                            @endphp
+                            {{ number_format($tongTien, 0, ',', '.') }}₫
+                        </span>
                     </div>
                 </div>
 

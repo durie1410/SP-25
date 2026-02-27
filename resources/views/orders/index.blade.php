@@ -412,9 +412,14 @@
                                     </td>
                                     <td>
                                         @php
-                                            // Tính lại tổng tiền = cọc + thuê (không ship)
-                                            $tienCoc = $order->tien_coc ?? 0;
-                                            $tienThue = $order->tien_thue ?? 0;
+                                            // Tính lại tổng tiền = cọc + thuê (không ship) - ưu tiên sum từ items để tránh tiền thuê = 0
+                                            if ($order->items && $order->items->count() > 0) {
+                                                $tienCoc = (float) $order->items->sum('tien_coc');
+                                                $tienThue = (float) $order->items->sum('tien_thue');
+                                            } else {
+                                                $tienCoc = $order->tien_coc ?? 0;
+                                                $tienThue = $order->tien_thue ?? 0;
+                                            }
                                             
                                             // Tính lại tổng tiền (không cộng ship)
                                             $tongTienDisplay = $tienCoc + $tienThue;
