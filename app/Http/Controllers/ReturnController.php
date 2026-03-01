@@ -32,7 +32,7 @@ class ReturnController extends Controller
 
         if ($request->filled('reader_id')) {
             $selectedReader = Reader::with(['user'])->findOrFail($request->reader_id);
-            $borrowItems = BorrowItem::with(['book', 'borrow'])
+            $borrowItems = BorrowItem::with(['book', 'borrow', 'inventory'])
                 ->whereHas('borrow', function($q) use ($selectedReader) {
                     $q->where('reader_id', $selectedReader->id);
                 })
@@ -113,6 +113,10 @@ class ReturnController extends Controller
                     }
                 }
 
+                // 2B. Phí gia hạn: tiền thuê cơ bản đã thanh toán khi mượn, lúc trả chỉ thu thêm phần gia hạn (nếu có)
+                // Policy: 5.000đ/ngày * 5 ngày/lần * số lần gia hạn
+                $extensionFee = (int) ($item->so_lan_gia_han ?? 0) * 5 * 5000;
+
                 // 3. Cập nhật BorrowItem
                 $item->update([
                     'trang_thai' => $itemStatus,
@@ -155,6 +159,21 @@ class ReturnController extends Controller
                     ]);
                 }
 
+                // 5B. Tạo Fine (other) cho phí gia hạn (nếu có)
+                if ($extensionFee > 0) {
+                    Fine::create([
+                        'borrow_id' => $item->borrow_id,
+                        'borrow_item_id' => $item->id,
+                        'reader_id' => $reader->id,
+                        'amount' => $extensionFee,
+                        'type' => 'other',
+                        'description' => "Phí gia hạn mượn (" . ((int) ($item->so_lan_gia_han ?? 0)) . " lần) - Sách: " . ($item->book?->ten_sach ?? 'Không xác định'),
+                        'status' => 'pending',
+                        'due_date' => $returnDate->toDateString(),
+                        'created_by' => auth()->id() ?? 1,
+                    ]);
+                }
+
                 $processedBorrows[$item->borrow_id] = $item->borrow_id;
             }
 
@@ -174,7 +193,7 @@ class ReturnController extends Controller
 
             DB::commit();
             return redirect()->route('admin.fine-payments.index', ['reader_id' => $reader->id])
-                ->with('success', 'Đã ghi nhận trả sách. Vui lòng thực hiện thanh toán các khoản phạt phát sinh (nếu có).');
+                ->with('success', 'Đã ghi nhận trả sách. Vui lòng thực hiện thanh toán các khoản phát sinh (phạt/trễ hạn/gia hạn) nếu có.');
 
         } catch (\Exception $e) {
             DB::rollBack();

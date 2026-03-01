@@ -97,7 +97,7 @@
                                     <th>Phiếu</th>
                                     <th>Hẹn trả</th>
                                     <th>Tình trạng</th>
-                                    <th>Tiền thuê (bao gồm gia hạn)</th>
+                                    <th>Phí gia hạn (nếu có)</th>
                                     <th>Phạt dự kiến</th>
                                 </tr>
                             </thead>
@@ -105,6 +105,12 @@
                                 @foreach($borrowItems as $i => $item)
                                     @php
                                         $due = $item->ngay_hen_tra ? \Carbon\Carbon::parse($item->ngay_hen_tra)->format('d/m/Y') : '---';
+                                        $bookPrice = (float) ($item->book->gia ?? 0);
+                                        $bookType = $item->book->loai_sach ?? 'binh_thuong';
+                                        $startCondition = $item->inventory->condition ?? 'Trung binh';
+                                        $damageFineDamaged = \App\Services\PricingService::calculateDamagedBookFine($bookPrice, $bookType, $startCondition);
+                                        $damageFineLost = \App\Services\PricingService::calculateLostBookFine($bookPrice, $bookType, $startCondition);
+                                        $extensionFee = ((int) ($item->so_lan_gia_han ?? 0)) * 5 * 5000;
                                     @endphp
                                     <tr>
                                         <td class="text-center">
@@ -118,7 +124,12 @@
                                         <td>#{{ $item->borrow_id }}</td>
                                         <td>{{ $due }}</td>
                                         <td>
-                                            <select class="form-select form-select-sm js-condition" name="items[{{ $i }}][condition]" disabled>
+                                            <select class="form-select form-select-sm js-condition"
+                                                    name="items[{{ $i }}][condition]"
+                                                    data-damage-binh-thuong="0"
+                                                    data-damage-hong="{{ (int) $damageFineDamaged }}"
+                                                    data-damage-mat="{{ (int) $damageFineLost }}"
+                                                    disabled>
                                                 <option value="binh_thuong">Bình thường</option>
                                                 <option value="hong_nhe">Hỏng nhẹ</option>
                                                 <option value="hong_nang">Hỏng nặng</option>
@@ -127,9 +138,14 @@
                                         </td>
                                         <td class="fw-bold">
                                             @php
-                                                $rentAmount = (int) ($item->tien_thue ?? 0);
+                                                // Tiền thuê cơ bản đã thanh toán ở luồng mượn.
+                                                // Lúc trả chỉ hiển thị số tiền cần thu thêm do gia hạn (nếu có).
+                                                $rentAmount = (int) ($extensionFee ?? 0);
                                             @endphp
                                             <span class="js-rent" data-value="{{ $rentAmount }}">{{ number_format($rentAmount) }}</span>₫
+                                            @if(($item->so_lan_gia_han ?? 0) > 0)
+                                                <div class="text-muted small">({{ $item->so_lan_gia_han }} lần)</div>
+                                            @endif
                                         </td>
                                         <td class="text-danger fw-bold">
                                             <span class="js-fine" data-item-id="{{ $item->id }}" data-due="{{ $item->ngay_hen_tra }}">0</span>₫
@@ -149,14 +165,17 @@
 
                 <div class="alert alert-secondary mt-3 mb-0">
                     <div class="d-flex justify-content-between mb-1">
-                        <div><strong>Tổng tiền thuê (bao gồm gia hạn) cho sách được chọn:</strong></div>
+                        <div><strong>Tổng phí gia hạn cho sách được chọn:</strong></div>
                         <div class="fw-bold"><span id="totalRent">0</span>₫</div>
                     </div>
                     <div class="d-flex justify-content-between">
-                        <div><strong>Tổng phạt dự kiến (chỉ tính trễ hạn):</strong></div>
+                        <div><strong>Tổng phát sinh dự kiến (trễ hạn + hỏng/mất):</strong></div>
                         <div class="fw-bold text-danger"><span id="totalFine">0</span>₫</div>
                     </div>
-                    <div class="text-muted small mt-1">Phạt hỏng/mất sẽ được tính khi xác nhận trả theo tình trạng bạn chọn.</div>
+                    <div class="text-muted small mt-1">
+                        - Tiền thuê cơ bản đã thanh toán ở luồng mượn.<br>
+                        - Khi trả chỉ thu thêm <strong>phí gia hạn</strong> (nếu có) và các khoản <strong>phạt</strong>.
+                    </div>
                 </div>
             @endif
         </div>
@@ -194,6 +213,7 @@
         let totalRent = 0;
         const fineEls = document.querySelectorAll('.js-fine');
         const rentEls = document.querySelectorAll('.js-rent');
+        const condEls = document.querySelectorAll('.js-condition');
 
         document.querySelectorAll('.js-select-item').forEach(cb => {
             const idx = parseInt(cb.dataset.index || '0', 10);
@@ -201,6 +221,7 @@
 
             const rowFineEl = fineEls[idx];
             const rowRentEl = rentEls[idx];
+            const rowCondEl = condEls[idx];
 
             if (rowFineEl) {
                 totalFine += parseInt(rowFineEl.dataset.value || '0', 10);
@@ -213,12 +234,25 @@
         document.getElementById('totalRent').textContent = formatMoney(totalRent);
     }
 
+    function calcDamageFine(conditionEl){
+        if(!conditionEl) return 0;
+        const val = conditionEl.value || 'binh_thuong';
+        if(val === 'mat_sach'){
+            return parseInt(conditionEl.dataset.damageMat || '0', 10);
+        }
+        if(val === 'hong_nhe' || val === 'hong_nang'){
+            return parseInt(conditionEl.dataset.damageHong || '0', 10);
+        }
+        return 0;
+    }
+
     document.addEventListener('DOMContentLoaded', function(){
         const rows = document.querySelectorAll('.js-fine');
         rows.forEach((el) => {
             const due = el.getAttribute('data-due');
             const fine = calcLateFine(due);
-            el.dataset.value = fine;
+            el.dataset.late = fine;
+            el.dataset.value = fine; // mặc định chỉ trễ hạn
             el.textContent = formatMoney(fine);
         });
 
@@ -229,6 +263,31 @@
                 if(conditionEl){
                     conditionEl.disabled = !this.checked;
                 }
+
+                // Khi tick chọn, tính lại phạt = trễ hạn + hỏng/mất theo option hiện tại
+                const fineEl = document.querySelectorAll('.js-fine')[idx];
+                if(fineEl){
+                    const late = parseInt(fineEl.dataset.late || '0', 10);
+                    const damage = conditionEl ? calcDamageFine(conditionEl) : 0;
+                    const total = late + damage;
+                    fineEl.dataset.value = total;
+                    fineEl.textContent = formatMoney(total);
+                }
+                updateTotals();
+            });
+        });
+
+        document.querySelectorAll('.js-condition').forEach((sel, idx) => {
+            sel.addEventListener('change', function(){
+                const cb = document.querySelectorAll('.js-select-item')[idx];
+                if(!cb || !cb.checked) return;
+                const fineEl = document.querySelectorAll('.js-fine')[idx];
+                if(!fineEl) return;
+                const late = parseInt(fineEl.dataset.late || '0', 10);
+                const damage = calcDamageFine(this);
+                const total = late + damage;
+                fineEl.dataset.value = total;
+                fineEl.textContent = formatMoney(total);
                 updateTotals();
             });
         });
