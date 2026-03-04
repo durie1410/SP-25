@@ -27,6 +27,8 @@ class BorrowController extends Controller
     ============================================================ */
     public function index(Request $request)
     {
+        Borrow::syncOverdueStatuses();
+
         // Sử dụng fresh() để đảm bảo load dữ liệu mới nhất từ database
         $query = Borrow::with(['reader', 'librarian', 'items.book', 'voucher', 'payments']);
 
@@ -315,6 +317,8 @@ class BorrowController extends Controller
     ============================================================ */
     public function show($id)
     {
+        Borrow::syncOverdueStatuses();
+
         $borrow = Borrow::with(['reader', 'librarian', 'items.book', 'fines'])
             ->findOrFail($id);
         
@@ -713,6 +717,8 @@ class BorrowController extends Controller
     ============================================================ */
     public function clientIndex()
     {
+        Borrow::syncOverdueStatuses();
+
         $reader = Reader::where('user_id', Auth::id())->first();
 
         if (!$reader) {
