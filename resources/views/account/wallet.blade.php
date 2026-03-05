@@ -11,19 +11,32 @@
             <div class="wallet-icon">💰</div>
             <div class="wallet-info">
                 <p class="wallet-label">Số dư hiện tại</p>
-                <p class="wallet-amount">{{ number_format($wallet->balance, 0, ',', '.') }} VNĐ</p>
+                <p class="wallet-amount">{{ number_format($wallet->balance ?? 0, 0, ',', '.') }} VNĐ</p>
             </div>
         </div>
     </div>
 
     <div class="wallet-actions">
-        <a href="{{ route('account.wallet.transactions') }}" class="btn-secondary">Xem lịch sử giao dịch</a>
+        @if($wallet)
+            <a href="{{ route('account.wallet.transactions') }}" class="btn-secondary">Xem lịch sử giao dịch</a>
+            <form action="{{ route('account.wallet.destroy') }}" method="POST" class="wallet-delete-form" onsubmit="return confirm('Bạn có chắc muốn xóa ví? Toàn bộ lịch sử giao dịch trong ví sẽ bị xóa.');">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn-danger">Xóa ví</button>
+            </form>
+        @endif
     </div>
 
     <div class="wallet-transactions-section">
         <h3 class="subsection-title">Giao dịch gần đây</h3>
         
-        @if($transactions->count() > 0)
+        @if(!$wallet)
+            <div class="empty-state">
+                <div class="empty-icon">🗑️</div>
+                <h3>Ví đã được xóa</h3>
+                <p>Bạn chưa có ví hoạt động. Khi phát sinh giao dịch hoàn tiền hoặc thanh toán, hệ thống có thể tạo lại ví mới.</p>
+            </div>
+        @elseif($transactions->count() > 0)
             <div class="transactions-list">
                 @foreach($transactions as $transaction)
                     <div class="transaction-item">
@@ -56,14 +69,14 @@
                                     @endif
                                 </h4>
                                 <span class="transaction-amount {{ $transaction->isCredit() ? 'credit' : 'debit' }}">
-                                    {{ $transaction->isCredit() ? '+' : '-' }}{{ number_format($transaction->amount, 0, ',', '.') }} VNĐ
+                                    {{ $transaction->isCredit() ? '+' : '-' }}{{ number_format((float) ($transaction->amount ?? 0), 0, ',', '.') }} VNĐ
                                 </span>
                             </div>
                             @if($transaction->description)
                                 <p class="transaction-description">{{ $transaction->description }}</p>
                             @endif
                             <p class="transaction-date">{{ $transaction->created_at->format('d/m/Y H:i') }}</p>
-                            <p class="transaction-balance">Số dư sau: {{ number_format($transaction->balance_after, 0, ',', '.') }} VNĐ</p>
+                            <p class="transaction-balance">Số dư sau: {{ number_format((float) ($transaction->balance_after ?? 0), 0, ',', '.') }} VNĐ</p>
                         </div>
                     </div>
                 @endforeach
@@ -123,6 +136,14 @@
 
 .wallet-actions {
     margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.wallet-delete-form {
+    margin: 0;
 }
 
 .btn-secondary {
@@ -137,6 +158,21 @@
 
 .btn-secondary:hover {
     background-color: #5a6268;
+}
+
+.btn-danger {
+    display: inline-block;
+    padding: 12px 24px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn-danger:hover {
+    background-color: #b52a37;
 }
 
 .subsection-title {

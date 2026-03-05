@@ -385,7 +385,7 @@ if ($borrow->items && $borrow->items->count() > 0) {
         @csrf
         <input type="hidden" name="payment_method" id="payment_method_input_{{ $borrow->id }}" value="online">
         <button type="submit" class="btn btn-sm btn-success mb-0" title="Xác nhận đã thu tiền" 
-                onclick="document.getElementById('payment_method_input_{{ $borrow->id }}').value = document.getElementById('payment_method_{{ $borrow->id }}').value; return confirm('Xác nhận đã thu tiền từ khách hàng?')">
+                onclick="document.getElementById('payment_method_input_{{ $borrow->id }}').value = document.getElementById('payment_method_{{ $borrow->id }}').value; return confirm('Tiếp tục xử lý thanh toán cho phiếu mượn này?')">
             <i class="fas fa-money-bill-wave"></i> Thu tiền
         </button>
     </form>

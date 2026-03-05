@@ -52,6 +52,7 @@
         margin: 0;
     }
 
+
     .reservation-cart-grid {
         display: grid;
         grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
@@ -518,7 +519,10 @@
             </div>
         </div>
 @endif
+
 </div>
+
+@include('components.footer')
 
 <script>
 function formatCurrency(v){

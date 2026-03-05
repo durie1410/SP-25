@@ -47,14 +47,14 @@ return [
         'curr_code' => env('VNPAY_CURR_CODE', 'VND'),
         'locale' => env('VNPAY_LOCALE', 'vn'),
     ],
-'momo' => [
-    'endpoint'     => env('MOMO_ENDPOINT'),
-    'partner_code' => env('MOMO_PARTNER_CODE'),
-    'access_key'   => env('MOMO_ACCESS_KEY'),
-    'secret_key'   => env('MOMO_SECRET_KEY'),
-    'return_url'   => env('MOMO_RETURN_URL'),
-    'notify_url'   => env('MOMO_NOTIFY_URL'),
-],
+    'momo' => [
+        'endpoint'     => env('MOMO_ENDPOINT', env('MOMO_API_URL', '')),
+        'partner_code' => env('MOMO_PARTNER_CODE', env('MOMO_PARTNERCODE', '')),
+        'access_key'   => env('MOMO_ACCESS_KEY', env('MOMO_ACCESSKEY', '')),
+        'secret_key'   => env('MOMO_SECRET_KEY', env('MOMO_SECRETKEY', '')),
+        'return_url'   => env('MOMO_RETURN_URL', env('APP_URL') . '/borrows/momo/return'),
+        'notify_url'   => env('MOMO_NOTIFY_URL', env('APP_URL') . '/borrows/momo/ipn'),
+    ],
 
 
 ];

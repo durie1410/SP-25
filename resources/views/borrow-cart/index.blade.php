@@ -432,7 +432,7 @@
     </style>
 </head>
 <body>
-    @include('account._header')
+    @include('account._header', ['hideSearchBar' => true])
     
     <div class="cart-page-container">
         <div class="page-header">

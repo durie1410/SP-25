@@ -1202,17 +1202,6 @@
                     <i class="bi bi-truck fs-5"></i>
                     <span>🚚 Giao Hàng (Đơn Mua)</span>
                 </a> --}}
-                @if(Route::has('admin.vouchers.index'))
-                    <a href="{{ route('admin.vouchers.index') }}"
-                        class="menu-item {{ request()->routeIs('admin.vouchers.*') ? 'active' : '' }}">
-                        <i class="fas fa-ticket-alt"></i>
-                        <span>Vouchers</span>
-                    </a>
-                @endif
-
-
-
-
                 <!-- Tài chính -->
 
 
