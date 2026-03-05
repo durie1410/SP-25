@@ -17,7 +17,6 @@ use App\Http\Controllers\AdvancedStatisticsController;
 use App\Http\Controllers\InventoryController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
-use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\BorrowItemController;
 use App\Http\Controllers\ShippingLogController;
 use App\Http\Controllers\VnPayController;
@@ -40,6 +39,11 @@ Route::get('/momo/return', [MomoController::class, 'return'])
 
 Route::post('/momo/ipn', [MomoController::class, 'ipn'])
     ->name('momo.ipn');
+
+Route::get('/borrows/momo/return', [BorrowController::class, 'borrowMomoReturn'])
+    ->name('admin.borrows.momo.return');
+Route::post('/borrows/momo/ipn', [BorrowController::class, 'borrowMomoIpn'])
+    ->name('admin.borrows.momo.ipn');
 
 Route::post('/orders/store', [OrderController::class, 'store'])
     ->name('orders.store');
@@ -277,10 +281,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/account/change-password', [App\Http\Controllers\UserAccountController::class, 'showChangePassword'])->name('account.change-password');
     Route::put('/account/change-password', [App\Http\Controllers\UserAccountController::class, 'updatePassword'])->name('account.update-password');
     
-    // Wallet Routes
-    Route::get('/account/wallet', [App\Http\Controllers\WalletController::class, 'index'])->name('account.wallet');
-    Route::get('/account/wallet/transactions', [App\Http\Controllers\WalletController::class, 'transactions'])->name('account.wallet.transactions');
-    
     // Customer confirmation routes
     Route::post('/account/borrows/{id}/confirm-delivery', [BorrowController::class, 'customerConfirmDelivery'])->name('account.borrows.confirm-delivery');
     
@@ -440,12 +440,6 @@ Route::delete('/shipping-logs/{id}', [ShippingLogController::class, 'destroy'])
     ->name('shipping_logs.destroy');
 
 
-Route::resource('vouchers', VoucherController::class);
-
-      Route::get('vouchers/{id}/restore', [VoucherController::class, 'restore'])->name('admin.vouchers.restore');
-      Route::delete('vouchers/{id}/force-delete', [VoucherController::class, 'forceDelete'])->name('admin.vouchers.forceDelete');
-
-      
       // Reports routes
       Route::get('reports', [ReportController::class, 'index'])->name('reports.index')->middleware('permission:view-reports');
       Route::get('reports/borrows', [ReportController::class, 'borrowsReport'])->name('reports.borrows')->middleware('permission:view-reports');
