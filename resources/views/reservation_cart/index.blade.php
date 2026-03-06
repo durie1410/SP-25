@@ -182,13 +182,28 @@
 
     .reservation-item-meta {
         display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
+        flex-direction: column;
+        gap: 4px;
         font-size: 12px;
         color: var(--reserve-muted);
     }
 
     .reservation-item-meta span strong {
+        color: var(--reserve-text);
+    }
+
+    .reservation-fee-breakdown {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        font-size: 11px;
+        color: var(--reserve-muted);
+    }
+
+    .reservation-fee-breakdown strong {
         color: var(--reserve-text);
     }
 
@@ -383,32 +398,6 @@
 @else
         <div class="reservation-cart-grid">
             <div class="reservation-left-col">
-{{-- NGÀY CHUNG --}}
-                <div class="reservation-card">
-                    <div class="reservation-card-header">
-                        <h3 class="reservation-card-title">
-                            <i class="fas fa-clock"></i>
-                            Chọn khoảng thời gian mượn cho tất cả sách
-                        </h3>
-                    </div>
-                    <div class="reservation-date-row">
-                        <div class="reservation-date-group">
-                            <span class="reservation-date-label">Ngày lấy sách</span>
-                            <input type="date"
-                                   id="pickup-date-global"
-                                   class="form-control"
-               onchange="updateDatesForAll()">
-    </div>
-                        <div class="reservation-date-group">
-                            <span class="reservation-date-label">Ngày trả sách</span>
-                            <input type="date"
-                                   id="return-date-global"
-                                   class="form-control"
-               onchange="updateDatesForAll()">
-    </div>
-</div>
-                </div>
-
                 {{-- DANH SÁCH SÁCH ĐẶT TRƯỚC --}}
                 <div class="reservation-card">
                     <div class="reservation-card-header">
@@ -444,6 +433,39 @@
                                                 </span> ngày
                                             </span>
                                         </span>
+                                        <span class="reservation-fee-breakdown">
+                                            <span>
+                                                {{ $item->days ?? 1 }} ngày
+                                                × {{ number_format($item->daily_fee ?? 5000,0,',','.') }}₫/ngày
+                                                × SL {{ $item->quantity ?? 1 }}
+                                            </span>
+                                            <span>
+                                                = <strong>{{ number_format($item->total_price,0,',','.') }}₫</strong>
+                                            </span>
+                                        </span>
+                                    </div>
+
+                                    <div class="reservation-date-row" style="margin-top: 4px;">
+                                        <div class="reservation-date-group" style="min-width: 0;">
+                                            <span class="reservation-date-label">Ngày lấy</span>
+                                            <input
+                                                type="date"
+                                                class="form-control pickup-date"
+                                                data-book-id="{{ $item->book_id }}"
+                                                value="{{ $item->pickup_date ? \Carbon\Carbon::parse($item->pickup_date)->format('Y-m-d') : '' }}"
+                                                onchange="handleItemDateChange(this)"
+                                            >
+                                        </div>
+                                        <div class="reservation-date-group" style="min-width: 0;">
+                                            <span class="reservation-date-label">Ngày trả</span>
+                                            <input
+                                                type="date"
+                                                class="form-control return-date"
+                                                data-book-id="{{ $item->book_id }}"
+                                                value="{{ $item->return_date ? \Carbon\Carbon::parse($item->return_date)->format('Y-m-d') : '' }}"
+                                                onchange="handleItemDateChange(this)"
+                                            >
+                                        </div>
                                     </div>
                                 </div>
 
@@ -497,24 +519,24 @@
                     <div class="reservation-summary-row total">
                         <span>Tổng tạm tính</span>
                         <span class="reservation-total-price" id="total-price">
-        {{ number_format($cart->total_price,0,',','.') }}₫
-    </span>
+                            {{ number_format($cart->total_price,0,',','.') }}₫
+                        </span>
 </div>
 
                     <div class="reservation-summary-note">
                         <i class="fas fa-info-circle me-1"></i>
-                        Vui lòng chọn <strong>ngày lấy</strong> và <strong>ngày trả</strong> cho tất cả sách trước khi gửi yêu cầu.
-                        Giá có thể thay đổi nhẹ nếu thời gian mượn khác.
+                        Vui lòng chọn <strong>ngày lấy</strong> và <strong>ngày trả</strong> cho từng sách trong giỏ.
+                        Tiền thuê của mỗi cuốn sẽ được tính riêng theo số ngày mượn.
                     </div>
 
-<form method="POST"
-      action="{{ route('reservation-cart.submit') }}"
-      onsubmit="return validateGlobalDates()">
-    @csrf
+                    <form method="POST"
+                          action="{{ route('reservation-cart.submit') }}"
+                          onsubmit="return validateCartBeforeSubmit()">
+                        @csrf
                         <button class="btn btn-primary reservation-submit-btn" type="submit">
                             Gửi yêu cầu đặt trước <i class="fas fa-arrow-right ms-2"></i>
                         </button>
-</form>
+                    </form>
                 </div>
             </div>
         </div>
@@ -591,79 +613,95 @@ function validateReservationDates(pickup, ret, showAlert = true){
     return true;
 }
 
-function updateDatesForAll(){
-    const pickup = document.getElementById('pickup-date-global').value;
-    const ret = document.getElementById('return-date-global').value;
+function handleItemDateChange(input){
+    const bookId = input.dataset.bookId;
+    const pickupInput = document.querySelector(`.pickup-date[data-book-id="${bookId}"]`);
+    const returnInput = document.querySelector(`.return-date[data-book-id="${bookId}"]`);
 
-    // Chặn ngay nếu ngày không hợp lệ
+    if(!pickupInput || !returnInput){
+        return;
+    }
+
+    const pickup = pickupInput.value;
+    const ret = returnInput.value;
+
+    // Chỉ gọi API khi cả hai ngày đã được chọn
+    if(!pickup || !ret){
+        return;
+    }
+
     if(!validateReservationDates(pickup, ret, true)){
+        // Nếu không hợp lệ thì reset input vừa sửa
+        input.value = '';
         return;
     }
 
     const statusMsg = ensureDateStatusEl();
     statusMsg.style.display = 'block';
     statusMsg.style.background = '#3b82f6';
-    statusMsg.textContent = 'Đang cập nhật ngày...';
+    statusMsg.textContent = 'Đang cập nhật ngày cho sách...';
 
-    let successCount = 0;
-    let errorCount = 0;
-    const totalItems = document.querySelectorAll('.days-display').length;
+    fetch('{{ route("reservation-cart.update-dates",":id") }}'
+        .replace(':id', bookId),{
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json',
+            'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content
+        },
+        body:JSON.stringify({
+            pickup_date: pickup,
+            return_date: ret
+        })
+    })
+    .then(async (r)=>{
+        const data = await r.json().catch(() => ({}));
+        if(!r.ok || data.success === false){
+            throw new Error(data.message || 'Cập nhật thất bại');
+        }
+        return data;
+    })
+    .then(d=>{
+        document.querySelector(`.days-display[data-book-id="${bookId}"]`)
+            .textContent = d.days;
+        document.querySelector(`.item-price[data-book-id="${bookId}"]`)
+            .textContent = formatCurrency(d.item_price);
+        document.getElementById('total-price')
+            .textContent = formatCurrency(d.total_price);
 
-    document.querySelectorAll('.days-display').forEach(el=>{
-        const bookId = el.dataset.bookId;
-
-        fetch('{{ route("reservation-cart.update-dates",":id") }}'
-            .replace(':id', bookId),{
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json',
-                'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content
-            },
-            body:JSON.stringify({
-                pickup_date: pickup,
-                return_date: ret
-            })
-        })
-        .then(async (r)=>{
-            const data = await r.json().catch(() => ({}));
-            if(!r.ok || data.success === false){
-                throw new Error(data.message || 'Cập nhật thất bại');
-            }
-            return data;
-        })
-        .then(d=>{
-            successCount++;
-            el.textContent = d.days;
-            document.querySelector(`.item-price[data-book-id="${bookId}"]`)
-                .textContent = formatCurrency(d.item_price);
-            document.getElementById('total-price')
-                .textContent = formatCurrency(d.total_price);
-        })
-        .catch(err => {
-            errorCount++;
-        })
-        .finally(() => {
-            if(successCount + errorCount !== totalItems) return;
-
-            if(errorCount > 0){
-                statusMsg.style.background = '#ef4444';
-                statusMsg.textContent = 'Có ' + errorCount + ' sách cập nhật ngày bị lỗi. Vui lòng chọn lại ngày hợp lệ.';
-                setTimeout(() => { statusMsg.style.display = 'none'; }, 4000);
-            } else {
-                statusMsg.style.background = '#22c55e';
-                statusMsg.textContent = 'Đã cập nhật ngày thành công!';
-                setTimeout(() => { statusMsg.style.display = 'none'; }, 2000);
-            }
-        });
+        statusMsg.style.background = '#22c55e';
+        statusMsg.textContent = 'Đã cập nhật ngày cho sách này!';
+        setTimeout(() => { statusMsg.style.display = 'none'; }, 2000);
+    })
+    .catch(err => {
+        statusMsg.style.background = '#ef4444';
+        statusMsg.textContent = err.message || 'Cập nhật ngày thất bại. Vui lòng thử lại.';
+        setTimeout(() => { statusMsg.style.display = 'none'; }, 4000);
     });
 }
 
-function validateGlobalDates(){
-    const pickup = document.getElementById('pickup-date-global').value;
-    const ret = document.getElementById('return-date-global').value;
+function validateCartBeforeSubmit(){
+    const pickups = document.querySelectorAll('.pickup-date');
+    const returns = document.querySelectorAll('.return-date');
 
-    if(!validateReservationDates(pickup, ret, true)){
-        return false;
+    if(pickups.length === 0){
+        return true;
+    }
+
+    for(let i = 0; i < pickups.length; i++){
+        const pickup = pickups[i].value;
+        const bookId = pickups[i].dataset.bookId;
+        const retInput = document.querySelector(`.return-date[data-book-id="${bookId}"]`);
+        const ret = retInput ? retInput.value : '';
+
+        if(!pickup || !ret){
+            alert('Vui lòng chọn đầy đủ ngày lấy và ngày trả cho tất cả sách trong giỏ.');
+            return false;
+        }
+
+        if(!validateReservationDates(pickup, ret, false)){
+            alert('Ngày lấy / ngày trả của một số sách không hợp lệ. Vui lòng kiểm tra lại.');
+            return false;
+        }
     }
 
     return true;

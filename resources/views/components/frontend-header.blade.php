@@ -97,7 +97,7 @@
                             <i class="fas fa-key"></i> Đổi mật khẩu
                         </a>
                         <a href="{{ route('orders.index') }}" class="dropdown-item">
-                            <i class="fas fa-history"></i> Lịch sử mua hàng
+                            <i class="fas fa-history"></i> Lịch sử giao dịch
                         </a>
                         @if(auth()->user()->role === 'admin' || auth()->user()->role === 'staff')
                             <div class="dropdown-divider"></div>

@@ -137,7 +137,7 @@
         }
 
         try {
-            const res = await fetch("{{ $reader ? route('admin.fine-payments.momo.create', $reader->id) : '#' }}", {
+            const res = await fetch("{{ $reader ? route('admin.fine-payments.momo.create-payment', $reader->id) : '#' }}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
