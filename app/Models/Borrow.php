@@ -207,6 +207,36 @@ class Borrow extends Model
             ->exists();
     }
 
+    public static function syncOverdueStatuses(): void
+    {
+        $today = now()->toDateString();
+
+        BorrowItem::where('trang_thai', 'Dang muon')
+            ->whereDate('ngay_hen_tra', '<', $today)
+            ->update(['trang_thai' => 'Qua han']);
+
+        BorrowItem::where('trang_thai', 'Qua han')
+            ->whereDate('ngay_hen_tra', '>=', $today)
+            ->update(['trang_thai' => 'Dang muon']);
+
+        static::where('trang_thai', 'Dang muon')
+            ->whereHas('items', function ($query) use ($today) {
+                $query->whereIn('trang_thai', ['Dang muon', 'Qua han'])
+                    ->whereDate('ngay_hen_tra', '<', $today);
+            })
+            ->update(['trang_thai' => 'Qua han']);
+
+        static::where('trang_thai', 'Qua han')
+            ->whereHas('items', function ($query) {
+                $query->whereIn('trang_thai', ['Dang muon', 'Qua han']);
+            })
+            ->whereDoesntHave('items', function ($query) use ($today) {
+                $query->whereIn('trang_thai', ['Dang muon', 'Qua han'])
+                    ->whereDate('ngay_hen_tra', '<', $today);
+            })
+            ->update(['trang_thai' => 'Dang muon']);
+    }
+
     // 🔹 Kiểm tra có thể gia hạn không
     public function canExtend()
     {

@@ -125,15 +125,17 @@
             @endauth
         </div>
     </div>
-    <div class="header-nav">
-        <div class="search-bar">
-            <form action="{{ route('books.public') }}" method="GET" class="search-form">
-                <input type="text" name="keyword" placeholder="Tìm sách, tác giả, sản phẩm mong muốn..."
-                    value="{{ request('keyword') }}" class="search-input">
-                <button type="submit" class="search-button">🔍 Tìm kiếm</button>
-            </form>
+    @if(empty($hideSearchBar))
+        <div class="header-nav">
+            <div class="search-bar">
+                <form action="{{ route('books.public') }}" method="GET" class="search-form">
+                    <input type="text" name="keyword" placeholder="Tìm sách, tác giả, sản phẩm mong muốn..."
+                        value="{{ request('keyword') }}" class="search-input">
+                    <button type="submit" class="search-button">🔍 Tìm kiếm</button>
+                </form>
+            </div>
         </div>
-    </div>
+    @endif
 </header>
 
 @auth

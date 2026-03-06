@@ -36,6 +36,19 @@
                         <span class="fw-bold text-danger">{{ number_format($borrow->tien_thue ?? 0) }}₫</span>
                     </div>
 
+                    @if(session('momo_qr_url') && session('momo_pay_url'))
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <div class="fw-bold mb-2"><i class="fas fa-qrcode me-1"></i> Mã thanh toán MoMo</div>
+                            <div class="d-flex flex-column align-items-center gap-2">
+                                <img src="{{ session('momo_qr_url') }}" alt="MoMo QR" style="width: 220px; height: 220px; border: 1px solid #dee2e6; border-radius: 8px; background: #fff; padding: 6px;">
+                                <div class="small text-muted">Mã đơn: <strong>{{ session('momo_order_id') }}</strong></div>
+                                <a href="{{ session('momo_pay_url') }}" target="_blank" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-external-link-alt me-1"></i> Mở trang thanh toán MoMo
+                                </a>
+                            </div>
+                        </div>
+                    @endif
+
                     @if($successPayment)
                         <div class="alert alert-success mt-3 mb-0">
                             <div class="fw-bold"><i class="fas fa-check-circle me-1"></i> Đã thanh toán</div>
@@ -74,11 +87,14 @@
                                     <option value="offline">Tiền mặt</option>
                                     <option value="online">Quét mã</option>
                                 </select>
-                                <div class="form-text">Thanh toán xong hệ thống mới chuyển phiếu mượn sang trạng thái <strong>Đang mượn</strong>.</div>
+                                <div class="form-text">
+                                    Chọn <strong>Quét mã</strong>: hệ thống sẽ tạo mã MoMo để khách thanh toán.<br>
+                                    Chọn <strong>Tiền mặt</strong>: hệ thống xác nhận đã thu tiền ngay.
+                                </div>
                             </div>
 
                             <button type="submit" class="btn btn-success w-100"
-                                    onclick="return confirm('Xác nhận đã thu tiền cho phiếu mượn #{{ $borrow->id }}?')">
+                                    onclick="return confirm('Tiếp tục xử lý thanh toán cho phiếu mượn #{{ $borrow->id }}?')">
                                 <i class="fas fa-money-bill-wave me-1"></i> Xác nhận đã thanh toán
                             </button>
                         </form>

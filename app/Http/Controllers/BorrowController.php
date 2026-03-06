@@ -16,6 +16,8 @@ use App\Models\Fine;
 use App\Services\FileUploadService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -27,6 +29,8 @@ class BorrowController extends Controller
     ============================================================ */
     public function index(Request $request)
     {
+        Borrow::syncOverdueStatuses();
+
         // Sử dụng fresh() để đảm bảo load dữ liệu mới nhất từ database
         $query = Borrow::with(['reader', 'librarian', 'items.book', 'voucher', 'payments']);
 
@@ -315,6 +319,8 @@ class BorrowController extends Controller
     ============================================================ */
     public function show($id)
     {
+        Borrow::syncOverdueStatuses();
+
         $borrow = Borrow::with(['reader', 'librarian', 'items.book', 'fines'])
             ->findOrFail($id);
         
@@ -617,13 +623,43 @@ class BorrowController extends Controller
 
         $borrow = Borrow::with('payments')->findOrFail($id);
         $paymentMethod = $request->payment_method;
-        $paymentMethodText = $paymentMethod === 'offline' ? 'tiền mặt' : 'quét mã';
+        $paymentMethodText = $paymentMethod === 'offline' ? 'tiền mặt' : 'quét mã MoMo';
 
         // Cập nhật payment pending sang success, giữ nguyên amount gốc (không update)
         $payment = $borrow->payments()->where('payment_status', 'pending')->first();
         
         if (!$payment) {
             return back()->with('info', 'Không có thanh toán nào đang chờ xác nhận.');
+        }
+
+        // Thanh toán online: tạo mã MoMo, KHÔNG tự động chuyển success tại thời điểm bấm nút
+        if ($paymentMethod === 'online') {
+            try {
+                $momoData = $this->createMomoPaymentForBorrow($borrow, $payment);
+
+                $payment->update([
+                    'payment_method' => 'online',
+                    'transaction_code' => $momoData['orderId'],
+                    'note' => trim(($payment->note ? $payment->note . ' | ' : '') . 'Đã tạo mã thanh toán MoMo lúc ' . now()->format('d/m/Y H:i')),
+                ]);
+
+                $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' . urlencode($momoData['payUrl']);
+
+                return redirect()
+                    ->route('admin.borrows.payment', $borrow->id)
+                    ->with('momo_pay_url', $momoData['payUrl'])
+                    ->with('momo_order_id', $momoData['orderId'])
+                    ->with('momo_qr_url', $qrUrl)
+                    ->with('success', 'Đã tạo mã MoMo. Vui lòng quét mã để thanh toán.');
+            } catch (\Throwable $e) {
+                Log::error('Create MoMo borrow payment failed', [
+                    'borrow_id' => $borrow->id,
+                    'payment_id' => $payment->id,
+                    'message' => $e->getMessage(),
+                ]);
+
+                return back()->with('error', 'Không thể tạo thanh toán MoMo: ' . $e->getMessage());
+            }
         }
 
         $updated = $borrow->payments()
@@ -636,75 +672,232 @@ class BorrowController extends Controller
             ]);
 
         if ($updated > 0) {
-            // Cập nhật trạng thái tất cả items từ "Cho duyet" sang "Dang muon" vì đã thanh toán
-            $choduyet_items = $borrow->items()->where('trang_thai', 'Cho duyet')->get();
-            foreach ($choduyet_items as $item) {
-                $item->update([
-                    'trang_thai' => 'Dang muon',
-                    'ngay_muon' => $item->ngay_muon ?? now(),
-                ]);
-
-                // Cập nhật trạng thái inventory từ 'Co san' sang 'Dang muon'
-                if ($item->inventorie_id) {
-                    \App\Models\Inventory::where('id', $item->inventorie_id)
-                        ->where('status', 'Co san')
-                        ->update([
-                            'status' => 'Dang muon',
-                            'updated_at' => now()
-                        ]);
-                }
-            }
-
-            // Cập nhật trạng thái borrow sang "Dang muon"
-            $borrow->update([
-                'trang_thai' => 'Dang muon',
-                'trang_thai_chi_tiet' => \App\Models\Borrow::STATUS_DA_MUON_DANG_LUU_HANH,
-            ]);
-
-            // Tự động gán reader_id nếu chưa có (để hiện lịch sử cho user)
-            if (!$borrow->reader_id && $borrow->so_dien_thoai) {
-                $reader = Reader::where('so_dien_thoai', $borrow->so_dien_thoai)->first();
-                
-                if ($reader) {
-                    $borrow->update(['reader_id' => $reader->id]);
-                    \Log::info('Auto-assigned reader to borrow after payment', [
-                        'borrow_id' => $borrow->id,
-                        'reader_id' => $reader->id
-                    ]);
-                } else {
-                    // Tìm user theo số điện thoại và tạo reader mới nếu có user
-                    $user = \App\Models\User::where('phone', $borrow->so_dien_thoai)->first();
-                    
-                    if ($user) {
-                        // Tạo reader mới cho user
-                        $reader = Reader::create([
-                            'user_id' => $user->id,
-                            'ho_ten' => $borrow->ten_nguoi_muon ?? $user->name,
-                            'email' => $user->email,
-                            'so_dien_thoai' => $borrow->so_dien_thoai,
-                            'dia_chi' => $borrow->so_nha . ', ' . $borrow->xa . ', ' . $borrow->tinh_thanh,
-                            'tinh_thanh' => $borrow->tinh_thanh,
-                            'xa' => $borrow->xa,
-                            'so_nha' => $borrow->so_nha,
-                            'trang_thai' => 'Hoat dong',
-                            'ngay_cap_the' => now(),
-                            'ngay_het_han' => now()->addYear(),
-                        ]);
-                        
-                        $borrow->update(['reader_id' => $reader->id]);
-                        
-                        \Log::info('Auto-created reader and assigned to borrow after payment', [
-                            'borrow_id' => $borrow->id,
-                            'reader_id' => $reader->id,
-                            'user_id' => $user->id
-                        ]);
-                    }
-                }
-            }
+            $this->finalizeBorrowAfterSuccessfulPayment($borrow);
 
             return back()->with('success', 'Đã xác nhận thanh toán ' . $paymentMethodText . ' thành công! Số tiền: ' . number_format($payment->amount ?? 0) . '₫');
         } else {
             return back()->with('info', 'Không có thanh toán nào đang chờ xác nhận.');
+        }
+    }
+
+    public function borrowMomoReturn(Request $request)
+    {
+        $resultCode = (int) $request->input('resultCode', -1);
+        $orderId = (string) $request->input('orderId', '');
+        $extraData = json_decode(base64_decode($request->input('extraData', '')), true) ?: [];
+        $borrowId = isset($extraData['borrow_id']) ? (int) $extraData['borrow_id'] : null;
+
+        if ($resultCode === 0 && $orderId !== '') {
+            $this->markBorrowMomoPaymentSuccess($orderId, $borrowId);
+
+            if ($borrowId) {
+                return redirect()->route('admin.borrows.payment', $borrowId)
+                    ->with('success', 'Thanh toán MoMo thành công. Hệ thống đã cập nhật trạng thái đơn mượn.');
+            }
+
+            return redirect()->route('admin.borrows.index')
+                ->with('success', 'Thanh toán MoMo thành công.');
+        }
+
+        if ($borrowId) {
+            return redirect()->route('admin.borrows.payment', $borrowId)
+                ->with('error', 'Thanh toán MoMo thất bại hoặc đã bị hủy.');
+        }
+
+        return redirect()->route('admin.borrows.index')
+            ->with('error', 'Thanh toán MoMo thất bại hoặc đã bị hủy.');
+    }
+
+    public function borrowMomoIpn(Request $request)
+    {
+        Log::info('MOMO BORROW IPN received', $request->all());
+
+        $resultCode = (int) $request->input('resultCode', -1);
+        $orderId = (string) $request->input('orderId', '');
+        $extraData = json_decode(base64_decode($request->input('extraData', '')), true) ?: [];
+        $borrowId = isset($extraData['borrow_id']) ? (int) $extraData['borrow_id'] : null;
+
+        if ($resultCode !== 0 || $orderId === '') {
+            return response()->json(['message' => 'Received but not successful'], 200);
+        }
+
+        try {
+            $this->markBorrowMomoPaymentSuccess($orderId, $borrowId);
+            return response()->json(['message' => 'Success'], 200);
+        } catch (\Throwable $e) {
+            Log::error('MOMO BORROW IPN error', [
+                'order_id' => $orderId,
+                'borrow_id' => $borrowId,
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json(['message' => 'Error'], 200);
+        }
+    }
+
+    private function createMomoPaymentForBorrow(Borrow $borrow, BorrowPayment $payment): array
+    {
+        $endpoint    = config('services.momo.endpoint');
+        $partnerCode = config('services.momo.partner_code');
+        $accessKey   = config('services.momo.access_key');
+        $secretKey   = config('services.momo.secret_key');
+
+        $missingKeys = [];
+        if (!$endpoint) {
+            $missingKeys[] = 'MOMO_ENDPOINT';
+        }
+        if (!$partnerCode) {
+            $missingKeys[] = 'MOMO_PARTNER_CODE';
+        }
+        if (!$accessKey) {
+            $missingKeys[] = 'MOMO_ACCESS_KEY';
+        }
+        if (!$secretKey) {
+            $missingKeys[] = 'MOMO_SECRET_KEY';
+        }
+
+        if (!empty($missingKeys)) {
+            throw new \Exception('Thiếu cấu hình MoMo: ' . implode(', ', $missingKeys) . '. Hãy cập nhật .env và chạy php artisan config:clear.');
+        }
+
+        $amount = max(0, (int) round((float) ($payment->amount ?? 0)));
+        if ($amount <= 0) {
+            throw new \Exception('Số tiền thanh toán không hợp lệ.');
+        }
+
+        $redirectUrl = route('admin.borrows.momo.return');
+        $ipnUrl = route('admin.borrows.momo.ipn');
+
+        $orderId = 'BORROW_' . $borrow->id . '_' . $payment->id . '_' . time();
+        $requestId = (string) time();
+        $orderInfo = 'Thanh_toan_phieu_muon_' . $borrow->id;
+        $extraData = base64_encode(json_encode([
+            'type' => 'borrow_payment',
+            'borrow_id' => $borrow->id,
+            'payment_id' => $payment->id,
+        ]));
+
+        $rawHash = "accessKey={$accessKey}&amount={$amount}&extraData={$extraData}&ipnUrl={$ipnUrl}&orderId={$orderId}&orderInfo={$orderInfo}&partnerCode={$partnerCode}&redirectUrl={$redirectUrl}&requestId={$requestId}&requestType=captureWallet";
+        $signature = hash_hmac('sha256', $rawHash, $secretKey);
+
+        $response = Http::post($endpoint, [
+            'partnerCode' => $partnerCode,
+            'accessKey'   => $accessKey,
+            'requestId'   => $requestId,
+            'amount'      => (string) $amount,
+            'orderId'     => $orderId,
+            'orderInfo'   => $orderInfo,
+            'redirectUrl' => $redirectUrl,
+            'ipnUrl'      => $ipnUrl,
+            'extraData'   => $extraData,
+            'requestType' => 'captureWallet',
+            'signature'   => $signature,
+            'lang'        => 'vi',
+        ]);
+
+        $result = $response->json();
+
+        if (!isset($result['payUrl'])) {
+            throw new \Exception($result['message'] ?? 'MoMo không trả về payUrl');
+        }
+
+        return [
+            'payUrl' => $result['payUrl'],
+            'orderId' => $orderId,
+        ];
+    }
+
+    private function markBorrowMomoPaymentSuccess(string $orderId, ?int $borrowId = null): void
+    {
+        DB::transaction(function () use ($orderId, $borrowId) {
+            $payment = BorrowPayment::where('transaction_code', $orderId)->latest()->first();
+
+            if (!$payment && $borrowId) {
+                $payment = BorrowPayment::where('borrow_id', $borrowId)
+                    ->where('payment_status', 'pending')
+                    ->latest()
+                    ->first();
+            }
+
+            if (!$payment) {
+                return;
+            }
+
+            if ($payment->payment_status !== 'success') {
+                $payment->update([
+                    'payment_method' => 'online',
+                    'payment_status' => 'success',
+                    'note' => trim(($payment->note ? $payment->note . ' | ' : '') . 'Thanh toán MoMo thành công lúc ' . now()->format('d/m/Y H:i')),
+                ]);
+            }
+
+            $borrow = Borrow::with(['items', 'payments'])->find($payment->borrow_id);
+            if ($borrow) {
+                $this->finalizeBorrowAfterSuccessfulPayment($borrow);
+            }
+        });
+    }
+
+    private function finalizeBorrowAfterSuccessfulPayment(Borrow $borrow): void
+    {
+        $choduyetItems = $borrow->items()->where('trang_thai', 'Cho duyet')->get();
+        foreach ($choduyetItems as $item) {
+            $item->update([
+                'trang_thai' => 'Dang muon',
+                'ngay_muon' => $item->ngay_muon ?? now(),
+            ]);
+
+            if ($item->inventorie_id) {
+                Inventory::where('id', $item->inventorie_id)
+                    ->where('status', 'Co san')
+                    ->update([
+                        'status' => 'Dang muon',
+                        'updated_at' => now(),
+                    ]);
+            }
+        }
+
+        $borrow->update([
+            'trang_thai' => 'Dang muon',
+            'trang_thai_chi_tiet' => Borrow::STATUS_DA_MUON_DANG_LUU_HANH,
+        ]);
+
+        if (!$borrow->reader_id && $borrow->so_dien_thoai) {
+            $reader = Reader::where('so_dien_thoai', $borrow->so_dien_thoai)->first();
+
+            if ($reader) {
+                $borrow->update(['reader_id' => $reader->id]);
+                Log::info('Auto-assigned reader to borrow after payment', [
+                    'borrow_id' => $borrow->id,
+                    'reader_id' => $reader->id,
+                ]);
+            } else {
+                $user = User::where('phone', $borrow->so_dien_thoai)->first();
+
+                if ($user) {
+                    $newReader = Reader::create([
+                        'user_id' => $user->id,
+                        'ho_ten' => $borrow->ten_nguoi_muon ?? $user->name,
+                        'email' => $user->email,
+                        'so_dien_thoai' => $borrow->so_dien_thoai,
+                        'dia_chi' => $borrow->so_nha . ', ' . $borrow->xa . ', ' . $borrow->tinh_thanh,
+                        'tinh_thanh' => $borrow->tinh_thanh,
+                        'xa' => $borrow->xa,
+                        'so_nha' => $borrow->so_nha,
+                        'trang_thai' => 'Hoat dong',
+                        'ngay_cap_the' => now(),
+                        'ngay_het_han' => now()->addYear(),
+                    ]);
+
+                    $borrow->update(['reader_id' => $newReader->id]);
+
+                    Log::info('Auto-created reader and assigned to borrow after payment', [
+                        'borrow_id' => $borrow->id,
+                        'reader_id' => $newReader->id,
+                        'user_id' => $user->id,
+                    ]);
+                }
+            }
         }
     }
 
@@ -713,6 +906,8 @@ class BorrowController extends Controller
     ============================================================ */
     public function clientIndex()
     {
+        Borrow::syncOverdueStatuses();
+
         $reader = Reader::where('user_id', Auth::id())->first();
 
         if (!$reader) {
@@ -907,6 +1102,73 @@ class BorrowController extends Controller
             return back()->with('warning', 'Đã báo giao hàng thất bại. Sách sẽ được chuyển hoàn.');
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Admin xác nhận khách đã nhận sách tại quầy và upload ảnh minh chứng.
+     */
+    public function adminConfirmCustomerReceived(Request $request, $id)
+    {
+        $borrow = Borrow::findOrFail($id);
+
+        if (!in_array($borrow->trang_thai_chi_tiet, [
+            Borrow::STATUS_DANG_GIAO_HANG,
+            Borrow::STATUS_GIAO_HANG_THANH_CONG,
+            Borrow::STATUS_DA_MUON_DANG_LUU_HANH,
+        ])) {
+            return back()->with('error', 'Đơn chưa ở trạng thái có thể xác nhận nhận sách.');
+        }
+
+        $request->validate([
+            'anh_bia_truoc' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'anh_bia_sau' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'anh_gay_sach' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'ghi_chu_nhan_sach' => 'nullable|string|max:1000',
+        ], [
+            'anh_bia_truoc.required' => 'Vui lòng upload ảnh bìa trước.',
+            'anh_bia_sau.required' => 'Vui lòng upload ảnh bìa sau.',
+            'anh_bia_truoc.image' => 'Ảnh bìa trước không hợp lệ.',
+            'anh_bia_sau.image' => 'Ảnh bìa sau không hợp lệ.',
+            'anh_gay_sach.image' => 'Ảnh gáy sách không hợp lệ.',
+        ]);
+
+        try {
+            $anhBiaTruoc = FileUploadService::uploadToCloudinary($request->file('anh_bia_truoc'), 'borrow_delivery_confirm')['url'] ?? null;
+            $anhBiaSau = FileUploadService::uploadToCloudinary($request->file('anh_bia_sau'), 'borrow_delivery_confirm')['url'] ?? null;
+            $anhGaySach = null;
+
+            if ($request->hasFile('anh_gay_sach')) {
+                $anhGaySach = FileUploadService::uploadToCloudinary($request->file('anh_gay_sach'), 'borrow_delivery_confirm')['url'] ?? null;
+            }
+
+            $borrow->anh_bia_truoc = $anhBiaTruoc;
+            $borrow->anh_bia_sau = $anhBiaSau;
+            $borrow->anh_gay_sach = $anhGaySach;
+            $borrow->customer_confirmed_delivery = true;
+            $borrow->customer_confirmed_delivery_at = now();
+            $borrow->ngay_giao_thanh_cong = $borrow->ngay_giao_thanh_cong ?? now();
+
+            if ($request->filled('ghi_chu_nhan_sach')) {
+                $oldNote = trim((string) ($borrow->ghi_chu ?? ''));
+                $newNote = 'Xác nhận nhận sách tại quầy: ' . trim($request->ghi_chu_nhan_sach);
+                $borrow->ghi_chu = $oldNote ? ($oldNote . "\n" . $newNote) : $newNote;
+            }
+
+            if ($borrow->trang_thai_chi_tiet !== Borrow::STATUS_DA_MUON_DANG_LUU_HANH) {
+                $borrow->trang_thai_chi_tiet = Borrow::STATUS_DA_MUON_DANG_LUU_HANH;
+            }
+            $borrow->trang_thai = 'Dang muon';
+            $borrow->save();
+
+            return back()->with('success', 'Đã xác nhận khách nhận sách và lưu ảnh minh chứng thành công.');
+        } catch (\Exception $e) {
+            Log::error('Lỗi xác nhận khách nhận sách tại quầy', [
+                'borrow_id' => $borrow->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Không thể upload ảnh minh chứng. Vui lòng thử lại.');
         }
     }
 

@@ -246,6 +246,72 @@
     }
 
     /* Modal cleanup */
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1050;
+        width: 100%;
+        height: 100%;
+        display: none;
+        overflow-x: hidden;
+        overflow-y: auto;
+        background: rgba(15, 23, 42, 0.45);
+        padding: 24px 12px;
+    }
+
+    .modal.show {
+        display: block;
+    }
+
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.45);
+        z-index: 1040;
+    }
+
+    .modal-dialog {
+        position: relative;
+        width: auto;
+        margin: 0 auto;
+        max-width: 92%;
+    }
+
+    .modal-content {
+        position: relative;
+        background: #fff;
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        box-shadow: 0 24px 56px rgba(15, 23, 42, 0.28);
+        overflow: hidden;
+    }
+
+    .modal-header,
+    .modal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 14px 16px;
+    }
+
+    .modal-body {
+        position: relative;
+        padding: 16px;
+    }
+
+    .close {
+        border: none;
+        background: transparent;
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+    }
+
     #bookSelectionModal .modal-content {
         border-radius: 16px;
         overflow: hidden;

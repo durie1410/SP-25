@@ -211,6 +211,29 @@
                     </div>
                 </div>
                 @endif
+
+                @if($borrow->anh_bia_truoc || $borrow->anh_bia_sau || $borrow->anh_gay_sach)
+                <div class="mt-3" id="upload-anh-nhan-sach">
+                    <p class="mb-2"><strong>Ảnh xác nhận khách nhận sách tại quầy:</strong></p>
+                    <div class="d-flex flex-wrap gap-2">
+                        @if($borrow->anh_bia_truoc)
+                            <a href="{{ $borrow->anh_bia_truoc }}" target="_blank">
+                                <img src="{{ $borrow->anh_bia_truoc }}" alt="Ảnh bìa trước" class="img-thumbnail" style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;">
+                            </a>
+                        @endif
+                        @if($borrow->anh_bia_sau)
+                            <a href="{{ $borrow->anh_bia_sau }}" target="_blank">
+                                <img src="{{ $borrow->anh_bia_sau }}" alt="Ảnh bìa sau" class="img-thumbnail" style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;">
+                            </a>
+                        @endif
+                        @if($borrow->anh_gay_sach)
+                            <a href="{{ $borrow->anh_gay_sach }}" target="_blank">
+                                <img src="{{ $borrow->anh_gay_sach }}" alt="Ảnh gáy sách" class="img-thumbnail" style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;">
+                            </a>
+                        @endif
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
 
@@ -255,6 +278,27 @@
                 </button>
             </form>
         </div>
+    </div>
+</div>
+@endif
+
+@if(
+    in_array($borrow->trang_thai_chi_tiet, [
+        \App\Models\Borrow::STATUS_DANG_GIAO_HANG,
+        \App\Models\Borrow::STATUS_GIAO_HANG_THANH_CONG,
+        \App\Models\Borrow::STATUS_DA_MUON_DANG_LUU_HANH
+    ])
+    && (!$borrow->anh_bia_truoc || !$borrow->anh_bia_sau)
+)
+<div class="card mb-4 border-success shadow-sm" id="upload-anh-nhan-sach">
+    <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-camera me-2"></i> Xác nhận khách đã nhận sách tại quầy</span>
+    </div>
+    <div class="card-body">
+        <p class="mb-3">Khi khách nhận sách tại quầy, admin bấm xác nhận và tải ảnh minh chứng tình trạng sách.</p>
+        <button type="button" class="btn btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#confirmCustomerReceivedModal">
+            <i class="fas fa-camera me-1"></i> Xác nhận khách đã nhận & Upload ảnh
+        </button>
     </div>
 </div>
 @endif
@@ -400,6 +444,54 @@
     </div>
 </div>
 
+<!-- Modal xác nhận khách nhận sách tại quầy -->
+<div class="modal fade" id="confirmCustomerReceivedModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold">Xác nhận khách đã nhận sách tại quầy</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ route('admin.borrows.confirm-customer-received', $borrow->id) }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        Sau khi xác nhận, đơn sẽ chuyển sang trạng thái <strong>Đang mượn</strong>.
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Ảnh bìa trước <span class="text-danger">*</span></label>
+                            <input type="file" id="anh_bia_truoc_input" name="anh_bia_truoc" class="form-control" accept="image/*" required>
+                            <img id="anh_bia_truoc_preview" class="img-thumbnail mt-2 d-none" style="height: 120px; width: 120px; object-fit: cover;" alt="Preview ảnh bìa trước">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Ảnh bìa sau <span class="text-danger">*</span></label>
+                            <input type="file" id="anh_bia_sau_input" name="anh_bia_sau" class="form-control" accept="image/*" required>
+                            <img id="anh_bia_sau_preview" class="img-thumbnail mt-2 d-none" style="height: 120px; width: 120px; object-fit: cover;" alt="Preview ảnh bìa sau">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Ảnh gáy sách (tuỳ chọn)</label>
+                            <input type="file" id="anh_gay_sach_input" name="anh_gay_sach" class="form-control" accept="image/*">
+                            <img id="anh_gay_sach_preview" class="img-thumbnail mt-2 d-none" style="height: 120px; width: 120px; object-fit: cover;" alt="Preview ảnh gáy sách">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold">Ghi chú</label>
+                            <textarea name="ghi_chu_nhan_sach" rows="3" class="form-control" placeholder="Ví dụ: Sách giao đủ, tình trạng tốt..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-success fw-bold">
+                        <i class="fas fa-check-circle me-1"></i> Xác nhận đã nhận sách
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Xác nhận & Kiểm tra sách -->
 <div class="modal fade" id="confirmCheckModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -482,6 +574,32 @@
             phiHongInput.addEventListener('input', updateImpact);
             updateImpact(); // Initial call
         }
+
+        const bindImagePreview = (inputId, previewId) => {
+            const input = document.getElementById(inputId);
+            const preview = document.getElementById(previewId);
+            if (!input || !preview) return;
+
+            input.addEventListener('change', function() {
+                const file = this.files && this.files[0];
+                if (!file) {
+                    preview.src = '';
+                    preview.classList.add('d-none');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('d-none');
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+
+        bindImagePreview('anh_bia_truoc_input', 'anh_bia_truoc_preview');
+        bindImagePreview('anh_bia_sau_input', 'anh_bia_sau_preview');
+        bindImagePreview('anh_gay_sach_input', 'anh_gay_sach_preview');
     });
 </script>
 @endpush

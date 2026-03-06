@@ -47,14 +47,16 @@ return [
         'curr_code' => env('VNPAY_CURR_CODE', 'VND'),
         'locale' => env('VNPAY_LOCALE', 'vn'),
     ],
-'momo' => [
-    'endpoint'     => env('MOMO_ENDPOINT'),
-    'partner_code' => env('MOMO_PARTNER_CODE'),
-    'access_key'   => env('MOMO_ACCESS_KEY'),
-    'secret_key'   => env('MOMO_SECRET_KEY'),
-    'return_url'   => env('MOMO_RETURN_URL'),
-    'notify_url'   => env('MOMO_NOTIFY_URL'),
-],
+    'momo' => [
+        // Ưu tiên đọc theo key mới, fallback cho các key cũ nếu có
+        'endpoint'     => env('MOMO_ENDPOINT', env('MOMO_API_URL', 'https://test-payment.momo.vn/v2/gateway/api/create')),
+        'partner_code' => env('MOMO_PARTNER_CODE', env('MOMO_PARTNERCODE', '')),
+        'access_key'   => env('MOMO_ACCESS_KEY', env('MOMO_ACCESSKEY', '')),
+        'secret_key'   => env('MOMO_SECRET_KEY', env('MOMO_SECRETKEY', '')),
+        // Giữ đúng đường dẫn return/ipn cho luồng mượn & phạt hiện tại
+        'return_url'   => env('MOMO_RETURN_URL', env('APP_URL') . '/borrows/momo/return'),
+        'notify_url'   => env('MOMO_NOTIFY_URL', env('APP_URL') . '/borrows/momo/ipn'),
+    ],
 
 
 ];
