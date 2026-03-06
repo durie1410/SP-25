@@ -55,11 +55,88 @@ class FinePaymentController extends Controller
     /**
      * Thanh toán tất cả khoản phạt của độc giả bằng tiền mặt
      */
-    public function payCashByReader(Reader $reader)
+    public function payCashByReader(Request $request, Reader $reader)
     {
+        $request->validate([
+            'payment_method' => 'required|in:online,offline',
+        ]);
+
         $pendingFines = Fine::where('reader_id', $reader->id)->where('status', 'pending')->get();
         if ($pendingFines->isEmpty()) {
             return back()->with('error', 'Không có khoản phạt nào cần thanh toán.');
+        }
+
+        $paymentMethod = $request->payment_method;
+
+        // Giống luồng thanh toán mượn: chọn online thì tạo mã MoMo và hiển thị QR trên trang
+        if ($paymentMethod === 'online') {
+            try {
+                $amount = (int) $pendingFines->sum('amount');
+
+                $endpoint    = config('services.momo.endpoint');
+                $partnerCode = config('services.momo.partner_code');
+                $accessKey   = config('services.momo.access_key');
+                $secretKey   = config('services.momo.secret_key');
+
+                $redirectUrl = route('admin.borrows.fine-momo.return');
+                $ipnUrl      = route('admin.borrows.fine-momo.ipn');
+
+                $orderId   = 'FINE_READER_' . $reader->id . '_' . time();
+                $requestId = (string) time();
+                $orderInfo = 'Thanh_toan_phat_doc_gia_' . str_replace(' ', '_', $reader->ho_ten);
+                $extraData = base64_encode(json_encode(['reader_id' => $reader->id, 'type' => 'fine_reader']));
+
+                $rawHash = "accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=$ipnUrl&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=$redirectUrl&requestId=$requestId&requestType=captureWallet";
+                $signature = hash_hmac('sha256', $rawHash, $secretKey);
+
+                $response = Http::post($endpoint, [
+                    'partnerCode' => $partnerCode,
+                    'accessKey'   => $accessKey,
+                    'requestId'   => $requestId,
+                    'amount'      => (string) $amount,
+                    'orderId'     => $orderId,
+                    'orderInfo'   => $orderInfo,
+                    'redirectUrl' => $redirectUrl,
+                    'ipnUrl'      => $ipnUrl,
+                    'extraData'   => $extraData,
+                    'requestType' => 'captureWallet',
+                    'signature'   => $signature,
+                    'lang'        => 'vi',
+                ]);
+
+                $result = $response->json();
+                if (!isset($result['payUrl'])) {
+                    return back()->with('error', 'Không thể tạo thanh toán MoMo: ' . ($result['message'] ?? 'Unknown error'));
+                }
+
+                DB::beginTransaction();
+                $finesByBorrow = $pendingFines->groupBy('borrow_id');
+                foreach ($finesByBorrow as $borrowId => $borrowFines) {
+                    BorrowPayment::create([
+                        'borrow_id' => $borrowId,
+                        'amount' => $borrowFines->sum('amount'),
+                        'payment_type' => 'damage_fee',
+                        'payment_method' => 'online',
+                        'payment_status' => 'pending',
+                        'transaction_code' => $orderId,
+                        'note' => 'Thanh toán phạt MoMo (Độc giả) - Đang chờ',
+                    ]);
+                }
+                DB::commit();
+
+                $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=' . urlencode($result['payUrl']);
+
+                return redirect()
+                    ->route('admin.fine-payments.index', ['reader_id' => $reader->id])
+                    ->with('momo_pay_url', $result['payUrl'])
+                    ->with('momo_order_id', $orderId)
+                    ->with('momo_qr_url', $qrUrl)
+                    ->with('success', 'Đã tạo mã MoMo. Vui lòng quét mã để thanh toán.');
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                Log::error('Error create momo in payCashByReader: ' . $e->getMessage());
+                return back()->with('error', 'Không thể tạo thanh toán MoMo: ' . $e->getMessage());
+            }
         }
 
         try {
