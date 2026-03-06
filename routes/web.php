@@ -383,6 +383,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
      Route::post('borrows/{id}/report-delivery-failed', [BorrowController::class, 'reportDeliveryFailed'])->name('borrows.report-delivery-failed')->middleware('permission:edit-borrows');
      Route::post('borrows/{id}/request-return', [BorrowController::class, 'requestReturn'])->name('borrows.request-return')->middleware('permission:edit-borrows');
      Route::post('borrows/{id}/confirm-return-shipping', [BorrowController::class, 'confirmReturnShipping'])->name('borrows.confirm-return-shipping')->middleware('permission:edit-borrows');
+     Route::post('borrows/{id}/confirm-customer-received', [BorrowController::class, 'adminConfirmCustomerReceived'])->name('borrows.confirm-customer-received')->middleware('permission:edit-borrows');
      Route::post('borrows/{id}/confirm-receive-check', [BorrowController::class, 'confirmReceiveAndCheck'])->name('borrows.confirm-receive-check')->middleware('permission:edit-borrows');
      Route::post('borrows/{id}/complete-order', [BorrowController::class, 'completeOrder'])->name('borrows.complete-order')->middleware('permission:edit-borrows');
      Route::post('borrows/{id}/refund-cancelled', [BorrowController::class, 'refundCancelledOrder'])->name('borrows.refund-cancelled')->middleware('permission:edit-borrows');

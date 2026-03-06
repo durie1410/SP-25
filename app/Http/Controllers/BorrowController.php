@@ -1106,6 +1106,73 @@ class BorrowController extends Controller
     }
 
     /**
+     * Admin xác nhận khách đã nhận sách tại quầy và upload ảnh minh chứng.
+     */
+    public function adminConfirmCustomerReceived(Request $request, $id)
+    {
+        $borrow = Borrow::findOrFail($id);
+
+        if (!in_array($borrow->trang_thai_chi_tiet, [
+            Borrow::STATUS_DANG_GIAO_HANG,
+            Borrow::STATUS_GIAO_HANG_THANH_CONG,
+            Borrow::STATUS_DA_MUON_DANG_LUU_HANH,
+        ])) {
+            return back()->with('error', 'Đơn chưa ở trạng thái có thể xác nhận nhận sách.');
+        }
+
+        $request->validate([
+            'anh_bia_truoc' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'anh_bia_sau' => 'required|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'anh_gay_sach' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'ghi_chu_nhan_sach' => 'nullable|string|max:1000',
+        ], [
+            'anh_bia_truoc.required' => 'Vui lòng upload ảnh bìa trước.',
+            'anh_bia_sau.required' => 'Vui lòng upload ảnh bìa sau.',
+            'anh_bia_truoc.image' => 'Ảnh bìa trước không hợp lệ.',
+            'anh_bia_sau.image' => 'Ảnh bìa sau không hợp lệ.',
+            'anh_gay_sach.image' => 'Ảnh gáy sách không hợp lệ.',
+        ]);
+
+        try {
+            $anhBiaTruoc = FileUploadService::uploadToCloudinary($request->file('anh_bia_truoc'), 'borrow_delivery_confirm')['url'] ?? null;
+            $anhBiaSau = FileUploadService::uploadToCloudinary($request->file('anh_bia_sau'), 'borrow_delivery_confirm')['url'] ?? null;
+            $anhGaySach = null;
+
+            if ($request->hasFile('anh_gay_sach')) {
+                $anhGaySach = FileUploadService::uploadToCloudinary($request->file('anh_gay_sach'), 'borrow_delivery_confirm')['url'] ?? null;
+            }
+
+            $borrow->anh_bia_truoc = $anhBiaTruoc;
+            $borrow->anh_bia_sau = $anhBiaSau;
+            $borrow->anh_gay_sach = $anhGaySach;
+            $borrow->customer_confirmed_delivery = true;
+            $borrow->customer_confirmed_delivery_at = now();
+            $borrow->ngay_giao_thanh_cong = $borrow->ngay_giao_thanh_cong ?? now();
+
+            if ($request->filled('ghi_chu_nhan_sach')) {
+                $oldNote = trim((string) ($borrow->ghi_chu ?? ''));
+                $newNote = 'Xác nhận nhận sách tại quầy: ' . trim($request->ghi_chu_nhan_sach);
+                $borrow->ghi_chu = $oldNote ? ($oldNote . "\n" . $newNote) : $newNote;
+            }
+
+            if ($borrow->trang_thai_chi_tiet !== Borrow::STATUS_DA_MUON_DANG_LUU_HANH) {
+                $borrow->trang_thai_chi_tiet = Borrow::STATUS_DA_MUON_DANG_LUU_HANH;
+            }
+            $borrow->trang_thai = 'Dang muon';
+            $borrow->save();
+
+            return back()->with('success', 'Đã xác nhận khách nhận sách và lưu ảnh minh chứng thành công.');
+        } catch (\Exception $e) {
+            Log::error('Lỗi xác nhận khách nhận sách tại quầy', [
+                'borrow_id' => $borrow->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Không thể upload ảnh minh chứng. Vui lòng thử lại.');
+        }
+    }
+
+    /**
      * Khách hàng xác nhận đã nhận sách
      *
      * Theo quy định mới: KHÔNG bắt buộc upload ảnh, khách chỉ cần bấm nút xác nhận.
