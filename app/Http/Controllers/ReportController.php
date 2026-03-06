@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\Book;
 use App\Models\Category;
 use App\Models\Reader;
@@ -141,4 +143,50 @@ class ReportController extends Controller
         }
         return $months;
     }
+
+    public function exportCSV()
+{
+    $fileName = 'borrow_report.csv';
+
+    $headers = [
+        "Content-Type" => "text/csv",
+        "Content-Disposition" => "attachment; filename=$fileName",
+    ];
+
+    $callback = function () {
+
+        $file = fopen('php://output', 'w');
+
+        // Header
+        fputcsv($file, [
+            'Ma muon',
+            'Doc gia',
+            'Ngay muon',
+            'Trang thai'
+        ]);
+
+        $borrows = Borrow::with('reader')->get();
+
+        foreach ($borrows as $borrow) {
+            fputcsv($file, [
+                $borrow->id,
+                $borrow->reader->ten ?? '',
+                $borrow->ngay_muon,
+                $borrow->trang_thai
+            ]);
+        }
+
+        fclose($file);
+    };
+
+    return response()->stream($callback, 200, $headers);
+}
+public function exportPDF()
+{
+    $borrows = Borrow::with('reader')->get();
+
+    $pdf = Pdf::loadView('admin.reports.pdf', compact('borrows'));
+
+    return $pdf->download('borrow_report.pdf');
+}
 }

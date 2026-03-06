@@ -168,5 +168,6 @@
         </a>
     </div>
 </div>
+
 @endsection
 

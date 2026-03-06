@@ -1163,8 +1163,20 @@
                         @endif
 
                         <div class="rating">
-                            {{ $book->formatted_views }} Lượt xem |
-                            {{ $book->formatted_sales }} Đã bán
+                            {{ $book->formatted_views }} lượt xem
+                        </div>
+
+                        <div style="margin: 12px 0 20px; padding: 12px 14px; background: #ecfeff; border-radius: 10px; border: 1px dashed #06b6d4;">
+                            <div style="font-size: 0.9em; color: #0f172a; font-weight: 600; margin-bottom: 4px;">
+                                💰 Giá thuê tham khảo
+                            </div>
+                            @php
+                                $dailyFee = 5000;
+                            @endphp
+                            <div style="font-size: 0.95em; color: #0369a1;">
+                                Từ <strong>{{ number_format($dailyFee, 0, ',', '.') }}₫/ngày</strong>
+                                <span style="color:#64748b; font-weight:400;">(tiền thuê thực tế sẽ tính theo số ngày mượn từng cuốn trong giỏ hàng)</span>
+                            </div>
                         </div>
 
                         <div class="buy-options">
@@ -1297,8 +1309,8 @@
                         <tr>
                             <td class="label">Nhà xuất bản:</td>
                             <td>{{ $book->publisher->ten_nha_xuat_ban ?? 'Chưa có thông tin' }}</td>
-                            <td class="label">Giá sách:</td>
-                            <td>—</td>
+                            <td class="label">Giá thuê (tham khảo):</td>
+                            <td>Từ {{ number_format(5000, 0, ',', '.') }}₫/ngày</td>
                         </tr>
                         <tr>
                             <td class="label">Số lượng:</td>

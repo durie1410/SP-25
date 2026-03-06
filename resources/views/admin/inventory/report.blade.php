@@ -10,6 +10,19 @@
             <i class="fas fa-boxes" style="color: #22c55e;"></i>
             Báo Cáo Tổng Hợp Kho
         </h1>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+
+    <a href="/admin/reports/export-csv"
+       style="background:#22c55e;color:white;padding:8px 14px;border-radius:6px;text-decoration:none;">
+       Xuất CSV
+    </a>
+
+    <a href="/admin/reports/export-pdf"
+       style="background:#ef4444;color:white;padding:8px 14px;border-radius:6px;text-decoration:none;">
+       Xuất PDF
+    </a>
+
+</div>
         <p class="page-subtitle">Thống kê và báo cáo tổng hợp về kho sách</p>
     </div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
