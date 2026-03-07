@@ -128,7 +128,7 @@
                             <span class="badge bg-success">Đã trả</span>
                             @break
                         @case('Qua han')
-                            <span class="badge bg-danger">Quá hạn</span>
+                            <span class="badge bg-danger">Quá hạn ({{ max(0, (int) ($borrow->days_overdue ?? 0)) }} ngày)</span>
                             @break
                         @default
                             <span class="badge bg-warning text-dark">{{ $borrow->trang_thai }}</span>
@@ -282,27 +282,6 @@
 </div>
 @endif
 
-@if(
-    in_array($borrow->trang_thai_chi_tiet, [
-        \App\Models\Borrow::STATUS_DANG_GIAO_HANG,
-        \App\Models\Borrow::STATUS_GIAO_HANG_THANH_CONG,
-        \App\Models\Borrow::STATUS_DA_MUON_DANG_LUU_HANH
-    ])
-    && (!$borrow->anh_bia_truoc || !$borrow->anh_bia_sau)
-)
-<div class="card mb-4 border-success shadow-sm" id="upload-anh-nhan-sach">
-    <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
-        <span><i class="fas fa-camera me-2"></i> Xác nhận khách đã nhận sách tại quầy</span>
-    </div>
-    <div class="card-body">
-        <p class="mb-3">Khi khách nhận sách tại quầy, admin bấm xác nhận và tải ảnh minh chứng tình trạng sách.</p>
-        <button type="button" class="btn btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#confirmCustomerReceivedModal">
-            <i class="fas fa-camera me-1"></i> Xác nhận khách đã nhận & Upload ảnh
-        </button>
-    </div>
-</div>
-@endif
-
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span><i class="fas fa-book me-2"></i> Danh sách sách mượn</span>
@@ -317,6 +296,7 @@
                         <th>Tài chính</th>
                         <th>Hẹn trả</th>
                         <th>Trạng thái</th>
+                        <th>Xác nhận nhận sách</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -356,10 +336,44 @@
                         <td>
                             @php
                                 $statusClass = str_replace(' ', '-', $item->trang_thai);
+                                $itemStatusText = $item->trang_thai;
+
+                                if ($item->trang_thai === 'Qua han' && !empty($item->ngay_hen_tra)) {
+                                    $itemOverdueDays = \Carbon\Carbon::parse($item->ngay_hen_tra)
+                                        ->startOfDay()
+                                        ->diffInDays(now()->startOfDay());
+                                    $itemStatusText = 'Quá hạn (' . ($itemOverdueDays ?? 0) . ' ngày)';
+                                }
                             @endphp
                             <span class="status-badge status-{{ $statusClass }}">
-                                {{ $item->trang_thai }}
+                                {{ $itemStatusText }}
                             </span>
+                        </td>
+                        <td>
+                            @if($item->anh_bia_truoc || $item->anh_bia_sau || $item->anh_gay_sach || $item->ghi_chu_nhan_sach)
+                                <div class="d-flex flex-wrap gap-1 mb-2">
+                                    @if($item->anh_bia_truoc)
+                                        <a href="{{ $item->anh_bia_truoc }}" target="_blank">
+                                            <img src="{{ $item->anh_bia_truoc }}" alt="Bìa trước" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;">
+                                        </a>
+                                    @endif
+                                    @if($item->anh_bia_sau)
+                                        <a href="{{ $item->anh_bia_sau }}" target="_blank">
+                                            <img src="{{ $item->anh_bia_sau }}" alt="Bìa sau" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;">
+                                        </a>
+                                    @endif
+                                    @if($item->anh_gay_sach)
+                                        <a href="{{ $item->anh_gay_sach }}" target="_blank">
+                                            <img src="{{ $item->anh_gay_sach }}" alt="Gáy sách" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;">
+                                        </a>
+                                    @endif
+                                </div>
+                                @if($item->ghi_chu_nhan_sach)
+                                    <div class="small text-muted">{{ $item->ghi_chu_nhan_sach }}</div>
+                                @endif
+                            @else
+                                <span class="text-muted small">Chưa có</span>
+                            @endif
                         </td>
                     </tr>
                     @endforeach
@@ -441,54 +455,6 @@
         <a href="{{ route('admin.borrows.index') }}" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Quay lại
         </a>
-    </div>
-</div>
-
-<!-- Modal xác nhận khách nhận sách tại quầy -->
-<div class="modal fade" id="confirmCustomerReceivedModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold">Xác nhận khách đã nhận sách tại quầy</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ route('admin.borrows.confirm-customer-received', $borrow->id) }}" method="POST" enctype="multipart/form-data">
-                @csrf
-                <div class="modal-body">
-                    <div class="alert alert-info mb-3">
-                        Sau khi xác nhận, đơn sẽ chuyển sang trạng thái <strong>Đang mượn</strong>.
-                    </div>
-
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Ảnh bìa trước <span class="text-danger">*</span></label>
-                            <input type="file" id="anh_bia_truoc_input" name="anh_bia_truoc" class="form-control" accept="image/*" required>
-                            <img id="anh_bia_truoc_preview" class="img-thumbnail mt-2 d-none" style="height: 120px; width: 120px; object-fit: cover;" alt="Preview ảnh bìa trước">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Ảnh bìa sau <span class="text-danger">*</span></label>
-                            <input type="file" id="anh_bia_sau_input" name="anh_bia_sau" class="form-control" accept="image/*" required>
-                            <img id="anh_bia_sau_preview" class="img-thumbnail mt-2 d-none" style="height: 120px; width: 120px; object-fit: cover;" alt="Preview ảnh bìa sau">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Ảnh gáy sách (tuỳ chọn)</label>
-                            <input type="file" id="anh_gay_sach_input" name="anh_gay_sach" class="form-control" accept="image/*">
-                            <img id="anh_gay_sach_preview" class="img-thumbnail mt-2 d-none" style="height: 120px; width: 120px; object-fit: cover;" alt="Preview ảnh gáy sách">
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label fw-bold">Ghi chú</label>
-                            <textarea name="ghi_chu_nhan_sach" rows="3" class="form-control" placeholder="Ví dụ: Sách giao đủ, tình trạng tốt..."></textarea>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-success fw-bold">
-                        <i class="fas fa-check-circle me-1"></i> Xác nhận đã nhận sách
-                    </button>
-                </div>
-            </form>
-        </div>
     </div>
 </div>
 

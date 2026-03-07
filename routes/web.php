@@ -399,6 +399,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('borrows/{id}/payment', [BorrowController::class, 'payment'])->name('borrows.payment')->middleware('permission:edit-borrows');
     Route::post('borrows/{id}/approve', [BorrowController::class, 'approve'])->name('borrows.approve')->middleware('permission:edit-borrows');
     Route::post('borrows/{id}/confirm-cash-payment', [BorrowController::class, 'confirmCashPayment'])->name('borrows.confirm-cash-payment')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/save-receive-evidence', [BorrowController::class, 'saveReceiveEvidenceAfterPayment'])->name('borrows.save-receive-evidence')->middleware('permission:edit-borrows');
 
     // ===== 11 TRẠNG THÁI MỚI - Quản lý quy trình vận chuyển =====
     Route::post('borrows/{id}/confirm-order', [BorrowController::class, 'confirmOrder'])->name('borrows.confirm-order')->middleware('permission:edit-borrows');

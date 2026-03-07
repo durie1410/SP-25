@@ -39,6 +39,10 @@ class BorrowItem extends Model
         'tien_phat',
         'tinh_trang_sach_cuoi',
         'ghi_chu',
+        'anh_bia_truoc',
+        'anh_bia_sau',
+        'anh_gay_sach',
+        'ghi_chu_nhan_sach',
     ];
 
     protected $casts = [

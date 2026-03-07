@@ -455,6 +455,36 @@
                                         <span class="status-badge">{{ $item->trang_thai }}</span>
                                     @endif
                                 </div>
+
+                                @if($item->anh_bia_truoc || $item->anh_bia_sau || $item->anh_gay_sach)
+                                    <div style="margin-top: 12px;">
+                                        <strong style="display:block; margin-bottom: 6px;">Ảnh xác nhận nhận sách:</strong>
+                                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                            @if($item->anh_bia_truoc)
+                                                <a href="{{ $item->anh_bia_truoc }}" target="_blank">
+                                                    <img src="{{ $item->anh_bia_truoc }}" alt="Bìa trước" style="width:70px; height:70px; object-fit:cover; border:1px solid #ddd; border-radius:6px;">
+                                                </a>
+                                            @endif
+                                            @if($item->anh_bia_sau)
+                                                <a href="{{ $item->anh_bia_sau }}" target="_blank">
+                                                    <img src="{{ $item->anh_bia_sau }}" alt="Bìa sau" style="width:70px; height:70px; object-fit:cover; border:1px solid #ddd; border-radius:6px;">
+                                                </a>
+                                            @endif
+                                            @if($item->anh_gay_sach)
+                                                <a href="{{ $item->anh_gay_sach }}" target="_blank">
+                                                    <img src="{{ $item->anh_gay_sach }}" alt="Gáy sách" style="width:70px; height:70px; object-fit:cover; border:1px solid #ddd; border-radius:6px;">
+                                                </a>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endif
+
+                                @if($item->ghi_chu_nhan_sach)
+                                    <div style="margin-top: 10px;">
+                                        <strong>Ghi chú nhận sách:</strong>
+                                        <div>{{ $item->ghi_chu_nhan_sach }}</div>
+                                    </div>
+                                @endif
                             </div>
                         @endif
                     </div>
@@ -591,6 +621,7 @@
                             {{ number_format($tongTien, 0, ',', '.') }}₫
                         </span>
                     </div>
+                    @endif
                 </div>
 
                 @if($borrow->payments->count() > 0)

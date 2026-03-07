@@ -566,6 +566,10 @@
                     tien_thue: {{ $item->tien_thue ?? 0 }},
                     tien_ship: {{ $item->tien_ship ?? 0 }},
                     ghi_chu: {!! json_encode($item->ghi_chu ?? '') !!},
+                    ghi_chu_nhan_sach: {!! json_encode($item->ghi_chu_nhan_sach ?? '') !!},
+                    anh_bia_truoc: {!! json_encode($item->anh_bia_truoc ?? null) !!},
+                    anh_bia_sau: {!! json_encode($item->anh_bia_sau ?? null) !!},
+                    anh_gay_sach: {!! json_encode($item->anh_gay_sach ?? null) !!},
                     inventory: {
                         barcode: {!! json_encode($item->inventory->barcode ?? '') !!},
                         location: {!! json_encode($item->inventory->location ?? '') !!},
@@ -1257,6 +1261,22 @@
                             <div class="detail-row" style="margin-top: 10px;">
                                 <span class="detail-label">Ghi chú:</span>
                                 <span class="detail-value">${item.ghi_chu}</span>
+                            </div>
+                            ` : ''}
+                            ${(item.anh_bia_truoc || item.anh_bia_sau || item.anh_gay_sach) ? `
+                            <div class="detail-row" style="margin-top: 12px; align-items: flex-start;">
+                                <span class="detail-label">Ảnh xác nhận:</span>
+                                <div class="detail-value" style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    ${item.anh_bia_truoc ? `<a href="${item.anh_bia_truoc}" target="_blank"><img src="${item.anh_bia_truoc}" alt="Bìa trước" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;"></a>` : ''}
+                                    ${item.anh_bia_sau ? `<a href="${item.anh_bia_sau}" target="_blank"><img src="${item.anh_bia_sau}" alt="Bìa sau" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;"></a>` : ''}
+                                    ${item.anh_gay_sach ? `<a href="${item.anh_gay_sach}" target="_blank"><img src="${item.anh_gay_sach}" alt="Gáy sách" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;"></a>` : ''}
+                                </div>
+                            </div>
+                            ` : ''}
+                            ${item.ghi_chu_nhan_sach ? `
+                            <div class="detail-row" style="margin-top: 8px;">
+                                <span class="detail-label">Ghi chú nhận sách:</span>
+                                <span class="detail-value">${item.ghi_chu_nhan_sach}</span>
                             </div>
                             ` : ''}
                         </div>
