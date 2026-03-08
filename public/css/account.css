@@ -161,6 +161,8 @@ body {
 /* --- Form Thông tin tài khoản --- */
 .account-details-form {
     background: var(--card-bg);
+    width: 100%;
+    max-width: 100%;
     padding: 30px;
     border-radius: var(--radius-lg);
     border: 1px solid var(--border-color);

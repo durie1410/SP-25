@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Book;
+use App\Models\BorrowItem;
 use App\Models\InventoryReservation;
 use App\Models\ReservationCart;
 use Illuminate\Http\Request;
@@ -50,7 +51,25 @@ class ReservationCartController extends Controller
 
         $data = $request->validate([
             'book_id' => 'required|exists:books,id',
+            'borrow_item_id' => 'nullable|exists:borrow_items,id',
         ]);
+
+        if (!empty($data['borrow_item_id'])) {
+            $borrowItem = BorrowItem::with('borrow')
+                ->findOrFail($data['borrow_item_id']);
+
+            if (!$borrowItem->borrow || (int) $borrowItem->borrow->reader_id !== (int) $reader->id) {
+                return redirect()->route('orders.index')
+                    ->with('error', 'Bạn không có quyền thuê lại cuốn sách này.');
+            }
+
+            $isReturned = $borrowItem->trang_thai === 'Da tra' || !empty($borrowItem->ngay_tra_thuc_te);
+
+            if (!$isReturned) {
+                return redirect()->route('orders.detail', $borrowItem->borrow_id)
+                    ->with('error', 'Bạn chỉ có thể thuê lại sau khi đã trả xong cuốn sách này.');
+            }
+        }
 
         $cart = ReservationCart::firstOrCreate(
             ['user_id' => $user->id],
@@ -66,6 +85,37 @@ class ReservationCartController extends Controller
             'count' => $cart->items()->count(),
             'message' => $added ? 'Đã thêm vào giỏ.' : 'Sách đã có trong giỏ.',
         ]);
+    }
+
+    public function addAndRedirect(Request $request)
+    {
+        $user = $request->user();
+        $reader = $user?->reader;
+
+        if (!$reader) {
+            return redirect()->route('account')
+                ->with('error', 'Bạn cần đăng ký thông tin độc giả trước khi đặt trước.');
+        }
+
+        $data = $request->validate([
+            'book_id' => 'required|exists:books,id',
+        ]);
+
+        $cart = ReservationCart::firstOrCreate(
+            ['user_id' => $user->id],
+            ['reader_id' => $reader->id]
+        );
+
+        if (!$cart->reader_id) {
+            $cart->update(['reader_id' => $reader->id]);
+        }
+
+        $added = $cart->addBook((int) $data['book_id']);
+
+        return redirect()->route('reservation-cart.index')
+            ->with($added ? 'success' : 'info', $added
+                ? 'Đã thêm sách vào giỏ đặt trước. Bạn có thể tiếp tục chọn ngày mượn và gửi yêu cầu.'
+                : 'Sách này đã có sẵn trong giỏ đặt trước.');
     }
 
     public function remove(Request $request, $bookId)

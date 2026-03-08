@@ -11,6 +11,7 @@ use App\Models\Borrow;
 use App\Models\Reader;
 use App\Models\Wallet;
 use App\Models\BorrowPayment;
+use App\Models\Review;
  use App\Services\MomoService;
 use App\Services\ShippingService;
 use Illuminate\Http\Request;
@@ -443,7 +444,18 @@ return response()->json([
                 abort(403, 'Bạn không có quyền xem đơn mượn này');
             }
 
-            return view('orders.show', compact('borrow'));
+            $borrowItemIds = $borrow->items
+                ->pluck('id')
+                ->filter()
+                ->unique()
+                ->values();
+
+            $userReviews = Review::where('user_id', Auth::id())
+                ->whereIn('borrow_item_id', $borrowItemIds)
+                ->get()
+                ->keyBy('borrow_item_id');
+
+            return view('orders.show', compact('borrow', 'userReviews'));
             
         } catch (\Exception $e) {
             \Log::error('Error viewing borrow details', [

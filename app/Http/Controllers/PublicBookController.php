@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Document;
 use App\Models\Reader;
 use App\Models\Inventory;
+use App\Models\Review;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
 
@@ -18,9 +19,15 @@ class PublicBookController extends Controller
             'category',
             'publisher',
             'reviews' => function($query) {
-                $query->with('user')->orderBy('created_at', 'desc');
+                $query->verified()
+                    ->with([
+                        'user',
+                        'comments' => function ($commentQuery) {
+                            $commentQuery->approved()->with('user')->orderBy('created_at', 'asc');
+                        }
+                    ])
+                    ->orderBy('created_at', 'desc');
             },
-            'reviews.comments.user',
             'inventories'
         ])->findOrFail($id);
 
@@ -125,14 +132,27 @@ class PublicBookController extends Controller
         // Nếu không có trong inventories, sử dụng so_luong từ bảng books
         $stockQuantity = $availableStockForPurchase > 0 ? $availableStockForPurchase : ($book->so_luong ?? 0);
         
+        $verifiedReviewsQuery = Review::query()
+            ->where('book_id', $book->id)
+            ->where('is_verified', true);
+
         $stats = [
-            'total_reviews' => $book->reviews()->count(),
-            'average_rating' => $book->reviews()->avg('rating') ?? 0,
+            'total_reviews' => (clone $verifiedReviewsQuery)->count(),
+            'average_rating' => round((clone $verifiedReviewsQuery)->avg('rating') ?? 0, 1),
             'total_copies' => $book->inventories()->count(),
             'available_copies' => $book->inventories()->where('status', 'Co san')->count(),
             'borrowed_copies' => $book->inventories()->where('status', 'Dang muon')->count(),
             'stock_quantity' => $stockQuantity, // Số lượng tồn kho có thể mua
         ];
+
+        $ratingBreakdown = collect(range(5, 1))->mapWithKeys(function ($rating) use ($book) {
+            return [
+                $rating => Review::where('book_id', $book->id)
+                    ->where('is_verified', true)
+                    ->where('rating', $rating)
+                    ->count(),
+            ];
+        });
 
         // Kiểm tra user hiện tại có yêu thích sách này không
         $isFavorited = false;
@@ -142,8 +162,47 @@ class PublicBookController extends Controller
 
         // Kiểm tra user hiện tại có đánh giá sách này không
         $userReview = null;
+        $canReview = false;
+        $reviewEligibilityMessage = null;
+        $reviewDraftBorrowItem = null;
+        $reviewEditWindowHours = Review::EDIT_WINDOW_HOURS;
         if (auth()->check()) {
-            $userReview = $book->reviews()->where('user_id', auth()->id())->first();
+            $currentUserId = auth()->id();
+
+            $book->setRelation('reviews', $book->reviews
+                ->sort(function ($left, $right) use ($currentUserId) {
+                    $leftOwn = (int) $left->user_id === (int) $currentUserId;
+                    $rightOwn = (int) $right->user_id === (int) $currentUserId;
+
+                    if ($leftOwn !== $rightOwn) {
+                        return $leftOwn ? -1 : 1;
+                    }
+
+                    return $right->created_at <=> $left->created_at;
+                })
+                ->values());
+
+            $userReview = $book->reviews()
+                ->where('user_id', $currentUserId)
+                ->latest('created_at')
+                ->first();
+
+            $completedBorrowItems = $book->getCompletedBorrowItemsByUser($currentUserId);
+            $reviewedBorrowItemIds = Review::query()
+                ->where('book_id', $book->id)
+                ->where('user_id', $currentUserId)
+                ->whereNotNull('borrow_item_id')
+                ->pluck('borrow_item_id');
+
+            $reviewDraftBorrowItem = $completedBorrowItems->first(function ($borrowItem) use ($reviewedBorrowItemIds) {
+                return !$reviewedBorrowItemIds->contains($borrowItem->id);
+            });
+
+            $canReview = $completedBorrowItems->isNotEmpty();
+
+            if (!$canReview) {
+                $reviewEligibilityMessage = 'Chỉ người đã thuê và hoàn tất đơn mượn sách này mới có thể bình luận và đánh giá.';
+            }
         }
 
         // Kiểm tra KYC status của user
@@ -171,7 +230,12 @@ class PublicBookController extends Controller
             'author',
             'mode',
             'currentReader',
-            'kycStatus'
+            'kycStatus',
+            'canReview',
+            'reviewEligibilityMessage',
+            'ratingBreakdown',
+            'reviewDraftBorrowItem',
+            'reviewEditWindowHours'
         ));
     }
 

@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Book;
+use App\Models\BorrowItem;
 use App\Models\Comment;
 use App\Models\Review;
+use App\Models\Reader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -143,30 +146,90 @@ class CommentController extends Controller
     public function storePublic(Request $request, $bookId)
     {
         $request->validate([
+            'borrow_item_id' => 'nullable|integer|exists:borrow_items,id',
+            'rating' => 'required|integer|min:1|max:5',
             'content' => 'required|string|max:1500',
         ]);
 
-        // Tìm hoặc tạo review cho book này của user hiện tại
-        $review = Review::firstOrCreate(
+        $book = Book::findOrFail($bookId);
+
+        if (!$book->hasCompletedBorrowByUser(Auth::id())) {
+            return back()
+                ->withErrors(['content' => 'Bạn chỉ có thể bình luận và đánh giá sau khi đã thuê xong sách này.'])
+                ->withInput();
+        }
+
+        $readerId = Reader::where('user_id', Auth::id())->value('id');
+
+        $completedBorrowItems = BorrowItem::query()
+            ->where('book_id', $bookId)
+            ->whereHas('borrow', function ($query) use ($readerId) {
+                $query->where('reader_id', $readerId)
+                    ->where(function ($statusQuery) {
+                        $statusQuery->where('trang_thai', 'Da tra')
+                            ->orWhereIn('trang_thai_chi_tiet', [
+                                \App\Models\Borrow::STATUS_DA_NHAN_VA_KIEM_TRA,
+                                \App\Models\Borrow::STATUS_HOAN_TAT_DON_HANG,
+                            ]);
+                    });
+            })
+            ->orderByDesc('ngay_tra_thuc_te')
+            ->orderByDesc('updated_at')
+            ->get();
+
+        $borrowItem = null;
+
+        if ($request->filled('borrow_item_id')) {
+            $borrowItem = $completedBorrowItems->firstWhere('id', (int) $request->borrow_item_id);
+        }
+
+        if (!$borrowItem) {
+            $borrowItem = $completedBorrowItems->first();
+        }
+
+        if (!$borrowItem) {
+            return back()
+                ->withErrors(['content' => 'Không tìm thấy lượt thuê hợp lệ để gắn với đánh giá này.'])
+                ->withInput();
+        }
+
+        $review = Review::firstOrNew(
             [
-                'book_id' => $bookId,
-                'user_id' => Auth::id(),
-            ],
-            [
-                'rating' => 5, // Rating mặc định
-                'comment' => '', // Comment mặc định
-                'is_verified' => true,
+                'borrow_item_id' => $borrowItem->id,
             ]
         );
 
-        // Tạo comment gắn với review
-        $comment = Comment::create([
-            'review_id' => $review->id,
+        $isUpdating = $review->exists;
+
+        if ($isUpdating) {
+            if ((int) $review->user_id !== (int) Auth::id()) {
+                abort(403);
+            }
+
+            if (!$review->canBeEditedBy(Auth::id())) {
+                return back()
+                    ->withErrors([
+                        'content' => 'Đánh giá này đã hết thời gian chỉnh sửa. Bạn chỉ có thể sửa trong ' . Review::EDIT_WINDOW_HOURS . ' giờ kể từ lúc gửi.',
+                    ])
+                    ->withInput();
+            }
+        }
+
+        $review->fill([
+            'book_id' => $bookId,
             'user_id' => Auth::id(),
-            'content' => $request->content,
-            'parent_id' => null,
+            'rating' => (int) $request->rating,
+            'comment' => trim($request->content),
+            'is_verified' => true,
+            'status' => 'approved',
         ]);
 
-        return back()->with('success', 'Bình luận đã được thêm thành công!');
+        $review->save();
+
+        $book->refreshAverageRating();
+
+        return back()->with('success', $isUpdating
+            ? 'Đánh giá của bạn đã được cập nhật thành công!'
+            : 'Đánh giá của bạn đã được gửi thành công!');
     }
 }

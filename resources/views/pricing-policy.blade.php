@@ -3,6 +3,7 @@
 @section('title', 'Chính sách giá - Thư Viện Online')
 
 @push('styles')
+    <link rel="stylesheet" href="{{ asset('css/style.css') }}">
     <style>
         .pricing-policy-page {
             padding-bottom: 100px;

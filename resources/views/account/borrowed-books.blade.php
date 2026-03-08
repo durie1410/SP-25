@@ -6,6 +6,291 @@
 @push('scripts')
 <script src="{{ asset('js/borrow-status-flow.js') }}"></script>
 <style>
+    .borrowed-books-grid {
+        align-items: stretch;
+        gap: 24px;
+    }
+
+    .borrowed-book-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding: 18px;
+        border-radius: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.85);
+        background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 36%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+        box-shadow:
+            0 18px 40px rgba(15, 23, 42, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        overflow: hidden;
+        transition: transform .28s ease, box-shadow .28s ease, border-color .28s ease;
+    }
+
+    .borrowed-book-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.24), transparent 42%, rgba(59, 130, 246, 0.05));
+        pointer-events: none;
+    }
+
+    .borrowed-book-card::after {
+        content: '';
+        position: absolute;
+        top: -35%;
+        left: -120%;
+        width: 68%;
+        height: 170%;
+        transform: rotate(18deg);
+        background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+        opacity: 0;
+        pointer-events: none;
+        transition: left .8s ease, opacity .4s ease;
+    }
+
+    .borrowed-book-card:hover {
+        transform: translateY(-8px);
+        border-color: rgba(59, 130, 246, 0.28);
+        box-shadow: 0 24px 50px rgba(15, 23, 42, 0.12), 0 10px 28px rgba(59, 130, 246, 0.12);
+    }
+
+    .borrowed-book-card:hover::after {
+        left: 145%;
+        opacity: 1;
+    }
+
+    .borrowed-book-card .book-image {
+        position: relative;
+        height: 270px;
+        border-radius: 18px;
+        margin-bottom: 18px;
+        overflow: hidden;
+        background: linear-gradient(180deg, #f8fafc, #e5e7eb);
+        box-shadow: 0 18px 30px rgba(15, 23, 42, 0.12);
+    }
+
+    .borrowed-book-card .book-image::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.38));
+        pointer-events: none;
+    }
+
+    .borrowed-book-card .book-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transform: scale(1.01);
+        transition: transform .6s ease;
+    }
+
+    .borrowed-book-card:hover .book-image img {
+        transform: scale(1.06);
+    }
+
+    .borrow-card-badge {
+        position: absolute;
+        top: 14px;
+        left: 14px;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #1d4ed8;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: .02em;
+    }
+
+    .borrowed-book-card .book-info {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        text-align: left;
+    }
+
+    .borrowed-book-card .book-title {
+        min-height: 52px;
+        margin-bottom: 10px;
+        font-size: 18px;
+        line-height: 1.45;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .borrowed-book-card .book-author {
+        min-height: 30px;
+        margin-bottom: 14px;
+        font-size: 15px;
+        color: #64748b;
+    }
+
+    .borrow-card-note {
+        margin: 0 0 14px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #0f766e;
+    }
+
+    .borrow-meta-inline,
+    .borrow-meta-stack {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .borrow-meta-inline {
+        margin-bottom: 14px;
+    }
+
+    .borrow-meta-chip,
+    .borrow-meta-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.84);
+        border: 1px solid rgba(226, 232, 240, 0.95);
+        color: #334155;
+        font-size: 13px;
+        font-weight: 700;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    }
+
+    .borrow-status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 800;
+        color: #fff;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+    }
+
+    .borrow-status-success { background: linear-gradient(135deg, #10b981, #059669); }
+    .borrow-status-warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .borrow-status-danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .borrow-status-info { background: linear-gradient(135deg, #06b6d4, #0284c7); }
+    .borrow-status-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .borrow-status-secondary { background: linear-gradient(135deg, #64748b, #475569); }
+
+    .borrow-meta-grid {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .borrow-meta-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: rgba(248, 250, 252, 0.86);
+        border: 1px solid rgba(226, 232, 240, 0.95);
+    }
+
+    .borrow-meta-row-label {
+        font-size: 13px;
+        font-weight: 700;
+        color: #475569;
+    }
+
+    .borrow-meta-row-value {
+        text-align: right;
+        font-size: 13px;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .book-borrow-info {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 4px;
+    }
+
+    .book-borrow-info p {
+        margin: 0;
+        font-size: 13px;
+        color: #475569;
+    }
+
+    .borrow-card-actions {
+        margin-top: auto;
+        padding-top: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .borrow-card-actions form {
+        margin: 0 !important;
+    }
+
+    .borrow-card-hint {
+        margin: 0;
+        padding: 12px 14px;
+        border-radius: 14px;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .borrow-card-hint.info {
+        color: #1d4ed8;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+    }
+
+    .borrow-card-hint.danger {
+        color: #b91c1c;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+    }
+
+    .borrow-card-notice {
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        line-height: 1.65;
+    }
+
+    .borrow-card-notice.warning {
+        background: #fff7ed;
+        color: #9a3412;
+        border-color: #fdba74;
+    }
+
+    .borrow-card-notice.success {
+        background: #ecfdf5;
+        color: #047857;
+        border-color: #a7f3d0;
+    }
+
+    .borrow-card-notice.danger {
+        background: #fef2f2;
+        color: #b91c1c;
+        border-color: #fecaca;
+    }
+
     .img-preview-container {
         margin-top: 1rem;
         border: 2px dashed #ddd;
@@ -51,11 +336,12 @@
             <a href="{{ route('books.public') }}" class="btn-primary">Xem danh sách sách</a>
         </div>
     @elseif($borrows->total() > 0)
-        <div class="books-grid">
+        <div class="books-grid borrowed-books-grid">
             {{-- Hiển thị các Borrow đang mượn --}}
             @foreach($borrows as $borrow)
-                <div class="book-card">
+                <div class="book-card borrowed-book-card">
                     <div class="book-image">
+                        <div class="borrow-card-badge"><span>📘</span> Đang theo dõi</div>
                         @if($borrow->book && $borrow->book->hinh_anh)
                             <img src="{{ $borrow->book->image_url ?? asset('images/default-book.png') }}" alt="{{ $borrow->book->ten_sach }}">
                         @else
@@ -65,6 +351,7 @@
                     <div class="book-info">
                         <h3 class="book-title">{{ $borrow->book->ten_sach ?? 'N/A' }}</h3>
                         <p class="book-author">{{ $borrow->book->tac_gia ?? '' }}</p>
+                        <p class="borrow-card-note">Phiếu mượn #{{ $borrow->id }} · Theo dõi lịch trả và trạng thái xử lý</p>
                         <div class="book-meta">
                             @php
                                 $firstItem = $borrow->borrowItems->first();
@@ -84,20 +371,20 @@
                                 $statusColor = $statusConfig['color'] ?? 'secondary';
                                 }
                             @endphp
-                            <p><strong>Trạng thái:</strong> 
-                                <span class="status-badge status-{{ $statusColor }}" style="
-                                    display: inline-block;
-                                    padding: 4px 10px;
-                                    border-radius: 12px;
-                                    font-size: 12px;
-                                    font-weight: 600;
-                                    background-color: {{ $statusColor === 'warning' ? '#ffc107' : ($statusColor === 'success' ? '#28a745' : ($statusColor === 'danger' ? '#dc3545' : ($statusColor === 'info' ? '#17a2b8' : ($statusColor === 'primary' ? '#007bff' : '#6c757d')))) }};
-                                    color: white;
-                                ">
+                            <div class="borrow-meta-inline">
+                                <span class="borrow-status-pill borrow-status-{{ $statusColor }}">
                                     {{ $statusLabel }}
                                 </span>
-                            </p>
-                            <p><strong>Ngày mượn:</strong> 
+                                @if($hasOverdue)
+                                    <span class="borrow-meta-chip">⚠️ Quá hạn</span>
+                                @else
+                                    <span class="borrow-meta-chip">⏳ Đang lưu hành</span>
+                                @endif
+                            </div>
+                            <div class="borrow-meta-grid">
+                                <div class="borrow-meta-row">
+                                    <span class="borrow-meta-row-label">Ngày mượn</span>
+                                    <span class="borrow-meta-row-value">
                                 @php
                                     $ngayMuon = $borrow->ngay_muon;
                                     if ($ngayMuon && !($ngayMuon instanceof \Carbon\Carbon)) {
@@ -105,10 +392,12 @@
                                     }
                                 @endphp
                                 {{ $ngayMuon ? $ngayMuon->format('d/m/Y') : $borrow->created_at->format('d/m/Y') }}
-                            </p>
+                                    </span>
+                                </div>
                             @if($firstItem)
-                            <p><strong>Hạn trả:</strong> 
-                                <span class="{{ $hasOverdue ? 'text-danger' : '' }}">
+                                <div class="borrow-meta-row">
+                                    <span class="borrow-meta-row-label">Hạn trả</span>
+                                    <span class="borrow-meta-row-value {{ $hasOverdue ? 'text-danger' : '' }}">
                                     @php
                                         $ngayHenTra = $firstItem->ngay_hen_tra;
                                         if ($ngayHenTra && !($ngayHenTra instanceof \Carbon\Carbon)) {
@@ -116,8 +405,9 @@
                                         }
                                     @endphp
                                     {{ $ngayHenTra ? $ngayHenTra->format('d/m/Y') : 'Chưa xác định' }}
-                                </span>
-                            </p>
+                                    </span>
+                                </div>
+                            </div>
                             @if($hasOverdue)
                                 @php
                                     $ngayHenTraForDiff = $firstItem->ngay_hen_tra;
@@ -126,10 +416,12 @@
                                     }
                                     $daysOverdue = $ngayHenTraForDiff ? \Carbon\Carbon::today()->diffInDays($ngayHenTraForDiff) : 0;
                                 @endphp
-                                <p class="text-danger"><strong>Quá hạn:</strong> {{ $daysOverdue }} ngày</p>
+                                <p class="borrow-card-hint danger"><strong>Quá hạn:</strong> {{ $daysOverdue }} ngày</p>
                             @endif
                             @if($firstItem->so_lan_gia_han > 0)
-                                <p><strong>Số lần gia hạn:</strong> {{ $firstItem->so_lan_gia_han }}/2</p>
+                                <div class="borrow-meta-stack">
+                                    <span class="borrow-meta-pill">🔁 Gia hạn {{ $firstItem->so_lan_gia_han }}/2 lần</span>
+                                </div>
                             @endif
                             @endif
                             @if($borrow->ngay_yeu_cau_tra_sach)
@@ -139,7 +431,7 @@
                                         $ngayYeuCauTra = \Carbon\Carbon::parse($ngayYeuCauTra);
                                     }
                                 @endphp
-                                <p><strong>Ngày yêu cầu trả:</strong> {{ $ngayYeuCauTra ? $ngayYeuCauTra->format('d/m/Y H:i') : '' }}</p>
+                                <p class="borrow-card-hint info"><strong>Ngày yêu cầu trả:</strong> {{ $ngayYeuCauTra ? $ngayYeuCauTra->format('d/m/Y H:i') : '' }}</p>
                             @endif
                         </div>
                         <div class="book-borrow-info">
@@ -156,7 +448,7 @@
                                     && !$borrow->customer_confirmed_delivery && !$borrow->customer_rejected_delivery;
                             @endphp
                             @if($needsConfirmation)
-                                <div class="alert alert-warning" style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px;">
+                                <div class="borrow-card-notice warning">
                                     @if($borrow->trang_thai_chi_tiet === 'dang_giao_hang')
                                         <strong>📦 Đã nhận sách:</strong> Nếu bạn đã nhận sách, vui lòng xác nhận để hoàn tất quá trình giao hàng.
                                     @else
@@ -165,6 +457,7 @@
                                 </div>
                             @endif
                         </div>
+                        <div class="borrow-card-actions">
                         @if($borrow->borrowItems && $borrow->borrowItems->count() > 0)
                             <button type="button" class="btn-view-book" onclick="showBorrowDetail({{ $borrow->id }})">Xem chi tiết</button>
                             @php
@@ -185,9 +478,9 @@
                                     </form>
                                 @endif
                             @elseif($firstItem && $firstItem->so_lan_gia_han >= 2)
-                                <p style="margin-top: 8px; font-size: 12px; color: #999;">Đã gia hạn tối đa 2 lần, không thể gia hạn thêm.</p>
+                                <p class="borrow-card-hint info">Đã gia hạn tối đa 2 lần, không thể gia hạn thêm.</p>
                             @elseif($hasOverdue)
-                                <p style="margin-top: 8px; font-size: 12px; color: #dc3545;">Sách đã quá hạn, vui lòng hoàn trả hoặc liên hệ thư viện để xử lý.</p>
+                                <p class="borrow-card-hint danger">Sách đã quá hạn, vui lòng hoàn trả hoặc liên hệ thư viện để xử lý.</p>
                             @endif
                         @endif
                             @php
@@ -201,9 +494,9 @@
                                 $isReturnShipping = $borrow->trang_thai_chi_tiet === 'dang_van_chuyen_tra_ve';
                             @endphp
                             @if($needsConfirmation)
-                                <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;">
-                                    <strong style="display: block; margin-bottom: 10px; color: #856404;">📦 Chờ khách xác nhận nhận sách</strong>
-                                    <p style="margin-bottom: 10px; color: #856404; font-size: 14px;">
+                                <div class="borrow-card-notice warning">
+                                    <strong style="display: block; margin-bottom: 10px;">📦 Chờ khách xác nhận nhận sách</strong>
+                                    <p style="margin-bottom: 10px; font-size: 14px;">
                                         Bạn chỉ cần nhấn nút <strong>\"Xác nhận đã nhận\"</strong> sau khi sách đã được giao tới.
                                         Ảnh tình trạng sách khi giao sẽ do Thủ thư/Admin upload và dùng làm chuẩn so sánh.
                                     </p>
@@ -211,8 +504,7 @@
                                         @csrf
                                         <button 
                                             type="submit" 
-                                            class="btn-confirm-delivery" 
-                                            style="width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; font-weight: 600; cursor: pointer;">
+                                            class="btn-confirm-delivery">
                                             ✅ Xác nhận đã nhận sách
                                         </button>
                                     </form>
@@ -230,10 +522,9 @@
                                             ❌ Từ chối nhận sách
                                         </button>
                                     @endif --}}
-                                </div>
                             @endif
                             @if($borrow->customer_rejected_delivery)
-                                <div class="alert alert-danger" style="margin-top: 10px; padding: 10px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px;">
+                                <div class="borrow-card-notice danger">
                                     <strong>⚠️ Đã từ chối nhận sách:</strong> 
                                     @if($borrow->customer_rejection_reason)
                                         <br>{{ $borrow->customer_rejection_reason }}
@@ -242,7 +533,7 @@
                                 </div>
                             @endif
                         @if($canReturnBook)
-                            <div class="alert alert-warning" style="margin-top: 10px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px;">
+                            <div class="borrow-card-notice warning">
                                 <strong>📦 Chờ hoàn trả:</strong> Admin đã yêu cầu bạn trả sách. Vui lòng chuẩn bị sách và xác nhận hoàn trả.
                             </div>
                             <button 
@@ -251,16 +542,16 @@
                                 data-borrow-action="return-book"
                                 data-borrow-id="{{ $borrow->id }}"
                                 data-current-status="{{ $borrow->trang_thai_chi_tiet }}"
-                                onclick="showReturnBookModal({{ $borrow->id }})" 
-                                style="margin-top: 10px;">
+                                onclick="showReturnBookModal({{ $borrow->id }})">
                                 ✅ Hoàn trả sách
                             </button>
                         @endif
                         @if($isReturnShipping)
-                            <div class="alert alert-success" style="margin-top: 10px; padding: 10px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px;">
+                            <div class="borrow-card-notice success">
                                 <strong>🚚 Đang vận chuyển trả về:</strong> Sách của bạn đang được vận chuyển trả về thư viện. Vui lòng chuẩn bị sách để giao cho shipper.
                             </div>
                         @endif
+                        </div>
                     </div>
                 </div>
             @endforeach
@@ -796,38 +1087,42 @@
 
 .btn-view-book {
     width: 100%;
-    margin-top: 15px;
-    padding: 10px;
-    background-color: #d82329;
+    margin-top: 0;
+    padding: 13px 16px;
+    background: linear-gradient(135deg, #ef4444, #be123c);
     color: white;
     border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 800;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    box-shadow: 0 14px 26px rgba(190, 24, 93, 0.22);
 }
 
 .btn-view-book:hover {
-    background-color: #b71c1c;
+    transform: translateY(-2px);
+    box-shadow: 0 18px 30px rgba(190, 24, 93, 0.28);
 }
 
 .btn-confirm-delivery {
     width: 100%;
-    margin-top: 10px;
-    padding: 12px;
-    background-color: #28a745;
+    margin-top: 0;
+    padding: 13px 16px;
+    background: linear-gradient(135deg, #10b981, #059669);
     color: white;
     border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 800;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    box-shadow: 0 14px 26px rgba(5, 150, 105, 0.22);
 }
 
 .btn-confirm-delivery:hover {
-    background-color: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 18px 30px rgba(5, 150, 105, 0.28);
 }
 
 .btn-confirm-delivery:disabled {
@@ -870,38 +1165,42 @@
 
 .btn-return-book {
     width: 100%;
-    margin-top: 10px;
-    padding: 12px;
-    background-color: #28a745;
+    margin-top: 0;
+    padding: 13px 16px;
+    background: linear-gradient(135deg, #10b981, #059669);
     color: white;
     border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 800;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    box-shadow: 0 14px 26px rgba(5, 150, 105, 0.22);
 }
 
 .btn-return-book:hover {
-    background-color: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 18px 30px rgba(5, 150, 105, 0.28);
 }
 
 .btn-extend-borrow {
     width: 100%;
-    margin-top: 8px;
-    padding: 10px;
-    background-color: #0d6efd;
+    margin-top: 0;
+    padding: 13px 16px;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
     color: white;
     border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 800;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    box-shadow: 0 14px 26px rgba(37, 99, 235, 0.22);
 }
 
 .btn-extend-borrow:hover {
-    background-color: #0b5ed7;
+    transform: translateY(-2px);
+    box-shadow: 0 18px 30px rgba(37, 99, 235, 0.28);
 }
 </style>
 
@@ -1190,6 +1489,7 @@
                     })())} đ</span>
                 </div>
             </div>
+                ` : ''}
         `;
 
         // Hiển thị danh sách sách mượn
