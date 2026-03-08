@@ -52,8 +52,7 @@ return [
         'api_key' => env('GEMINI_API_KEY', ''),
     ],
 
- 
-=======
+
     'momo' => [
         // Ưu tiên đọc theo key mới, fallback cho các key cũ nếu có
         'endpoint'     => env('MOMO_ENDPOINT', env('MOMO_API_URL', 'https://test-payment.momo.vn/v2/gateway/api/create')),

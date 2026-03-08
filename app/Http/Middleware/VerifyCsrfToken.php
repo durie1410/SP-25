@@ -11,22 +11,12 @@ class VerifyCsrfToken extends Middleware
      *
      * @var array<int, string>
      */
-    /**
-     * The URIs that should be excluded from CSRF verification.
-     *
-     * @var array<int, string>
-     */
 
     protected $except = [
- 
-    'gemini-chat/*',
-];
-=======
+        'gemini-chat/*',
         '/momo/notify',
         '/momo/ipn',
         '/borrows/momo/ipn',
         '/admin/borrows/fine-momo/ipn',
     ];
-
-
 }
