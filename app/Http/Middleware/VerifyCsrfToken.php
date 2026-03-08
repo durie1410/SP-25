@@ -19,6 +19,7 @@ class VerifyCsrfToken extends Middleware
 
     protected $except = [
     '/momo/notify',
+    'gemini-chat/*',
 ];
 
 }

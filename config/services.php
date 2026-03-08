@@ -47,7 +47,11 @@ return [
         'curr_code' => env('VNPAY_CURR_CODE', 'VND'),
         'locale' => env('VNPAY_LOCALE', 'vn'),
     ],
-'momo' => [
+'gemini' => [
+        'api_key' => env('GEMINI_API_KEY', ''),
+    ],
+
+    'momo' => [
     'endpoint'     => env('MOMO_ENDPOINT'),
     'partner_code' => env('MOMO_PARTNER_CODE'),
     'access_key'   => env('MOMO_ACCESS_KEY'),

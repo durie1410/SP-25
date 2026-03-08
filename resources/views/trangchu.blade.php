@@ -12,7 +12,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Libhub - Thư viện Trực tuyến</title>
+    <title>Libhub - Thuê sách &amp; Thư viện trực tuyến</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/style.css') }}?v={{ time() }}">
 </head>
@@ -97,7 +97,7 @@
                                         <div class="slide-placeholder">
                                             <div class="placeholder-content">
                                                 <h2>{{ $banner['title'] }}</h2>
-                                                <p>Khám phá thư viện sách đa dạng</p>
+                                                <p>Thuê sách xây dựng &amp; tài liệu kỹ thuật dễ dàng</p>
                                             </div>
                                         </div>
                                     @endif
@@ -147,7 +147,7 @@
                         @else
                             <div class="panel-icon">📥</div>
                         @endif
-                            <h3>Danh mục<br><strong>SÁCH</strong></h3>
+                            <h3>Danh mục<br><strong>SÁCH CHO THUÊ</strong></h3>
                     </div>
                     </a>
                     <a href="{{ route('guide.borrow-return') }}" class="panel-link">
@@ -157,7 +157,7 @@
                         @else
                             <div class="panel-icon">📋</div>
                         @endif
-                            <h3>Hướng dẫn<br><strong>Mượn / Trả sách</strong></h3>
+                            <h3>Hướng dẫn<br><strong>MƯỢN / TRẢ SÁCH</strong></h3>
                     </div>
                     </a>
                 </div>
@@ -191,14 +191,14 @@
                         }
                     }
                 @endphp
-                <div class="cooperation-banner {{ $cooperationImage ? 'has-image' : '' }}">
+                    <div class="cooperation-banner {{ $cooperationImage ? 'has-image' : '' }}">
                     @if($cooperationImage)
                         <img src="{{ $cooperationImage }}" alt="LIÊN KẾT - HỢP TÁC XUẤT BẢN" class="cooperation-image">
                     @endif
                     <div class="coop-content">
                         <div class="coop-text">
-                            <h2>LIÊN KẾT - HỢP TÁC XUẤT BẢN</h2>
-                            <p>Hiện thực hóa cuốn sách của bạn</p>
+                            <h2>LIÊN KẾT - HỢP TÁC THƯ VIỆN</h2>
+                            <p>Triển khai hệ thống thuê sách &amp; quản lý thư viện</p>
                             <p class="coop-hotline">HOTLINE: 0327.888.669</p>
                             <button class="coop-btn"><span>XEM CHI TIẾT</span></button>
                         </div>
@@ -216,10 +216,10 @@
                 </a>
             </div>
 
-            <!-- Phần Bảng Xếp Hạng -->
+            <!-- Phần Top sách được mượn nhiều -->
             <div class="book-section">
                 <div class="section-header">
-                    <h2 class="section-title">Bảng Xếp Hạng</h2>
+                    <h2 class="section-title">Top sách được mượn nhiều</h2>
                     <a href="{{ route('books.public', ['category_id' => null]) }}" class="view-all-link">
                         Xem toàn bộ <span>→</span>
                     </a>
@@ -306,10 +306,10 @@
             <!-- Phần Sách mới và Sách mua nhiều nhất -->
             <div class="upgrade-bestbooks-section">
                 <div class="left-column">
-                    <!-- Phần Sách mới -->
+                    <!-- Phần Sách mới về -->
                     <div class="book-section">
                         <div class="section-header">
-                            <h2 class="section-title">Sách mới</h2>
+                            <h2 class="section-title">Sách mới về</h2>
                             <a href="{{ route('books.public', ['category_id' => null]) }}" class="view-all-link">
                                 Xem toàn bộ <span>→</span>
                             </a>
@@ -535,9 +535,9 @@
                 <div class="right-column">
                     <!-- Phần Sách mua nhiều nhất và Sách xem nhiều nhất -->
                     <div class="bestbooks-container">
-                        <!-- Phần Sách mua nhiều nhất -->
+                        <!-- Phần Sách được mượn nhiều nhất -->
                         <div class="bestbooks-section">
-                            <h2 class="section-title-bestbooks">Sách mua nhiều nhất</h2>
+                            <h2 class="section-title-bestbooks">Sách được mượn nhiều nhất</h2>
                             <div class="bestbooks-list">
                                 @forelse($top_selling_books ?? [] as $index => $book)
                                     <div class="bestbook-item">
@@ -557,7 +557,7 @@
                                             <div class="bestbook-info">
                                                 <h3 class="bestbook-title">{{ Str::limit($book->ten_sach, 60) }}</h3>
                                                 <p class="bestbook-purchases">
-                                                    {{ number_format($book->so_luong_ban ?? 0, 0, ',', '.') }} lượt mua
+                                                    {{ number_format($book->so_luong_ban ?? 0, 0, ',', '.') }} lượt mượn
                                                 </p>
                                             </div>
                                         </a>
@@ -1596,6 +1596,9 @@
     </style>
 
     @include('components.footer')
+
+    {{-- Gemini AI Chatbox --}}
+    @include('components.chatbox')
 </body>
 
 </html>

@@ -31,6 +31,28 @@ use App\Http\Controllers\MomoController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\FinePaymentController;
 use App\Http\Controllers\FinePaymentsController;
+use App\Http\Controllers\GeminiChatController;
+
+// ============================================================
+// GEMINI AI CHATBOX ROUTES
+// ============================================================
+Route::post('/gemini-chat/send', [GeminiChatController::class, 'send'])->name('gemini.chat.send');
+Route::post('/gemini-chat/clear', [GeminiChatController::class, 'clearHistory'])->name('gemini.chat.clear');
+Route::get('/gemini-chat/debug', [GeminiChatController::class, 'debug'])->name('gemini.chat.debug');
+
+// Test chatbox page
+Route::get('/test/chatbox', function () {
+    return view('test.chatbox-test');
+})->name('gemini.chat.test');
+
+Route::get('/test/chatbox/config', function () {
+    $apiKey = config('services.gemini.api_key');
+    return response()->json([
+        'env_exists' => !empty($apiKey),
+        'key_length' => strlen($apiKey ?? ''),
+        'config_exists' => config()->has('services.gemini'),
+    ]);
+})->name('gemini.chat.test.config');
 
 Route::post('/momo/create', [MomoController::class, 'createPayment'])
     ->name('momo.create');
