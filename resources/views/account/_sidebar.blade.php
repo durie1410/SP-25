@@ -26,10 +26,6 @@
             <li class="{{ $currentRoute === 'account.change-password' ? 'active' : '' }}">
                 <a href="{{ route('account.change-password') }}"><span class="icon">🔒</span> Đổi mật khẩu</a>
             </li>
-            <li
-                class="{{ in_array($currentRoute, ['account.wallet', 'account.wallet.transactions']) ? 'active' : '' }}">
-                <a href="{{ route('account.wallet') }}"><span class="icon">💰</span> Ví của tôi</a>
-            </li>
             <li class="{{ in_array($currentRoute, ['orders.index', 'orders.detail', 'orders.show']) ? 'active' : '' }}">
                 <a href="{{ route('orders.index') }}"><span class="icon">📋</span> Lịch sử đơn mượn</a>
             </li>

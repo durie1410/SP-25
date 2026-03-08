@@ -128,7 +128,7 @@
                             <span class="badge bg-success">Đã trả</span>
                             @break
                         @case('Qua han')
-                            <span class="badge bg-danger">Quá hạn</span>
+                            <span class="badge bg-danger">Quá hạn ({{ max(0, (int) ($borrow->days_overdue ?? 0)) }} ngày)</span>
                             @break
                         @default
                             <span class="badge bg-warning text-dark">{{ $borrow->trang_thai }}</span>
@@ -211,6 +211,29 @@
                     </div>
                 </div>
                 @endif
+
+                @if($borrow->anh_bia_truoc || $borrow->anh_bia_sau || $borrow->anh_gay_sach)
+                <div class="mt-3" id="upload-anh-nhan-sach">
+                    <p class="mb-2"><strong>Ảnh xác nhận khách nhận sách tại quầy:</strong></p>
+                    <div class="d-flex flex-wrap gap-2">
+                        @if($borrow->anh_bia_truoc)
+                            <a href="{{ $borrow->anh_bia_truoc }}" target="_blank">
+                                <img src="{{ $borrow->anh_bia_truoc }}" alt="Ảnh bìa trước" class="img-thumbnail" style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;">
+                            </a>
+                        @endif
+                        @if($borrow->anh_bia_sau)
+                            <a href="{{ $borrow->anh_bia_sau }}" target="_blank">
+                                <img src="{{ $borrow->anh_bia_sau }}" alt="Ảnh bìa sau" class="img-thumbnail" style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;">
+                            </a>
+                        @endif
+                        @if($borrow->anh_gay_sach)
+                            <a href="{{ $borrow->anh_gay_sach }}" target="_blank">
+                                <img src="{{ $borrow->anh_gay_sach }}" alt="Ảnh gáy sách" class="img-thumbnail" style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;">
+                            </a>
+                        @endif
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
 
@@ -273,6 +296,7 @@
                         <th>Tài chính</th>
                         <th>Hẹn trả</th>
                         <th>Trạng thái</th>
+                        <th>Xác nhận nhận sách</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -312,10 +336,44 @@
                         <td>
                             @php
                                 $statusClass = str_replace(' ', '-', $item->trang_thai);
+                                $itemStatusText = $item->trang_thai;
+
+                                if ($item->trang_thai === 'Qua han' && !empty($item->ngay_hen_tra)) {
+                                    $itemOverdueDays = \Carbon\Carbon::parse($item->ngay_hen_tra)
+                                        ->startOfDay()
+                                        ->diffInDays(now()->startOfDay());
+                                    $itemStatusText = 'Quá hạn (' . ($itemOverdueDays ?? 0) . ' ngày)';
+                                }
                             @endphp
                             <span class="status-badge status-{{ $statusClass }}">
-                                {{ $item->trang_thai }}
+                                {{ $itemStatusText }}
                             </span>
+                        </td>
+                        <td>
+                            @if($item->anh_bia_truoc || $item->anh_bia_sau || $item->anh_gay_sach || $item->ghi_chu_nhan_sach)
+                                <div class="d-flex flex-wrap gap-1 mb-2">
+                                    @if($item->anh_bia_truoc)
+                                        <a href="{{ $item->anh_bia_truoc }}" target="_blank">
+                                            <img src="{{ $item->anh_bia_truoc }}" alt="Bìa trước" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;">
+                                        </a>
+                                    @endif
+                                    @if($item->anh_bia_sau)
+                                        <a href="{{ $item->anh_bia_sau }}" target="_blank">
+                                            <img src="{{ $item->anh_bia_sau }}" alt="Bìa sau" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;">
+                                        </a>
+                                    @endif
+                                    @if($item->anh_gay_sach)
+                                        <a href="{{ $item->anh_gay_sach }}" target="_blank">
+                                            <img src="{{ $item->anh_gay_sach }}" alt="Gáy sách" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;">
+                                        </a>
+                                    @endif
+                                </div>
+                                @if($item->ghi_chu_nhan_sach)
+                                    <div class="small text-muted">{{ $item->ghi_chu_nhan_sach }}</div>
+                                @endif
+                            @else
+                                <span class="text-muted small">Chưa có</span>
+                            @endif
                         </td>
                     </tr>
                     @endforeach
@@ -482,6 +540,32 @@
             phiHongInput.addEventListener('input', updateImpact);
             updateImpact(); // Initial call
         }
+
+        const bindImagePreview = (inputId, previewId) => {
+            const input = document.getElementById(inputId);
+            const preview = document.getElementById(previewId);
+            if (!input || !preview) return;
+
+            input.addEventListener('change', function() {
+                const file = this.files && this.files[0];
+                if (!file) {
+                    preview.src = '';
+                    preview.classList.add('d-none');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('d-none');
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+
+        bindImagePreview('anh_bia_truoc_input', 'anh_bia_truoc_preview');
+        bindImagePreview('anh_bia_sau_input', 'anh_bia_sau_preview');
+        bindImagePreview('anh_gay_sach_input', 'anh_gay_sach_preview');
     });
 </script>
 @endpush

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BorrowItem;
 use App\Models\Book;
 use App\Models\Fine;
+use App\Services\PricingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -90,16 +91,34 @@ public function update(Request $request, $id)
      */
    public function show($id)
 {
-    $borrowItem = BorrowItem::with(['borrow.reader', 'book'])->findOrFail($id);
+    $borrowItem = BorrowItem::with(['borrow.reader', 'book', 'inventory.book'])->findOrFail($id);
 
-    $today = Carbon::today(); // giờ = 00:00:00
-    $borrowDate = $borrowItem->ngay_muon->copy()->startOfDay();
-    $dueDate = $borrowItem->ngay_hen_tra->copy()->startOfDay();
+    $today = Carbon::today();
+    $borrowDate = $borrowItem->ngay_muon ? Carbon::parse($borrowItem->ngay_muon)->startOfDay() : null;
+    $dueDate = $borrowItem->ngay_hen_tra ? Carbon::parse($borrowItem->ngay_hen_tra)->startOfDay() : null;
+
+    $book = $borrowItem->book ?? optional($borrowItem->inventory)->book;
+    $displayTienThue = (float) ($borrowItem->tien_thue ?? 0);
+    $displayTienPhat = (float) ($borrowItem->tien_phat ?? 0);
+
+    if ($displayTienThue <= 0 && $book && $borrowDate && $dueDate) {
+        $days = max(1, $borrowDate->diffInDays($dueDate));
+        $displayTienThue = PricingService::calculateRentalFee((float) ($book->gia ?? 0), $days, optional($borrowItem->inventory)->condition ?? 'Trung binh');
+
+        if ($displayTienThue > 0) {
+            $borrowItem->tien_thue = $displayTienThue;
+            $borrowItem->save();
+
+            if ($borrowItem->borrow) {
+                $borrowItem->borrow->recalculateTotals();
+            }
+        }
+    }
 
     // Số ngày còn lại (dương = còn hạn, 0 = hết hạn hôm nay, âm = quá hạn)
-    $borrowItem->days_remaining = $dueDate->diffInDays($today, false) * -1;
+    $borrowItem->days_remaining = $dueDate ? ($dueDate->diffInDays($today, false) * -1) : null;
 
-    return view('admin.borrowsitem.show', compact('borrowItem', 'borrowDate', 'dueDate'));
+    return view('admin.borrowsitem.show', compact('borrowItem', 'borrowDate', 'dueDate', 'displayTienThue', 'displayTienPhat'));
 }
 
 public function approve($id)

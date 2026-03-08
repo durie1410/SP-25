@@ -18,8 +18,15 @@ class VerifyCsrfToken extends Middleware
      */
 
     protected $except = [
-    '/momo/notify',
+ 
     'gemini-chat/*',
 ];
+=======
+        '/momo/notify',
+        '/momo/ipn',
+        '/borrows/momo/ipn',
+        '/admin/borrows/fine-momo/ipn',
+    ];
+
 
 }

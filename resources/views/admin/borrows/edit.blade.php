@@ -238,13 +238,6 @@
 
                 @endif
 
-                {{-- Tổng tiền --}}
-                {{-- nếu có thẻ thì tiền thuê=miễn phí --}}
-                @if($borrow->reader && $borrow->reader->id)
-                    <p class="mb-1"><strong>Tổng tiền thuê:</strong> <span id="totalRent">MIỄN PHÍ</span></p>
-                @else
-                    <p class="mb-1"><strong>Tổng tiền thuê:</strong> <span id="totalRent">{{ number_format($borrow->items->sum('tien_thue')) }}₫</span></p>
-                @endif
                 <p class="mb-1"><strong>Tổng thanh toán:</strong> <span class="fw-bold text-success" id="finalAmount">{{ number_format($borrow->tong_tien) }}₫</span></p>
                 <input type="hidden" name="tong_tien" id="tongTienInput" value="{{ $borrow->tong_tien }}">
 

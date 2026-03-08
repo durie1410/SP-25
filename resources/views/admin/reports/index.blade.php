@@ -5,7 +5,15 @@
 @section('content')
 <div class="admin-table">
     <h3><i class="fas fa-chart-bar"></i> Báo cáo thống kê</h3>
+<div class="flex gap-2 mb-4">
+    <a href="/admin/reports/export-csv" class="bg-green-500 text-white px-4 py-2 rounded">
+        Xuất CSV
+    </a>
 
+    <a href="/admin/reports/export-pdf" class="bg-red-500 text-white px-4 py-2 rounded">
+        Xuất PDF
+    </a>
+</div>
     <!-- Thống kê tổng quan -->
     <div class="row mb-4">
         <div class="col-md-2">
@@ -204,7 +212,9 @@
             }
         }
     });
+    
 </script>
+
 @endsection
 
 

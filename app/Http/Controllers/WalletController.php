@@ -3,10 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Wallet;
-use App\Models\WalletTransaction;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class WalletController extends Controller
 {
@@ -18,16 +17,22 @@ class WalletController extends Controller
         $user = auth()->user();
         $user->load('reader');
         
-        // Lấy hoặc tạo wallet cho user
-        $wallet = Wallet::getOrCreateForUser($user->id);
-        
-        // Refresh để đảm bảo lấy số dư mới nhất từ database
-        $wallet->refresh();
-        
-        // Lấy các giao dịch gần đây (10 giao dịch)
-        $transactions = $wallet->transactions()
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+        // Chỉ lấy ví hiện có, không tự tạo mới để tôn trọng thao tác xóa ví của người dùng
+        $wallet = Wallet::where('user_id', $user->id)->first();
+
+        if ($wallet) {
+            $wallet->refresh();
+
+            // Lấy các giao dịch gần đây (10 giao dịch)
+            $transactions = $wallet->transactions()
+                ->orderBy('created_at', 'desc')
+                ->paginate(10);
+        } else {
+            $transactions = new LengthAwarePaginator([], 0, 10, 1, [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ]);
+        }
         
         return view('account.wallet', compact('wallet', 'transactions'));
     }
@@ -40,7 +45,11 @@ class WalletController extends Controller
         $user = auth()->user();
         $user->load('reader');
         
-        $wallet = Wallet::getOrCreateForUser($user->id);
+        $wallet = Wallet::where('user_id', $user->id)->first();
+
+        if (!$wallet) {
+            return redirect()->route('account.wallet')->with('info', 'Ví của bạn đã được xóa hoặc chưa được tạo.');
+        }
         
         // Refresh để đảm bảo lấy số dư mới nhất từ database
         $wallet->refresh();
@@ -64,6 +73,26 @@ class WalletController extends Controller
         $transactions = $query->paginate(20);
         
         return view('account.wallet-transactions', compact('wallet', 'transactions'));
+    }
+
+    /**
+     * Xóa ví của người dùng hiện tại
+     */
+    public function destroy(Request $request)
+    {
+        $userId = auth()->id();
+
+        $wallet = Wallet::where('user_id', $userId)->first();
+
+        if (!$wallet) {
+            return redirect()->route('account.wallet')->with('info', 'Ví của bạn không tồn tại hoặc đã được xóa trước đó.');
+        }
+
+        DB::transaction(function () use ($wallet) {
+            $wallet->delete();
+        });
+
+        return redirect()->route('account.wallet')->with('success', 'Đã xóa ví của bạn thành công.');
     }
 }
 

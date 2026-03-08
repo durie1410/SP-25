@@ -36,6 +36,19 @@
                         <span class="fw-bold text-danger">{{ number_format($borrow->tien_thue ?? 0) }}₫</span>
                     </div>
 
+                    @if(!empty($momoQrUrl) && !empty($momoPayUrl))
+                        <div class="alert alert-warning mt-3 mb-0">
+                            <div class="fw-bold mb-2"><i class="fas fa-qrcode me-1"></i> Mã thanh toán MoMo</div>
+                            <div class="d-flex flex-column align-items-center gap-2">
+                                <img src="{{ $momoQrUrl }}" alt="MoMo QR" style="width: 220px; height: 220px; border: 1px solid #dee2e6; border-radius: 8px; background: #fff; padding: 6px;">
+                                <div class="small text-muted">Mã đơn: <strong>{{ $momoOrderId }}</strong></div>
+                                <a href="{{ $momoPayUrl }}" target="_blank" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-external-link-alt me-1"></i> Mở trang thanh toán MoMo
+                                </a>
+                            </div>
+                        </div>
+                    @endif
+
                     @if($successPayment)
                         <div class="alert alert-success mt-3 mb-0">
                             <div class="fw-bold"><i class="fas fa-check-circle me-1"></i> Đã thanh toán</div>
@@ -66,20 +79,16 @@
                             </div>
                         </div>
 
-                        <form action="{{ route('admin.borrows.confirm-cash-payment', $borrow->id) }}" method="POST" class="mt-3">
+                        <form id="paymentWithImagesForm" action="{{ route('admin.borrows.confirm-cash-payment', $borrow->id) }}" method="POST" class="mt-3" enctype="multipart/form-data">
                             @csrf
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Phương thức thanh toán</label>
-                                <select name="payment_method" class="form-select" required>
-                                    <option value="offline">Tiền mặt</option>
-                                    <option value="online">Quét mã</option>
-                                </select>
-                                <div class="form-text">Thanh toán xong hệ thống mới chuyển phiếu mượn sang trạng thái <strong>Đang mượn</strong>.</div>
+                            <input type="hidden" name="payment_method" value="online">
+                            <div class="mb-3 form-text">
+                                Hệ thống sẽ tạo mã <strong>MoMo</strong> để khách hàng quét và thanh toán online.
                             </div>
 
                             <button type="submit" class="btn btn-success w-100"
-                                    onclick="return confirm('Xác nhận đã thu tiền cho phiếu mượn #{{ $borrow->id }}?')">
-                                <i class="fas fa-money-bill-wave me-1"></i> Xác nhận đã thanh toán
+                                    onclick="return confirm('Tiếp tục xử lý thanh toán cho phiếu mượn #{{ $borrow->id }}?')">
+                                <i class="fas fa-qrcode me-1"></i> Tạo mã thanh toán MoMo
                             </button>
                         </form>
                     @endif
@@ -93,28 +102,242 @@
                     <i class="fas fa-book me-2"></i> Danh sách sách (tóm tắt)
                 </div>
                 <div class="card-body">
-                    @forelse($borrow->items as $item)
-                        <div class="d-flex gap-2 align-items-start mb-3">
-                            <div style="width:40px; height:55px; background:#f1f5f9; border-radius:6px; overflow:hidden; flex:0 0 auto;">
-                                @if(optional($item->book)->hinh_anh)
-                                    <img src="{{ asset('storage/' . $item->book->hinh_anh) }}" alt="" style="width:100%; height:100%; object-fit:cover;">
-                                @else
-                                    <div class="d-flex align-items-center justify-content-center" style="width:100%; height:100%; color:#94a3b8;">📘</div>
-                                @endif
+                    @if($successPayment)
+                        <div class="border border-success rounded p-3 mb-3">
+                            <div class="fw-bold text-success mb-2">
+                                <i class="fas fa-camera me-1"></i> Đã thanh toán, bấm nút dưới để lưu ảnh và ghi chú
                             </div>
-                            <div style="min-width:0;">
-                                <div class="fw-bold text-truncate">{{ $item->book->ten_sach ?? 'N/A' }}</div>
-                                <div class="small text-muted">Trạng thái: {{ $item->trang_thai }}</div>
-                                <div class="small text-muted">Thuê: {{ number_format($item->tien_thue ?? 0) }}₫</div>
+                            <p class="mb-3">Sau khi thanh toán thành công, bạn có thể lưu/ cập nhật ảnh và ghi chú xác nhận cho từng cuốn sách.</p>
+
+                            <form id="saveReceiveEvidenceForm" action="{{ route('admin.borrows.save-receive-evidence', $borrow->id) }}" method="POST" enctype="multipart/form-data" class="mb-3">
+                                @csrf
+                            </form>
+
+                            <div class="table-responsive">
+                                <table class="table table-bordered align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 72px;">Ảnh</th>
+                                            <th>Tên sách</th>
+                                            <th style="width: 120px;">Trạng thái</th>
+                                            <th style="width: 110px;">Thuê</th>
+                                            <th style="width: 150px;">Bìa trước <span class="text-danger">*</span></th>
+                                            <th style="width: 150px;">Bìa sau <span class="text-danger">*</span></th>
+                                            <th style="width: 150px;">Gáy sách <span class="text-danger">*</span></th>
+                                            <th style="width: 260px;">Ghi chú xác nhận <span class="text-danger">*</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($borrow->items as $item)
+                                            <tr>
+                                                <td>
+                                                    <div style="width:40px; height:55px; background:#f1f5f9; border-radius:6px; overflow:hidden;">
+                                                        @if(optional($item->book)->hinh_anh)
+                                                            <img src="{{ asset('storage/' . $item->book->hinh_anh) }}" alt="" style="width:100%; height:100%; object-fit:cover;">
+                                                        @else
+                                                            <div class="d-flex align-items-center justify-content-center" style="width:100%; height:100%; color:#94a3b8;">📘</div>
+                                                        @endif
+                                                    </div>
+                                                </td>
+                                                <td>{{ $item->book->ten_sach ?? 'N/A' }}</td>
+                                                <td><span class="small text-muted">{{ $item->trang_thai }}</span></td>
+                                                <td>{{ number_format($item->tien_thue ?? 0) }}₫</td>
+                                                <td>
+                                                    <input type="file"
+                                                        class="form-control form-control-sm book-image-input"
+                                                        name="book_images_front[{{ $item->id }}]"
+                                                        form="saveReceiveEvidenceForm"
+                                                        data-preview-id="book_image_front_preview_{{ $item->id }}"
+                                                        accept="image/*"
+                                                        {{ empty($item->anh_bia_truoc) ? 'required' : '' }}>
+                                                    <img id="book_image_front_preview_{{ $item->id }}" class="img-thumbnail mt-1 d-none" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh bìa trước">
+                                                </td>
+                                                <td>
+                                                    <input type="file"
+                                                        class="form-control form-control-sm book-image-input"
+                                                        name="book_images_back[{{ $item->id }}]"
+                                                        form="saveReceiveEvidenceForm"
+                                                        data-preview-id="book_image_back_preview_{{ $item->id }}"
+                                                        accept="image/*"
+                                                        {{ empty($item->anh_bia_sau) ? 'required' : '' }}>
+                                                    <img id="book_image_back_preview_{{ $item->id }}" class="img-thumbnail mt-1 d-none" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh bìa sau">
+                                                </td>
+                                                <td>
+                                                    <input type="file"
+                                                        class="form-control form-control-sm book-image-input"
+                                                        name="book_images_spine[{{ $item->id }}]"
+                                                        form="saveReceiveEvidenceForm"
+                                                        data-preview-id="book_image_spine_preview_{{ $item->id }}"
+                                                        accept="image/*"
+                                                        {{ empty($item->anh_gay_sach) ? 'required' : '' }}>
+                                                    <img id="book_image_spine_preview_{{ $item->id }}" class="img-thumbnail mt-1 d-none" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh gáy sách">
+                                                </td>
+                                                <td>
+                                                    <textarea name="book_notes[{{ $item->id }}]" rows="2" class="form-control form-control-sm" placeholder="Ghi chú tình trạng cuốn sách này..." form="saveReceiveEvidenceForm" required>{{ old('book_notes.' . $item->id, $item->ghi_chu_nhan_sach ?? '') }}</textarea>
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="8" class="text-muted text-center">Không có sách trong phiếu.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
                             </div>
+
+                            <button type="submit" class="btn btn-primary mt-3 w-100" form="saveReceiveEvidenceForm"
+                                    onclick="return confirm('Lưu ảnh và ghi chú xác nhận nhận sách cho phiếu #{{ $borrow->id }}?')">
+                                <i class="fas fa-save me-1"></i> Lưu ảnh và ghi chú sau thanh toán
+                            </button>
                         </div>
-                    @empty
-                        <div class="text-muted">Không có sách trong phiếu.</div>
-                    @endforelse
+                    @elseif(!$borrow->anh_bia_truoc || !$borrow->anh_bia_sau || !$borrow->anh_gay_sach)
+                        <div class="border border-success rounded p-3 mb-3">
+                            <div class="fw-bold text-success mb-2">
+                                <i class="fas fa-camera me-1"></i> Mỗi cuốn sách bắt buộc tải 3 ảnh và ghi chú
+                            </div>
+                            <p class="mb-3">Bạn có thể tạo mã MoMo trước. Ảnh và ghi chú nếu đã nhập sẽ được lưu lại ngay.</p>
+
+                                <div class="table-responsive">
+                                    <table class="table table-bordered align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 72px;">Ảnh</th>
+                                                <th>Tên sách</th>
+                                                <th style="width: 120px;">Trạng thái</th>
+                                                <th style="width: 110px;">Thuê</th>
+                                                <th style="width: 150px;">Bìa trước</th>
+                                                <th style="width: 150px;">Bìa sau</th>
+                                                <th style="width: 150px;">Gáy sách</th>
+                                                <th style="width: 260px;">Ghi chú xác nhận</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @forelse($borrow->items as $item)
+                                                <tr>
+                                                    <td>
+                                                        <div style="width:40px; height:55px; background:#f1f5f9; border-radius:6px; overflow:hidden;">
+                                                            @if(optional($item->book)->hinh_anh)
+                                                                <img src="{{ asset('storage/' . $item->book->hinh_anh) }}" alt="" style="width:100%; height:100%; object-fit:cover;">
+                                                            @else
+                                                                <div class="d-flex align-items-center justify-content-center" style="width:100%; height:100%; color:#94a3b8;">📘</div>
+                                                            @endif
+                                                        </div>
+                                                    </td>
+                                                    <td>{{ $item->book->ten_sach ?? 'N/A' }}</td>
+                                                    <td><span class="small text-muted">{{ $item->trang_thai }}</span></td>
+                                                    <td>{{ number_format($item->tien_thue ?? 0) }}₫</td>
+                                                    <td>
+                                                        <input type="file"
+                                                            class="form-control form-control-sm book-image-input"
+                                                            name="book_images_front[{{ $item->id }}]"
+                                                            form="paymentWithImagesForm"
+                                                            data-preview-id="book_image_front_preview_{{ $item->id }}"
+                                                            accept="image/*">
+                                                        <img id="book_image_front_preview_{{ $item->id }}" class="img-thumbnail mt-1 d-none" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh bìa trước">
+                                                    </td>
+                                                    <td>
+                                                        <input type="file"
+                                                            class="form-control form-control-sm book-image-input"
+                                                            name="book_images_back[{{ $item->id }}]"
+                                                            form="paymentWithImagesForm"
+                                                            data-preview-id="book_image_back_preview_{{ $item->id }}"
+                                                            accept="image/*">
+                                                        <img id="book_image_back_preview_{{ $item->id }}" class="img-thumbnail mt-1 d-none" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh bìa sau">
+                                                    </td>
+                                                    <td>
+                                                        <input type="file"
+                                                            class="form-control form-control-sm book-image-input"
+                                                            name="book_images_spine[{{ $item->id }}]"
+                                                            form="paymentWithImagesForm"
+                                                            data-preview-id="book_image_spine_preview_{{ $item->id }}"
+                                                            accept="image/*">
+                                                        <img id="book_image_spine_preview_{{ $item->id }}" class="img-thumbnail mt-1 d-none" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh gáy sách">
+                                                    </td>
+                                                    <td>
+                                                        <textarea name="book_notes[{{ $item->id }}]" rows="2" class="form-control form-control-sm" placeholder="Ghi chú tình trạng cuốn sách này..." form="paymentWithImagesForm">{{ old('book_notes.' . $item->id, $item->ghi_chu_nhan_sach ?? '') }}</textarea>
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="8" class="text-muted text-center">Không có sách trong phiếu.</td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                        </div>
+                    @else
+                        <div class="table-responsive">
+                            <table class="table table-bordered align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 72px;">Ảnh</th>
+                                        <th>Tên sách</th>
+                                        <th style="width: 120px;">Trạng thái</th>
+                                        <th style="width: 110px;">Thuê</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($borrow->items as $item)
+                                        <tr>
+                                            <td>
+                                                <div style="width:40px; height:55px; background:#f1f5f9; border-radius:6px; overflow:hidden;">
+                                                    @if(optional($item->book)->hinh_anh)
+                                                        <img src="{{ asset('storage/' . $item->book->hinh_anh) }}" alt="" style="width:100%; height:100%; object-fit:cover;">
+                                                    @else
+                                                        <div class="d-flex align-items-center justify-content-center" style="width:100%; height:100%; color:#94a3b8;">📘</div>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                            <td>{{ $item->book->ten_sach ?? 'N/A' }}</td>
+                                            <td><span class="small text-muted">{{ $item->trang_thai }}</span></td>
+                                            <td>{{ number_format($item->tien_thue ?? 0) }}₫</td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="4" class="text-muted text-center">Không có sách trong phiếu.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const bindImagePreview = (input, preview) => {
+            if (!input || !preview) return;
+
+            input.addEventListener('change', function() {
+                const file = this.files && this.files[0];
+                if (!file) {
+                    preview.src = '';
+                    preview.classList.add('d-none');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('d-none');
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+
+        document.querySelectorAll('.book-image-input').forEach((input) => {
+            const previewId = input.dataset.previewId;
+            const preview = previewId ? document.getElementById(previewId) : null;
+            bindImagePreview(input, preview);
+        });
+    });
+</script>
+@endpush
 

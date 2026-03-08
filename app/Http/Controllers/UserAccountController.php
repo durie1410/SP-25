@@ -182,6 +182,8 @@ class UserAccountController extends Controller
     {
         $user = auth()->user();
 
+        Borrow::syncOverdueStatuses();
+
         // Load relationship reader để sidebar hiển thị "Sách đang mượn" ngay
         $user->load('reader');
 
@@ -216,6 +218,8 @@ class UserAccountController extends Controller
     public function borrowedBooks()
     {
         $user = auth()->user();
+
+        Borrow::syncOverdueStatuses();
 
         // Load relationship reader để sidebar hiển thị "Sách đang mượn" ngay
         $user->load('reader');
