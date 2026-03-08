@@ -133,13 +133,22 @@
         }
 
         .book-author {
-            color: #666;
-            margin-bottom: 8px;
+            color: #475569;
+            margin-bottom: 12px;
+            font-size: 15px;
+            font-weight: 500;
         }
 
         .book-meta {
             font-size: 14px;
-            color: #888;
+            color: #64748b;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .book-status-row {
+            margin-top: 12px;
         }
 
         .book-secondary-actions {
@@ -215,6 +224,56 @@
             color: #111827;
         }
 
+        .history-review-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .history-review-stars {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            white-space: nowrap;
+            flex-wrap: nowrap;
+            font-size: 22px;
+            letter-spacing: 2px;
+            color: #f59e0b;
+            width: max-content;
+            max-width: 100%;
+        }
+
+        .history-review-text {
+            margin: 0;
+            color: #334155;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-line;
+            font-style: italic;
+        }
+
+        .history-review-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn-inline-edit {
+            border: none;
+            background: none;
+            padding: 0;
+            color: #2563eb;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn-inline-edit:hover {
+            color: #1d4ed8;
+            text-decoration: underline;
+        }
+
         .history-reviewed-badge {
             display: inline-flex;
             align-items: center;
@@ -238,6 +297,10 @@
             display: flex;
             flex-direction: column;
             gap: 14px;
+        }
+
+        .history-review-form.is-hidden {
+            display: none;
         }
 
         .history-review-label {
@@ -300,6 +363,22 @@
             border: 1px solid #fdba74;
             color: #9a3412;
             font-size: 14px;
+        }
+
+        .history-review-error {
+            margin-bottom: 12px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            font-size: 13px;
+        }
+
+        .history-review-edit-meta {
+            color: #64748b;
+            font-size: 12px;
+            white-space: nowrap;
         }
 
         .btn-submit-review {
@@ -608,29 +687,31 @@
                                 $canReviewBook = $item->book->hasCompletedBorrowByUser(auth()->id());
                                 $canRerentBook = $item->trang_thai === 'Da tra' || !empty($item->ngay_tra_thuc_te);
                                 $currentRating = (int) old('rating', optional($existingReview)->rating ?? 5);
+                                $activeBorrowItemId = (int) old('borrow_item_id', 0);
+                                $showInlineEdit = !$existingReview || $activeBorrowItemId === (int) $item->id;
+                                $canEditExistingReview = $existingReview ? $existingReview->canBeEditedBy(auth()->id()) : false;
                             @endphp
                             <img src="{{ $item->book->image_url ?? asset('images/default-book.png') }}"
                                 alt="{{ $item->book->ten_sach }}" class="book-image">
                             <div class="book-info">
                                 <div class="book-title">{{ $item->book->ten_sach }}</div>
-                                <div class="book-author">Tác giả: {{ $item->book->tac_gia ?? 'Chưa cập nhật' }}</div>
+                                <div class="book-author">{{ $item->book->tac_gia ?? 'Chưa cập nhật' }}</div>
                                 <div class="book-meta">
-                                    <div>📅 Ngày hẹn trả: {{ \Carbon\Carbon::parse($item->ngay_hen_tra)->format('d/m/Y') }}</div>
+                                    <div>📅 Hẹn trả: {{ \Carbon\Carbon::parse($item->ngay_hen_tra)->format('d/m/Y') }}</div>
                                     @if($item->ngay_tra_thuc_te)
-                                        <div>✅ Đã trả ngày: {{ \Carbon\Carbon::parse($item->ngay_tra_thuc_te)->format('d/m/Y') }}</div>
+                                        <div>✅ Đã trả: {{ \Carbon\Carbon::parse($item->ngay_tra_thuc_te)->format('d/m/Y') }}</div>
                                     @endif
                                     @if($item->inventory)
                                         <div>🏷️ Mã sách: {{ $item->inventory->barcode ?? 'N/A' }}</div>
                                     @endif
                                 </div>
-                                <div style="margin-top: 10px;">
-                                    <strong>Trạng thái:</strong>
+                                <div class="book-status-row">
                                     @if($item->trang_thai === 'Cho duyet')
                                         <span class="status-badge status-Cho-duyet">⏳ Chờ duyệt</span>
                                     @elseif($item->trang_thai === 'Dang muon')
                                         <span class="status-badge status-Dang-muon">📖 Đang mượn</span>
                                     @elseif($item->trang_thai === 'Da tra')
-                                        <span class="status-badge status-Da-tra">✅ Đã trả</span>
+                                        <span class="status-badge status-Da-tra">🟢 Đã trả</span>
                                     @elseif($item->trang_thai === 'Huy')
                                         <span class="status-badge status-Huy">❌ Đã hủy</span>
                                     @else
@@ -687,7 +768,7 @@
                                 @if($canReviewBook)
                                     <div class="history-review-box">
                                         <div class="history-review-header">
-                                            <h4><i class="fas fa-star" style="color:#f59e0b;"></i> Đánh giá & nhận xét</h4>
+                                            <h4><i class="fas fa-star" style="color:#f59e0b;"></i> ⭐ Đánh giá của bạn</h4>
                                             @if($existingReview)
                                                 <span class="history-reviewed-badge">
                                                     <i class="fas fa-check-circle"></i> Đã đánh giá
@@ -696,16 +777,42 @@
                                         </div>
 
                                         @if($existingReview)
-                                            <p class="history-review-helper">
-                                                Bạn đã đánh giá cuốn sách này. Có thể sửa lại số sao và nhận xét nếu cần.
-                                            </p>
+                                            <div class="history-review-summary">
+                                                <div class="history-review-stars">
+                                                    @for($star = 1; $star <= 5; $star++)
+                                                        {{ $star <= (int) $existingReview->rating ? '★' : '☆' }}
+                                                    @endfor
+                                                </div>
+
+                                                @if(!empty($existingReview->comment))
+                                                    <p class="history-review-text">"{{ $existingReview->comment }}"</p>
+                                                @endif
+
+                                                <div class="history-review-actions">
+                                                    @if($canEditExistingReview)
+                                                        <button type="button" class="btn-inline-edit" onclick="toggleHistoryReviewForm({{ $item->id }}, true)">
+                                                            <i class="fas fa-pen"></i> Sửa đánh giá
+                                                        </button>
+                                                        <span class="history-review-edit-meta">Sửa trước: {{ optional($existingReview->edit_deadline)->format('d/m/Y') }}</span>
+                                                    @else
+                                                        <span class="history-review-edit-meta">Đã hết thời gian sửa đánh giá</span>
+                                                    @endif
+                                                </div>
+                                            </div>
                                         @endif
 
-                                        <form action="{{ route('books.comments.store', $item->book->id) }}" method="POST" class="history-review-form">
+                                        <form action="{{ route('books.comments.store', $item->book->id) }}" method="POST" id="history-review-form-{{ $item->id }}" class="history-review-form {{ $showInlineEdit ? '' : 'is-hidden' }}">
                                             @csrf
                                             <input type="hidden" name="borrow_item_id" value="{{ $item->id }}">
+
+                                            @if(($errors->has('rating') || $errors->has('content') || $errors->has('borrow_item_id')) && $activeBorrowItemId === (int) $item->id)
+                                                <div class="history-review-error">
+                                                    {{ $errors->first('content') ?: $errors->first('rating') ?: $errors->first('borrow_item_id') }}
+                                                </div>
+                                            @endif
+
                                             <div>
-                                                <span class="history-review-label">Chấm sao cho cuốn sách này</span>
+                                                <span class="history-review-label">{{ $existingReview ? 'Cập nhật số sao của bạn' : 'Chấm sao cho cuốn sách này' }}</span>
                                                 <div class="history-star-rating">
                                                     @for($star = 5; $star >= 1; $star--)
                                                         <input
@@ -721,7 +828,7 @@
 
                                             <div>
                                                 <label class="history-review-label" for="review-content-{{ $item->id }}">
-                                                    Nhận xét của bạn
+                                                    {{ $existingReview ? 'Cập nhật nhận xét của bạn' : 'Nhận xét của bạn' }}
                                                 </label>
                                                 <textarea
                                                     id="review-content-{{ $item->id }}"
@@ -730,10 +837,15 @@
                                                     placeholder="{{ $existingReview ? 'Cập nhật cảm nhận của bạn về cuốn sách này...' : 'Chia sẻ cảm nhận của bạn về cuốn sách này...' }}">{{ old('content', $existingReview->comment ?? '') }}</textarea>
                                             </div>
 
-                                            <button type="submit" class="btn-submit-review">
-                                                <i class="fas fa-paper-plane"></i>
-                                                {{ $existingReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá' }}
-                                            </button>
+                                            <div class="history-review-actions">
+                                                <button type="submit" class="btn-submit-review">
+                                                    <i class="fas fa-paper-plane"></i>
+                                                    {{ $existingReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá' }}
+                                                </button>
+                                                @if($existingReview)
+                                                    <button type="button" class="btn-inline-edit" onclick="toggleHistoryReviewForm({{ $item->id }}, false)">Ẩn chỉnh sửa</button>
+                                                @endif
+                                            </div>
                                         </form>
                                     </div>
                                 @else
@@ -982,6 +1094,18 @@
     <script>
         const borrowId = {{ $borrow->id }};
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        function toggleHistoryReviewForm(itemId, shouldOpen) {
+            const form = document.getElementById(`history-review-form-${itemId}`);
+            if (!form) return;
+
+            if (shouldOpen) {
+                form.classList.remove('is-hidden');
+                return;
+            }
+
+            form.classList.add('is-hidden');
+        }
 
         function showCancelModal() {
             document.getElementById('cancelModal').classList.add('active');

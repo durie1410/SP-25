@@ -15,8 +15,8 @@
         display: flex;
         flex-direction: column;
         height: 100%;
-        padding: 18px;
-        border-radius: 24px;
+        padding: 16px;
+        border-radius: 20px;
         border: 1px solid rgba(255, 255, 255, 0.85);
         background:
             radial-gradient(circle at top right, rgba(244, 63, 94, 0.12), transparent 36%),
@@ -65,9 +65,9 @@
 
     .favorite-book-card .book-image {
         position: relative;
-        height: 270px;
-        border-radius: 18px;
-        margin-bottom: 18px;
+        height: 220px;
+        border-radius: 14px;
+        margin-bottom: 16px;
         overflow: hidden;
         background: linear-gradient(180deg, #f8fafc, #e5e7eb);
         box-shadow: 0 18px 30px rgba(15, 23, 42, 0.12);
@@ -127,10 +127,10 @@
     }
 
     .favorite-book-card .book-title {
-        min-height: 52px;
-        margin-bottom: 10px;
-        font-size: 18px;
-        line-height: 1.45;
+        min-height: 0;
+        margin-bottom: 8px;
+        font-size: 20px;
+        line-height: 1.35;
         font-weight: 800;
         color: #0f172a;
         letter-spacing: -0.01em;
@@ -141,20 +141,17 @@
     }
 
     .favorite-book-card .book-author {
-        min-height: 30px;
-        margin-bottom: 16px;
+        min-height: 0;
+        margin-bottom: 14px;
         font-size: 15px;
-        color: #64748b;
-        display: -webkit-box;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
+        color: #475569;
+        font-weight: 600;
     }
 
     .favorite-card-badge {
         position: absolute;
-        top: 14px;
-        left: 14px;
+        top: 12px;
+        left: 12px;
         z-index: 2;
         display: inline-flex;
         align-items: center;
@@ -166,9 +163,8 @@
         border: 1px solid rgba(255, 255, 255, 0.8);
         backdrop-filter: blur(12px);
         box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
-        font-size: 13px;
+        font-size: 16px;
         font-weight: 800;
-        letter-spacing: .02em;
     }
 
     .favorite-card-badge::after {
@@ -181,22 +177,22 @@
     }
 
     .favorite-card-badge span {
-        font-size: 14px;
+        font-size: 16px;
         animation: favoritePulse 2.4s ease-in-out infinite;
     }
 
     .favorite-card-note {
+        display: none;
         margin: 0 0 14px;
-        font-size: 13px;
-        font-weight: 600;
-        color: #b45309;
-        letter-spacing: .01em;
+        font-size: 14px;
+        font-weight: 700;
+        color: #e11d48;
     }
 
     .favorite-book-meta-stack {
         display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
+        flex-direction: column;
+        gap: 8px;
         margin-bottom: 14px;
     }
 
@@ -204,26 +200,28 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 10px 12px;
-        border-radius: 14px;
-        background: rgba(248, 250, 252, 0.9);
+        padding: 0;
+        border-radius: 0;
+        background: transparent;
         border: 1px solid rgba(226, 232, 240, 0.95);
-        color: #334155;
-        font-size: 13px;
-        font-weight: 700;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+        color: #475569;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: none;
+        border: none;
     }
 
     .favorite-book-meta-pill strong {
-        color: #0f172a;
+        color: inherit;
+        font-weight: 700;
     }
 
     .favorite-card-actions {
         display: flex;
-        flex-direction: column;
-        gap: 12px;
+        flex-direction: row;
+        gap: 10px;
         margin-top: auto;
-        padding-top: 18px;
+        padding-top: 16px;
         align-items: stretch;
     }
 
@@ -233,21 +231,21 @@
 
     .favorite-card-actions .btn-view-book,
     .btn-remove-favorite {
-        min-height: 48px;
+        min-height: 42px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 8px;
         text-align: center;
-        padding: 13px 14px;
-        border-radius: 16px;
-        font-size: 15px;
+        padding: 11px 12px;
+        border-radius: 12px;
+        font-size: 14px;
         font-weight: 700;
         margin-top: 0;
         text-decoration: none;
         position: relative;
         overflow: hidden;
-        white-space: nowrap;
+        white-space: normal;
         transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease, background .22s ease, color .22s ease;
     }
 
@@ -298,8 +296,8 @@
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
-        margin-top: 4px;
-        margin-bottom: 4px;
+        margin-top: 2px;
+        margin-bottom: 2px;
         color: #64748b;
         font-size: 14px;
     }
@@ -308,12 +306,12 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 9px 12px;
-        background: rgba(255, 255, 255, 0.82);
-        border: 1px solid rgba(226, 232, 240, 0.95);
+        padding: 0;
+        background: transparent;
+        border: none;
         border-radius: 999px;
         white-space: nowrap;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+        box-shadow: none;
     }
 
     .favorite-library-empty {
@@ -363,26 +361,10 @@
         box-shadow: 0 16px 26px rgba(190, 24, 93, 0.22);
     }
 
-    .favorite-action-icon {
-        font-size: 15px;
-        line-height: 1;
+    .favorite-card-actions .btn-view-book span,
+    .btn-remove-favorite span {
         position: relative;
         z-index: 1;
-        transition: transform .25s ease;
-    }
-
-    .favorite-card-actions .btn-view-book span:last-child,
-    .btn-remove-favorite span:last-child {
-        position: relative;
-        z-index: 1;
-    }
-
-    .favorite-card-actions .btn-view-book:hover .favorite-action-icon {
-        transform: rotate(-8deg) scale(1.08);
-    }
-
-    .btn-remove-favorite:hover .favorite-action-icon {
-        transform: scale(1.08);
     }
 
     @keyframes favoritePulse {
@@ -398,7 +380,7 @@
 
     @media (max-width: 576px) {
         .favorite-book-card .book-image {
-            height: 220px;
+            height: 200px;
         }
 
         .favorite-card-actions {
@@ -419,7 +401,7 @@
                 @if($book)
                     <div class="book-card favorite-book-card" id="favorite-card-{{ $book->id }}">
                         <div class="book-image">
-                            <div class="favorite-card-badge"><span>❤</span> Premium yêu thích</div>
+                            <div class="favorite-card-badge" aria-label="Sách yêu thích"><span>❤</span></div>
                             @if($book->image_url)
                                 <img src="{{ $book->image_url }}" alt="{{ $book->ten_sach }}">
                             @else
@@ -429,7 +411,6 @@
                         <div class="book-info">
                             <h3 class="book-title">{{ $book->ten_sach }}</h3>
                             <p class="book-author">{{ $book->formatted_author ?? ($book->tac_gia ?? 'Chưa có tác giả') }}</p>
-                            <p class="favorite-card-note">Đã lưu trong bộ sưu tập yêu thích của bạn</p>
 
                             <div class="favorite-book-meta-stack">
                                 <span class="favorite-book-meta-pill">
@@ -437,25 +418,23 @@
                                     <strong>{{ $book->category->ten_danh_muc ?? 'Chưa phân loại' }}</strong>
                                 </span>
                                 <span class="favorite-book-meta-pill">
-                                    🏷️
+                                    🏢
                                     <strong>{{ $book->publisher->ten_nha_xuat_ban ?? 'NXB cập nhật sau' }}</strong>
                                 </span>
                             </div>
 
                             <div class="book-meta-inline">
-                                <span class="book-meta-chip">❤️ {{ $book->favorites_count ?? 0 }} lượt thích</span>
-                                <span class="book-meta-chip">👁️ {{ number_format($book->so_luot_xem ?? 0) }} lượt xem</span>
+                                <span class="book-meta-chip">❤️ {{ $book->favorites_count ?? 0 }}</span>
+                                <span class="book-meta-chip">👁 {{ number_format($book->so_luot_xem ?? 0) }}</span>
                             </div>
 
                             <div class="favorite-card-actions">
                                 <a href="{{ route('books.show', $book->id) }}" class="btn-view-book">
-                                    <span class="favorite-action-icon">✨</span>
                                     <span>Xem chi tiết</span>
                                 </a>
                                 <button type="button"
                                         class="btn-remove-favorite"
                                         onclick="toggleFavoriteFromList({{ $book->id }}, this)">
-                                    <span class="favorite-action-icon">💔</span>
                                     <span>Bỏ yêu thích</span>
                                 </button>
                             </div>
