@@ -317,6 +317,9 @@
  
         @include('partials.global-modal')
 
+    {{-- Gemini AI Chatbox --}}
+    @include('components.chatbox')
+
     @yield('scripts')
     @stack('scripts')
 </body>

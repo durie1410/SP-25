@@ -1596,6 +1596,9 @@
     </style>
 
     @include('components.footer')
+
+    {{-- Gemini AI Chatbox --}}
+    @include('components.chatbox')
 </body>
 
 </html>
