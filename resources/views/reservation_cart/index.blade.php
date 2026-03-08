@@ -409,6 +409,9 @@
 
                     <div class="reservation-items-list">
 @foreach($items as $item)
+    @php
+        $maxReservationQty = (int) (($item->book->inventories()->where('storage_type', 'Kho')->where('status', 'Co san')->count()) ?: ($item->book->so_luong ?? 0));
+    @endphp
                             <div class="reservation-item">
                                 <div class="reservation-item-img-box">
         <img src="{{ $item->book->image_url ?? asset('images/default-book.png') }}"
@@ -475,6 +478,7 @@
         <input type="number"
                value="{{ $item->quantity }}"
                min="1"
+             @if($maxReservationQty > 0) max="{{ $maxReservationQty }}" @endif
                data-book-id="{{ $item->book_id }}"
                onchange="updateQuantity(this)"
                                                class="form-control reservation-qty-input">
@@ -552,6 +556,8 @@ function formatCurrency(v){
 }
 
 function updateQuantity(input){
+    const previousQuantity = input.defaultValue || input.value;
+
     fetch('{{ route("reservation-cart.update-quantity",":id") }}'
         .replace(':id', input.dataset.bookId),{
         method:'POST',
@@ -563,10 +569,21 @@ function updateQuantity(input){
     })
     .then(r=>r.json())
     .then(d=>{
+        if(!d.success){
+            alert(d.message || 'Không thể cập nhật số lượng.');
+            input.value = previousQuantity;
+            return;
+        }
+
+        input.defaultValue = d.quantity;
         document.querySelector(`.item-price[data-book-id="${input.dataset.bookId}"]`)
             .textContent = formatCurrency(d.item_price);
         document.getElementById('total-price').textContent =
             formatCurrency(d.total_price);
+    })
+    .catch(() => {
+        alert('Không thể cập nhật số lượng.');
+        input.value = previousQuantity;
     });
 }
 

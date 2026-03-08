@@ -171,13 +171,7 @@
             <li>Trả sách đúng hạn, bảo quản sách tránh ẩm/mốc/rách.</li>
             <li>Nếu cần hỗ trợ, liên hệ Thủ thư hoặc hotline hiển thị trên trang.</li>
         </ul>
-        <ul class="guide-list">
-            <li>Đăng nhập để lưu giỏ mượn và theo dõi trạng thái đơn.</li>
-            <li>Kiểm tra số lượng còn trong kho và tình trạng sách trước khi đặt.</li>
-            <li>Chọn phương thức nhận sách phù hợp (nhận tại chỗ / giao tận nơi).</li>
-            <li>Trả sách đúng hạn, bảo quản sách tránh ẩm/mốc/rách.</li>
-            <li>Nếu cần hỗ trợ, liên hệ Thủ thư hoặc hotline hiển thị trên trang.</li>
-        </ul>
+        
     </div>
 
 </div>

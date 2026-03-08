@@ -52,7 +52,19 @@ class ReservationCartController extends Controller
         $data = $request->validate([
             'book_id' => 'required|exists:books,id',
             'borrow_item_id' => 'nullable|exists:borrow_items,id',
+            'quantity' => 'nullable|integer|min:1|max:100',
         ]);
+
+        $book = Book::findOrFail($data['book_id']);
+        $requestedQuantity = max(1, (int) ($data['quantity'] ?? 1));
+        $availableStock = $this->getAvailableStock($book);
+
+        if ($availableStock > 0 && $requestedQuantity > $availableStock) {
+            return response()->json([
+                'success' => false,
+                'message' => "Bạn chỉ có thể đặt tối đa {$availableStock} cuốn vì kho hiện còn {$availableStock} cuốn.",
+            ], 422);
+        }
 
         if (!empty($data['borrow_item_id'])) {
             $borrowItem = BorrowItem::with('borrow')
@@ -77,7 +89,7 @@ class ReservationCartController extends Controller
         );
 
         // unique book per cart
-        $added = $cart->addBook((int) $data['book_id']);
+        $added = $cart->addBook((int) $data['book_id'], $requestedQuantity);
 
         return response()->json([
             'success' => true,
@@ -242,6 +254,22 @@ class ReservationCartController extends Controller
             'quantity' => 'required|integer|min:1|max:100',
         ]);
 
+        $book = Book::find($bookId);
+        if (!$book) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy sách.',
+            ], 404);
+        }
+
+        $availableStock = $this->getAvailableStock($book);
+        if ($availableStock > 0 && (int) $request->quantity > $availableStock) {
+            return response()->json([
+                'success' => false,
+                'message' => "Bạn chỉ có thể đặt tối đa {$availableStock} cuốn vì kho hiện còn {$availableStock} cuốn.",
+            ], 422);
+        }
+
         $cart = ReservationCart::where('user_id', $user->id)->first();
         if (!$cart) {
             return response()->json([
@@ -252,6 +280,18 @@ class ReservationCartController extends Controller
 
         $result = $cart->updateQuantity($bookId, $request->quantity);
         return response()->json($result, $result['success'] ? 200 : 422);
+    }
+
+    private function getAvailableStock(Book $book): int
+    {
+        $inventoryStock = (int) $book->inventories()
+            ->where('storage_type', 'Kho')
+            ->where('status', 'Co san')
+            ->count();
+
+        return $inventoryStock > 0
+            ? $inventoryStock
+            : max(0, (int) ($book->so_luong ?? 0));
     }
 
     public function updateDates(Request $request, $bookId)
