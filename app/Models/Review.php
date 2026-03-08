@@ -9,9 +9,12 @@ class Review extends Model
 {
     use HasFactory;
 
+    public const EDIT_WINDOW_HOURS = 168;
+
     protected $fillable = [
         'book_id',
         'user_id',
+        'borrow_item_id',
         'rating',
         'comment',
         'title',
@@ -31,6 +34,11 @@ class Review extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function borrowItem()
+    {
+        return $this->belongsTo(BorrowItem::class);
     }
 
     public function comments()
@@ -65,5 +73,26 @@ class Review extends Model
     public function scopeByRating($query, $rating)
     {
         return $query->where('rating', $rating);
+    }
+
+    public function isOwnedBy($userId)
+    {
+        return (int) $this->user_id === (int) $userId;
+    }
+
+    public function canBeEditedBy($userId)
+    {
+        if (!$this->exists || !$this->isOwnedBy($userId) || !$this->created_at) {
+            return false;
+        }
+
+        return $this->created_at->copy()->addHours(self::EDIT_WINDOW_HOURS)->isFuture();
+    }
+
+    public function getEditDeadlineAttribute()
+    {
+        return $this->created_at
+            ? $this->created_at->copy()->addHours(self::EDIT_WINDOW_HOURS)
+            : null;
     }
 }

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\CacheService;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Reader;
 
 class Book extends Model
 {
@@ -51,6 +52,70 @@ class Book extends Model
     public function verifiedReviews()
     {
         return $this->hasMany(Review::class)->where('is_verified', true);
+    }
+
+    public function hasCompletedBorrowByUser($userId)
+    {
+        if (!$userId) {
+            return false;
+        }
+
+        $readerId = Reader::where('user_id', $userId)->value('id');
+
+        if (!$readerId) {
+            return false;
+        }
+
+        return $this->borrowItems()
+            ->whereHas('borrow', function ($query) use ($readerId) {
+                $query->where('reader_id', $readerId)
+                    ->where(function ($statusQuery) {
+                        $statusQuery->where('trang_thai', 'Da tra')
+                            ->orWhereIn('trang_thai_chi_tiet', [
+                                Borrow::STATUS_DA_NHAN_VA_KIEM_TRA,
+                                Borrow::STATUS_HOAN_TAT_DON_HANG,
+                            ]);
+                    });
+            })
+            ->exists();
+    }
+
+    public function getCompletedBorrowItemsByUser($userId)
+    {
+        if (!$userId) {
+            return collect();
+        }
+
+        $readerId = Reader::where('user_id', $userId)->value('id');
+
+        if (!$readerId) {
+            return collect();
+        }
+
+        return $this->borrowItems()
+            ->with('borrow')
+            ->whereHas('borrow', function ($query) use ($readerId) {
+                $query->where('reader_id', $readerId)
+                    ->where(function ($statusQuery) {
+                        $statusQuery->where('trang_thai', 'Da tra')
+                            ->orWhereIn('trang_thai_chi_tiet', [
+                                Borrow::STATUS_DA_NHAN_VA_KIEM_TRA,
+                                Borrow::STATUS_HOAN_TAT_DON_HANG,
+                            ]);
+                    });
+            })
+            ->orderByDesc('ngay_tra_thuc_te')
+            ->orderByDesc('updated_at')
+            ->get();
+    }
+
+    public function refreshAverageRating()
+    {
+        $averageRating = $this->verifiedReviews()->avg('rating') ?? 0;
+
+        $this->update([
+            'danh_gia_trung_binh' => round((float) $averageRating, 2),
+        ]);
     }
 
     // Tính điểm đánh giá trung bình

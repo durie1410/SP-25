@@ -142,6 +142,182 @@
             color: #888;
         }
 
+        .book-secondary-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .book-action-link,
+        .btn-rerent {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .book-action-link {
+            background: #eef2ff;
+            color: #4338ca;
+        }
+
+        .book-action-link:hover {
+            color: #3730a3;
+            transform: translateY(-1px);
+        }
+
+        .rerent-form {
+            display: inline-flex;
+            margin: 0;
+        }
+
+        .btn-rerent {
+            border: none;
+            cursor: pointer;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            box-shadow: 0 10px 18px rgba(37, 99, 235, 0.22);
+        }
+
+        .btn-rerent:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 22px rgba(37, 99, 235, 0.28);
+        }
+
+        .history-review-box {
+            margin-top: 18px;
+            padding: 18px;
+            border-radius: 14px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+        }
+
+        .history-review-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .history-review-header h4 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .history-reviewed-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #ecfdf5;
+            color: #047857;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .history-review-helper {
+            margin: 0 0 12px;
+            font-size: 13px;
+            color: #4b5563;
+            line-height: 1.55;
+        }
+
+        .history-review-form {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .history-review-label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #4b5563;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .history-star-rating {
+            display: inline-flex;
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+
+        .history-star-rating input {
+            display: none;
+        }
+
+        .history-star-rating label {
+            font-size: 26px;
+            line-height: 1;
+            color: #d1d5db;
+            cursor: pointer;
+            margin: 0;
+            transition: transform 0.2s ease, color 0.2s ease;
+        }
+
+        .history-star-rating label:hover,
+        .history-star-rating label:hover ~ label,
+        .history-star-rating input:checked ~ label {
+            color: #f59e0b;
+            transform: scale(1.06);
+        }
+
+        .history-review-form textarea {
+            width: 100%;
+            min-height: 110px;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            padding: 12px 14px;
+            resize: vertical;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .history-review-form textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+        }
+
+        .history-review-note {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: #fff7ed;
+            border: 1px solid #fdba74;
+            color: #9a3412;
+            font-size: 14px;
+        }
+
+        .btn-submit-review {
+            align-self: flex-start;
+            border: none;
+            border-radius: 10px;
+            padding: 11px 18px;
+            background: linear-gradient(135deg, #ef4444, #be123c);
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 18px rgba(190, 24, 93, 0.2);
+        }
+
+        .btn-submit-review:hover {
+            transform: translateY(-1px);
+        }
+
         .price-summary {
             background: #f8f9fa;
             padding: 20px;
@@ -427,6 +603,12 @@
                 @foreach($borrow->items as $item)
                     <div class="book-item">
                         @if($item->book)
+                            @php
+                                $existingReview = $userReviews->get($item->id);
+                                $canReviewBook = $item->book->hasCompletedBorrowByUser(auth()->id());
+                                $canRerentBook = $item->trang_thai === 'Da tra' || !empty($item->ngay_tra_thuc_te);
+                                $currentRating = (int) old('rating', optional($existingReview)->rating ?? 5);
+                            @endphp
                             <img src="{{ $item->book->image_url ?? asset('images/default-book.png') }}"
                                 alt="{{ $item->book->ten_sach }}" class="book-image">
                             <div class="book-info">
@@ -483,6 +665,81 @@
                                     <div style="margin-top: 10px;">
                                         <strong>Ghi chú nhận sách:</strong>
                                         <div>{{ $item->ghi_chu_nhan_sach }}</div>
+                                    </div>
+                                @endif
+
+                                <div class="book-secondary-actions">
+                                    <a href="{{ route('books.show', $item->book->id) }}" class="book-action-link">
+                                        <i class="fas fa-eye"></i> Xem sách
+                                    </a>
+                                    @if($canRerentBook)
+                                        <form action="{{ route('reservation-cart.add-and-go') }}" method="POST" class="rerent-form">
+                                            @csrf
+                                            <input type="hidden" name="book_id" value="{{ $item->book->id }}">
+                                            <input type="hidden" name="borrow_item_id" value="{{ $item->id }}">
+                                            <button type="submit" class="btn-rerent">
+                                                <i class="fas fa-rotate-right"></i> Thuê lại
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+
+                                @if($canReviewBook)
+                                    <div class="history-review-box">
+                                        <div class="history-review-header">
+                                            <h4><i class="fas fa-star" style="color:#f59e0b;"></i> Đánh giá & nhận xét</h4>
+                                            @if($existingReview)
+                                                <span class="history-reviewed-badge">
+                                                    <i class="fas fa-check-circle"></i> Đã đánh giá
+                                                </span>
+                                            @endif
+                                        </div>
+
+                                        @if($existingReview)
+                                            <p class="history-review-helper">
+                                                Bạn đã đánh giá cuốn sách này. Có thể sửa lại số sao và nhận xét nếu cần.
+                                            </p>
+                                        @endif
+
+                                        <form action="{{ route('books.comments.store', $item->book->id) }}" method="POST" class="history-review-form">
+                                            @csrf
+                                            <input type="hidden" name="borrow_item_id" value="{{ $item->id }}">
+                                            <div>
+                                                <span class="history-review-label">Chấm sao cho cuốn sách này</span>
+                                                <div class="history-star-rating">
+                                                    @for($star = 5; $star >= 1; $star--)
+                                                        <input
+                                                            type="radio"
+                                                            id="rating-{{ $item->id }}-{{ $star }}"
+                                                            name="rating"
+                                                            value="{{ $star }}"
+                                                            {{ $currentRating === $star ? 'checked' : '' }}>
+                                                        <label for="rating-{{ $item->id }}-{{ $star }}" title="{{ $star }} sao">★</label>
+                                                    @endfor
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label class="history-review-label" for="review-content-{{ $item->id }}">
+                                                    Nhận xét của bạn
+                                                </label>
+                                                <textarea
+                                                    id="review-content-{{ $item->id }}"
+                                                    name="content"
+                                                    maxlength="1500"
+                                                    placeholder="{{ $existingReview ? 'Cập nhật cảm nhận của bạn về cuốn sách này...' : 'Chia sẻ cảm nhận của bạn về cuốn sách này...' }}">{{ old('content', $existingReview->comment ?? '') }}</textarea>
+                                            </div>
+
+                                            <button type="submit" class="btn-submit-review">
+                                                <i class="fas fa-paper-plane"></i>
+                                                {{ $existingReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá' }}
+                                            </button>
+                                        </form>
+                                    </div>
+                                @else
+                                    <div class="history-review-note">
+                                        <i class="fas fa-clock"></i>
+                                        Bạn có thể đánh giá cuốn sách này ngay tại lịch sử đơn mượn sau khi đã hoàn tất mượn/trả.
                                     </div>
                                 @endif
                             </div>

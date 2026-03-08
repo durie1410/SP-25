@@ -3,6 +3,7 @@
 @section('title', 'Hướng dẫn mượn/trả sách - Thư Viện LibNet')
 
 @push('styles')
+<link rel="stylesheet" href="{{ asset('css/style.css') }}">
 <style>
     .guide-page {
         background: var(--background-color);
@@ -107,6 +108,8 @@
 @endpush
 
 @section('content')
+@include('components.frontend-header')
+
 <div class="guide-page">
     <div class="guide-container">
         <div class="guide-hero">
