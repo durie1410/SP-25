@@ -14,6 +14,7 @@ use App\Models\BorrowPayment;
 use App\Models\Wallet;
 use App\Models\Fine;
 use App\Services\FileUploadService;
+use App\Services\NotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -584,6 +585,15 @@ class BorrowController extends Controller
         $borrow->update([
             'trang_thai_chi_tiet' => \App\Models\Borrow::STATUS_DON_HANG_MOI,
         ]);
+
+        try {
+            app(NotificationService::class)->sendBorrowApprovedNotification($borrow->fresh(['reader.user', 'items.book']));
+        } catch (\Throwable $e) {
+            Log::error('Failed to send borrow approval email', [
+                'borrow_id' => $borrow->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         // Sau khi duyệt, chuyển thẳng tới màn thanh toán
         return redirect()

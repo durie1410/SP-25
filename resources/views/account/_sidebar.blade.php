@@ -20,6 +20,9 @@
                     <a href="{{ route('account.borrowed-books') }}"><span class="icon">📚</span> Sách đang mượn</a>
                 </li>
             @endif
+            <li class="{{ $currentRoute === 'account.favorite-books' ? 'active' : '' }}">
+                <a href="{{ route('account.favorite-books') }}"><span class="icon">❤️</span> Sách yêu thích</a>
+            </li>
             <li class="{{ $currentRoute === 'account' ? 'active' : '' }}">
                 <a href="{{ route('account') }}"><span class="icon">👤</span> Thông tin cá nhân</a>
             </li>

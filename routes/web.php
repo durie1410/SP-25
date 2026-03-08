@@ -298,6 +298,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/account', [App\Http\Controllers\UserAccountController::class, 'account'])->name('account');
     Route::put('/account', [App\Http\Controllers\UserAccountController::class, 'updateAccount'])->name('account.update');
     Route::get('/account/borrowed-books', [App\Http\Controllers\UserAccountController::class, 'borrowedBooks'])->name('account.borrowed-books');
+    Route::get('/account/favorite-books', [App\Http\Controllers\UserAccountController::class, 'favoriteBooks'])->name('account.favorite-books');
+    Route::post('/account/favorites/toggle', [App\Http\Controllers\Api\BookApiController::class, 'toggleFavorite'])->name('account.favorites.toggle');
     Route::get('/account/reading-books', [App\Http\Controllers\UserAccountController::class, 'readingBooks'])->name('account.reading-books');
     Route::get('/account/purchased-documents', [App\Http\Controllers\UserAccountController::class, 'purchasedDocuments'])->name('account.purchased-documents');
     Route::get('/account/change-password', [App\Http\Controllers\UserAccountController::class, 'showChangePassword'])->name('account.change-password');

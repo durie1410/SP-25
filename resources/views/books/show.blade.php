@@ -22,6 +22,42 @@
             margin-top: 0;
         }
 
+        .book-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .favorite-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #fecaca;
+            background: #fff;
+            color: #dc2626;
+            border-radius: 999px;
+            padding: 10px 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s ease;
+            white-space: nowrap;
+        }
+
+        .favorite-toggle-btn:hover {
+            background: #fff1f2;
+        }
+
+        .favorite-toggle-btn.active {
+            background: #fee2e2;
+            border-color: #f87171;
+        }
+
+        .favorite-toggle-btn i {
+            font-size: 16px;
+        }
+
         .content-wrapper {
             display: flex;
             width: 90%;
@@ -1041,6 +1077,9 @@
                                     <span>📚</span> Sách đang mượn
                                 </a>
                             @endif
+                            <a href="{{ route('account.favorite-books') }}" class="dropdown-item">
+                                <span>❤️</span> Sách yêu thích
+                            </a>
                             <a href="{{ route('account') }}" class="dropdown-item">
                                 <span>👤</span> Thông tin tài khoản
                             </a>
@@ -1156,7 +1195,25 @@
                         onerror="this.onerror=null; this.src='{{ asset('images/default-book.png') }}';">
 
                     <div class="info-and-buy">
-                        <h1>{{ $book->ten_sach }}</h1>
+                        <div class="book-title-row">
+                            <h1 style="margin-bottom: 0;">{{ $book->ten_sach }}</h1>
+                            @auth
+                                <button type="button"
+                                        id="favoriteToggleButton"
+                                        class="favorite-toggle-btn {{ $isFavorited ? 'active' : '' }}"
+                                        onclick="toggleFavorite({{ $book->id }}, this)">
+                                    <i class="fas fa-heart"></i>
+                                    <span>{{ $isFavorited ? 'Đã yêu thích' : 'Yêu thích' }}</span>
+                                </button>
+                            @else
+                                <button type="button"
+                                        class="favorite-toggle-btn"
+                                        onclick="window.location.href='{{ route('login') }}'">
+                                    <i class="far fa-heart"></i>
+                                    <span>Yêu thích</span>
+                                </button>
+                            @endauth
+                        </div>
                         <p>Tác giả: <strong>{{ $book->formatted_author }}</strong></p>
                         @if($book->nam_xuat_ban)
                             <p>Năm xuất bản: <strong>{{ $book->formatted_year }}</strong></p>
@@ -1498,6 +1555,50 @@
             if (totalPriceElement) {
                 totalPriceElement.textContent = new Intl.NumberFormat('vi-VN').format(Math.round(totalPrice)) + '₫';
             }
+        }
+
+        function showFavoriteMessage(message, type = 'success') {
+            if (typeof window.showToast === 'function') {
+                window.showToast(type === 'success' ? 'Thành công' : 'Thông báo', message, type);
+            } else {
+                alert(message);
+            }
+        }
+
+        function toggleFavorite(bookId, button) {
+            fetch('{{ route('account.favorites.toggle') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ book_id: bookId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    showFavoriteMessage(data.message || 'Không thể cập nhật sách yêu thích.', 'error');
+                    return;
+                }
+
+                button.classList.toggle('active', !!data.is_favorited);
+                const icon = button.querySelector('i');
+                const text = button.querySelector('span');
+
+                if (icon) {
+                    icon.className = `${data.is_favorited ? 'fas' : 'far'} fa-heart`;
+                }
+
+                if (text) {
+                    text.textContent = data.is_favorited ? 'Đã yêu thích' : 'Yêu thích';
+                }
+
+                showFavoriteMessage(data.message || 'Đã cập nhật sách yêu thích.');
+            })
+            .catch(() => {
+                showFavoriteMessage('Có lỗi xảy ra khi cập nhật sách yêu thích.', 'error');
+            });
         }
 
         function addToReservationCart() {
