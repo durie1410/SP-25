@@ -90,6 +90,9 @@
                                 <i class="fas fa-book-reader"></i> Sách đang mượn
                             </a>
                         @endif
+                        <a href="{{ route('account.favorite-books') }}" class="dropdown-item">
+                            <i class="fas fa-heart"></i> Sách yêu thích
+                        </a>
                         <a href="{{ route('account') }}" class="dropdown-item">
                             <i class="fas fa-user-cog"></i> Thông tin tài khoản
                         </a>

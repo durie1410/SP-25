@@ -70,22 +70,7 @@ class InventoryReservationController extends Controller
                 'ready_at' => now(),
             ]);
 
-            // Gửi thông báo cho user (database + email theo cấu hình mặc định)
-            $userId = $reservation->reader?->user_id ?? $reservation->user_id;
-            if ($userId) {
-                $notification = app(NotificationService::class);
-                $notification->sendNotification(
-                    $userId,
-                    'reservation_ready',
-                    [
-                        'reader_name' => $reservation->reader?->ho_ten ?? ($reservation->user?->name ?? 'Bạn'),
-                        'book_title' => $reservation->book?->ten_sach ?? 'Sách',
-                        'ready_date' => now()->format('d/m/Y H:i'),
-                        'expiry_date' => now()->addDays(3)->format('d/m/Y'),
-                    ],
-                    ['database']
-                );
-            }
+            app(NotificationService::class)->sendReservationReadyNotification($reservation->fresh(['book', 'reader.user', 'user']));
 
             DB::commit();
             return back()->with('success', 'Đã xác nhận: sách sẵn sàng tại quầy.');
@@ -157,8 +142,22 @@ class InventoryReservationController extends Controller
                         'book_title' => $reservation->book?->ten_sach ?? 'Sách',
                         'pickup_date' => $reservation->pickup_date ? $reservation->pickup_date->format('d/m/Y') : now()->format('d/m/Y'),
                     ],
-                    ['database']
+                    ['database', 'email']
                 );
+            } else {
+                $recipientEmail = $reservation->reader?->email ?? $reservation->user?->email;
+                if ($recipientEmail) {
+                    app(NotificationService::class)->sendSimpleEmail(
+                        $recipientEmail,
+                        'Yêu cầu đặt trước đã quá hạn',
+                        'Yêu cầu nhận sách "{{book_title}}" của bạn đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu đặt trước mới nếu vẫn còn nhu cầu.',
+                        [
+                            'reader_name' => $reservation->reader?->ho_ten ?? ($reservation->user?->name ?? 'Bạn'),
+                            'book_title' => $reservation->book?->ten_sach ?? 'Sách',
+                            'pickup_date' => $reservation->pickup_date ? $reservation->pickup_date->format('d/m/Y') : now()->format('d/m/Y'),
+                        ]
+                    );
+                }
             }
 
             return back()->with('success', 'Đã đánh dấu quá hạn cho yêu cầu đặt trước.');

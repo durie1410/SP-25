@@ -9,6 +9,7 @@ use App\Models\PurchasableBook;
 use App\Models\Borrow;
 use App\Models\Book;
 use App\Models\Document;
+use App\Models\Favorite;
 use App\Http\Controllers\Controller;
 use App\Services\FileUploadService;
 use Illuminate\Http\Request;
@@ -293,6 +294,26 @@ class UserAccountController extends Controller
         }
 
         return view('account.borrowed-books', compact('borrows', 'reader', 'pendingReservations'));
+    }
+
+    /**
+     * Hiển thị sách yêu thích
+     */
+    public function favoriteBooks()
+    {
+        $user = auth()->user();
+
+        $user->load('reader');
+
+        $favorites = Favorite::with(['book.category', 'book.publisher'])
+            ->with(['book' => function ($query) {
+                $query->withCount('favorites');
+            }])
+            ->where('user_id', $user->id)
+            ->latest()
+            ->paginate(12);
+
+        return view('account.favorite-books', compact('favorites'));
     }
 
     /**

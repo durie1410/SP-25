@@ -46,6 +46,18 @@ class Kernel extends ConsoleKernel
                  ->dailyAt('09:00')
                  ->withoutOverlapping()
                  ->runInBackground();
+
+        // Nhắc nhở phiếu mượn sắp đến hạn trả và quá hạn
+        $schedule->command('borrow:send-reminders --type=all')
+             ->dailyAt('08:30')
+             ->withoutOverlapping()
+             ->runInBackground();
+
+        // Nhắc nhở đặt trước sắp đến ngày nhận sách
+        $schedule->command('notifications:send --type=reservation-expiring')
+             ->dailyAt('08:15')
+             ->withoutOverlapping()
+             ->runInBackground();
         
         // Tự động xác nhận nhận sách sau 3 giờ (chạy mỗi 5 phút)
         $schedule->command('borrow:auto-confirm-delivery')
