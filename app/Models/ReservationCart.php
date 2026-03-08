@@ -37,13 +37,16 @@ class ReservationCart extends Model
         return $this->items()->where('book_id', $bookId)->exists();
     }
 
-    public function addBook(int $bookId): ?ReservationCartItem
+    public function addBook(int $bookId, int $quantity = 1): ?ReservationCartItem
     {
         if ($this->hasBook($bookId)) {
             return null; // Đã có sách này trong giỏ
         }
 
-        return $this->items()->create(['book_id' => $bookId]);
+        return $this->items()->create([
+            'book_id' => $bookId,
+            'quantity' => max(1, $quantity),
+        ]);
     }
 
     public function removeBook(int $bookId): bool

@@ -1683,7 +1683,7 @@
                                         <input type="number" id="paper-quantity" value="1" min="1"
                                             max="{{ $stats['stock_quantity'] ?? 999 }}"
                                             style="width: 50px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; text-align: center;"
-                                            onchange="updateTotalPrice()">
+                                            onchange="validateReservationQuantity(); updateTotalPrice();">
                                         <button type="button" onclick="changeQuantity('paper', 1)"
                                             style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">+</button>
                                     </div>
@@ -2083,6 +2083,26 @@
             updateTotalPrice();
         }
 
+        function validateReservationQuantity() {
+            const quantityInput = document.getElementById('paper-quantity');
+            if (!quantityInput) return 1;
+
+            const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
+            let quantity = parseInt(quantityInput.value) || 1;
+
+            if (quantity < 1) {
+                quantity = 1;
+            }
+
+            if (stockQuantity > 0 && quantity > stockQuantity) {
+                quantity = stockQuantity;
+                alert(`Chỉ còn ${stockQuantity} cuốn trong kho.`);
+            }
+
+            quantityInput.value = quantity;
+            return quantity;
+        }
+
         // Hàm cập nhật giá tổng
         function updateTotalPrice() {
             // Kiểm tra chế độ mượn sách
@@ -2168,7 +2188,7 @@
                 return;
             @endguest
 
-            const quantity = parseInt(document.getElementById('paper-quantity')?.value) || 1;
+            const quantity = validateReservationQuantity();
             const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
 
             if (stockQuantity === 0) {
@@ -2181,6 +2201,8 @@
                 if (typeof window.showToast === 'function') {
                     window.showToast('Thông báo', `Bạn chọn ${quantity} cuốn nhưng kho chỉ còn ${stockQuantity} cuốn. (Giỏ đặt trước chỉ lưu 1 yêu cầu / sách)`, 'warning');
                 }
+
+                return;
             }
 
             fetch('{{ route("reservation-cart.add") }}', {
@@ -2189,7 +2211,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({ book_id: {{ $book->id }} })
+                body: JSON.stringify({ book_id: {{ $book->id }}, quantity })
             })
             .then(res => res.json())
             .then(data => {
