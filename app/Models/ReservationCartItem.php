@@ -31,8 +31,9 @@ class ReservationCartItem extends Model
         }
 
         $days = $this->calculateDaysFromDates();
+        $quantity = max(1, (int) ($this->quantity ?? 1));
 
-        return $days * ($this->daily_fee ?? 5000);
+        return $days * ($this->daily_fee ?? 5000) * $quantity;
     }
 
     /**
