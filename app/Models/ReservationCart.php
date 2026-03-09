@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -134,7 +135,7 @@ class ReservationCart extends Model
         $createdReservations = [];
         $skippedCount = 0;
 
-        return \DB::transaction(function () use ($notes, &$createdReservations, &$skippedCount) {
+        return DB::transaction(function () use ($notes, &$createdReservations, &$skippedCount) {
             // Lấy danh sách book_id từ giỏ hàng
             $bookIds = $this->items->pluck('book_id')->toArray();
 
