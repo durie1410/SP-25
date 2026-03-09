@@ -304,12 +304,13 @@
     .main-header {
         position: relative;
         top: auto;
-        z-index: 1;
+        z-index: 1200;
         background: rgba(255, 255, 255, 0.88);
         backdrop-filter: blur(18px);
         -webkit-backdrop-filter: blur(18px);
         border-bottom: 1px solid rgba(226, 232, 240, 0.82);
         box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        overflow: visible;
     }
 
     .header-top {
@@ -320,6 +321,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 20px;
+        overflow: visible;
     }
 
     .header-nav {
@@ -331,6 +333,7 @@
     .user-actions {
         gap: 12px;
         flex-wrap: wrap;
+        overflow: visible;
     }
 
     .auth-link,
@@ -613,6 +616,11 @@
     }
 
     /* Notification bell */
+    .notif-bell-wrapper {
+        position: relative;
+        z-index: 3200;
+    }
+
     .notif-bell-wrapper .cart-link {
         width: 44px;
         height: 44px;
@@ -661,7 +669,7 @@
         border: 1px solid #e2e8f0;
         border-radius: 18px;
         box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
-        z-index: 3000;
+        z-index: 5000;
         backdrop-filter: blur(18px);
     }
 
@@ -704,7 +712,7 @@
 
     .main-header + * {
         position: relative;
-        z-index: 1;
+        z-index: auto;
     }
 
     /* Login/Register buttons */
