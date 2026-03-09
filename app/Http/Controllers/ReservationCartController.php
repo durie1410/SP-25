@@ -53,10 +53,12 @@ class ReservationCartController extends Controller
             'book_id' => 'required|exists:books,id',
             'borrow_item_id' => 'nullable|exists:borrow_items,id',
             'quantity' => 'nullable|integer|min:1|max:100',
+            'split_items' => 'nullable|boolean',
         ]);
 
         $book = Book::findOrFail($data['book_id']);
         $requestedQuantity = max(1, (int) ($data['quantity'] ?? 1));
+        $splitItems = (bool) ($data['split_items'] ?? false);
 
         $cart = ReservationCart::firstOrCreate(
             ['user_id' => $user->id],
@@ -96,8 +98,12 @@ class ReservationCartController extends Controller
         }
 
         $added = null;
-        for ($i = 0; $i < $requestedQuantity; $i++) {
-            $added = $cart->addBook((int) $data['book_id'], 1);
+        if ($splitItems) {
+            for ($i = 0; $i < $requestedQuantity; $i++) {
+                $added = $cart->addBook((int) $data['book_id'], 1);
+            }
+        } else {
+            $added = $cart->addBook((int) $data['book_id'], $requestedQuantity);
         }
 
         return response()->json([
@@ -106,7 +112,9 @@ class ReservationCartController extends Controller
             'count' => $cart->fresh()->item_count,
             'quantity' => $existingQuantity + $requestedQuantity,
             'message' => $requestedQuantity > 1
-                ? "Đã thêm {$requestedQuantity} cuốn thành các dòng riêng để bạn chọn ngày mượn khác nhau nếu cần."
+                ? ($splitItems
+                    ? "Đã thêm {$requestedQuantity} cuốn thành các dòng riêng để bạn chọn ngày mượn khác nhau nếu cần."
+                    : "Đã thêm {$requestedQuantity} cuốn vào cùng một dòng để bạn dùng chung ngày trả.")
                 : 'Đã thêm vào giỏ đặt trước. Nếu muốn mượn cùng đầu sách với số ngày khác nhau, bạn có thể thêm nhiều lần để tách riêng từng dòng.',
         ]);
     }

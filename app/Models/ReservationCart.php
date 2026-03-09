@@ -56,6 +56,13 @@ class ReservationCart extends Model
         $this->items()->delete();
     }
 
+    public function getTotalPriceAttribute(): float
+    {
+        return (float) $this->items->sum(function ($item) {
+            return (float) ($item->total_price ?? 0);
+        });
+    }
+
     public function updateQuantity(int $itemId, int $quantity): array
     {
         $item = $this->items()->where('id', $itemId)->first();

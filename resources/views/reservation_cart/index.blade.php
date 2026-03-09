@@ -408,23 +408,22 @@
                     </div>
 
                     <div class="reservation-items-list">
-@foreach($items as $item)
-    @php
-<<<<<<< HEAD
-        $maxReservationQty = (int) (($item->book->inventories()->where('storage_type', 'Kho')->where('status', 'Co san')->count()) ?: ($item->book->so_luong ?? 0));
-        $sameBookItems = $items->where('book_id', $item->book_id)->values();
-        $sameBookIndex = $sameBookItems->search(fn($cartItem) => $cartItem->id === $item->id);
-=======
-        $computedDays = ($item->pickup_date && $item->return_date)
-            ? max(1, \Carbon\Carbon::parse($item->pickup_date)->diffInDays(\Carbon\Carbon::parse($item->return_date)))
-            : 0;
-        $dailyFee = (float) ($item->daily_fee ?? 5000);
-        $computedTotal = $computedDays > 0 ? ($computedDays * $dailyFee) : 0;
->>>>>>> 0676d3dcc72696c5fb6ba7c4e86b6eeef307c7e9
-    @endphp
+                        @foreach($items as $item)
+                            @php
+                                $sameBookItems = $items->where('book_id', $item->book_id)->values();
+                                $sameBookIndex = $sameBookItems->search(fn($cartItem) => $cartItem->id === $item->id);
+                                $dailyFee = (int) ($item->daily_fee ?? 5000);
+                                $hasFullDates = !empty($item->pickup_date) && !empty($item->return_date);
+                                $computedDays = $hasFullDates
+                                    ? max(1, (int) ($item->days ?? 1))
+                                    : 0;
+                                $computedTotal = $hasFullDates
+                                    ? ((int) $item->total_price)
+                                    : 0;
+                            @endphp
                             <div class="reservation-item">
                                 <div class="reservation-item-img-box">
-        <img src="{{ $item->book->image_url ?? asset('images/default-book.png') }}"
+                                    <img src="{{ $item->book->image_url ?? asset('images/default-book.png') }}"
                                          alt="{{ $item->book->ten_sach }}">
                                 </div>
 
@@ -432,30 +431,38 @@
                                     <h4 class="reservation-item-title">
                                         {{ $item->book->ten_sach }}
                                     </h4>
+
                                     @if($sameBookItems->count() > 1)
                                         <div class="reservation-item-author" style="margin-bottom: 6px; color: #0d9488; font-weight: 600;">
                                             Bản đặt trước #{{ ($sameBookIndex !== false ? $sameBookIndex + 1 : 1) }} cho cùng đầu sách
                                         </div>
                                     @endif
+
                                     <div class="reservation-item-author">
                                         Tác giả: <strong>{{ $item->book->tac_gia ?? 'Không rõ' }}</strong>
                                     </div>
+
                                     <div class="reservation-item-meta">
+                                        <span>
+                                            <i class="fas fa-layer-group me-1"></i>
+                                            Số lượng: <strong class="reservation-quantity-value">{{ max(1, (int) ($item->quantity ?? 1)) }}</strong>
+                                        </span>
                                         <span>
                                             <i class="fas fa-calendar-day me-1"></i>
                                             Số ngày mượn:
                                             <span class="reservation-days-pill">
-                                                <span class="days-display"
-
-                                                </span> ngày
+                                                <span class="days-display" data-item-id="{{ $item->id }}">{{ $computedDays }}</span> ngày
                                             </span>
                                         </span>
-                                        <span class="reservation-fee-breakdown" data-daily-fee="{{ (int) $dailyFee }}" data-book-id="{{ $item->book_id }}">
-                                            <span class="fee-breakdown-text" data-book-id="{{ $item->book_id }}">
-                                                {{ $computedDays }} ngày × {{ number_format($dailyFee,0,',','.') }}₫/ngày
+                                    </div>
+
+                                    <div class="reservation-item-meta" style="margin-top: 8px;">
+                                        <span class="reservation-fee-breakdown" data-daily-fee="{{ $dailyFee }}" data-item-id="{{ $item->id }}">
+                                            <span class="fee-breakdown-text" data-item-id="{{ $item->id }}">
+                                                {{ $computedDays }} ngày × {{ number_format($dailyFee, 0, ',', '.') }}₫/ngày × {{ max(1, (int) ($item->quantity ?? 1)) }} cuốn
                                             </span>
-                                            <span class="fee-breakdown-total" data-book-id="{{ $item->book_id }}">
-                                                = <strong>{{ number_format($computedTotal,0,',','.') }}₫</strong>
+                                            <span class="fee-breakdown-total" data-item-id="{{ $item->id }}">
+                                                = <strong>{{ number_format($computedTotal, 0, ',', '.') }}₫</strong>
                                             </span>
                                         </span>
                                     </div>
@@ -467,6 +474,7 @@
                                                 type="date"
                                                 class="form-control pickup-date"
                                                 data-item-id="{{ $item->id }}"
+                                                min="{{ now()->format('Y-m-d') }}"
                                                 value="{{ $item->pickup_date ? \Carbon\Carbon::parse($item->pickup_date)->format('Y-m-d') : '' }}"
                                                 onchange="handleItemDateChange(this)"
                                             >
@@ -477,6 +485,7 @@
                                                 type="date"
                                                 class="form-control return-date"
                                                 data-item-id="{{ $item->id }}"
+                                                min="{{ $item->pickup_date ? \Carbon\Carbon::parse($item->pickup_date)->addDay()->format('Y-m-d') : now()->addDay()->format('Y-m-d') }}"
                                                 value="{{ $item->return_date ? \Carbon\Carbon::parse($item->return_date)->format('Y-m-d') : '' }}"
                                                 onchange="handleItemDateChange(this)"
                                             >
@@ -485,41 +494,22 @@
                                 </div>
 
                                 <div class="reservation-item-actions">
-<<<<<<< HEAD
-                                    <div class="reservation-qty-wrapper">
-                                        <span class="reservation-qty-label">Số lượng</span>
-        <input type="number"
-               value="{{ $item->quantity }}"
-               min="1"
-             @if($maxReservationQty > 0) max="{{ $maxReservationQty }}" @endif
-                             data-item-id="{{ $item->id }}"
-               onchange="updateQuantity(this)"
-                                               class="form-control reservation-qty-input">
+                                    <div class="reservation-price-stack" style="text-align: right; margin-bottom: 12px;">
+                                        <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 4px;">Tạm tính</div>
+                                        <span class="item-price" data-item-id="{{ $item->id }}" style="font-size: 1rem; font-weight: 700; color: #0f172a;">
+                                            {{ number_format($computedTotal, 0, ',', '.') }}₫
+                                        </span>
                                     </div>
 
-                                    <div class="reservation-price">
-        <span class="item-price"
-              data-item-id="{{ $item->id }}">
-            {{ number_format($item->total_price,0,',','.') }}₫
-=======
-                                    <div class="reservation-price">
-        <span class="item-price"
-              data-book-id="{{ $item->book_id }}">
-            {{ number_format($computedTotal,0,',','.') }}₫
->>>>>>> 0676d3dcc72696c5fb6ba7c4e86b6eeef307c7e9
-        </span>
-                                    </div>
-
-        <form method="POST"
-              action="{{ route('reservation-cart.remove',$item->id) }}">
-            @csrf
+                                    <form method="POST" action="{{ route('reservation-cart.remove', $item->id) }}">
+                                        @csrf
                                         <button class="btn btn-outline-danger btn-sm reservation-remove-btn" type="submit">
                                             <i class="fas fa-times"></i> Xóa
                                         </button>
-        </form>
+                                    </form>
                                 </div>
                             </div>
-@endforeach
+                        @endforeach
                     </div>
                 </div>
             </div>
@@ -536,7 +526,7 @@
 
                     <div class="reservation-summary-row">
                         <span>Tổng sách</span>
-                        <span><strong>{{ $items->count() }}</strong> cuốn</span>
+                        <span><strong>{{ $items->sum('quantity') }}</strong> cuốn</span>
                     </div>
 
                     <div class="reservation-summary-row total">
@@ -574,41 +564,34 @@ function formatCurrency(v){
     return new Intl.NumberFormat('vi-VN').format(v) + '₫';
 }
 
-<<<<<<< HEAD
-function updateQuantity(input){
-    const previousQuantity = input.defaultValue || input.value;
+function parseDateString(value){
+    if(!value){
+        return null;
+    }
 
-    fetch('{{ route("reservation-cart.update-quantity",":id") }}'
-        .replace(':id', input.dataset.itemId),{
-        method:'POST',
-        headers:{
-            'Content-Type':'application/json',
-            'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content
-        },
-        body:JSON.stringify({quantity:input.value})
-    })
-    .then(r=>r.json())
-    .then(d=>{
-        if(!d.success){
-            alert(d.message || 'Không thể cập nhật số lượng.');
-            input.value = previousQuantity;
-            return;
-        }
+    const parts = value.split('-').map(Number);
+    if(parts.length !== 3 || parts.some(Number.isNaN)){
+        return null;
+    }
 
-        input.defaultValue = d.quantity;
-        document.querySelector(`.item-price[data-item-id="${input.dataset.itemId}"]`)
-            .textContent = formatCurrency(d.item_price);
-        document.getElementById('total-price').textContent =
-            formatCurrency(d.total_price);
-    })
-    .catch(() => {
-        alert('Không thể cập nhật số lượng.');
-        input.value = previousQuantity;
-    });
+    return new Date(parts[0], parts[1] - 1, parts[2]);
 }
 
-=======
->>>>>>> 0676d3dcc72696c5fb6ba7c4e86b6eeef307c7e9
+function nextDateString(value){
+    const date = parseDateString(value);
+    if(!date){
+        return value;
+    }
+
+    date.setDate(date.getDate() + 1);
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
+
 function ensureDateStatusEl(){
     let statusMsg = document.getElementById('date-update-status');
     if(statusMsg) return statusMsg;
@@ -632,8 +615,15 @@ function validateReservationDates(pickup, ret, showAlert = true){
     const today = new Date();
     today.setHours(0,0,0,0);
 
-    const pickupDate = new Date(pickup);
-    const returnDate = new Date(ret);
+    const pickupDate = parseDateString(pickup);
+    const returnDate = parseDateString(ret);
+
+    if(!pickupDate || !returnDate){
+        if(showAlert){
+            alert('Ngày không đúng định dạng. Vui lòng chọn lại.');
+        }
+        return false;
+    }
 
     if(pickupDate < today){
         if(showAlert){
@@ -656,6 +646,15 @@ function handleItemDateChange(input){
     const itemId = input.dataset.itemId;
     const pickupInput = document.querySelector(`.pickup-date[data-item-id="${itemId}"]`);
     const returnInput = document.querySelector(`.return-date[data-item-id="${itemId}"]`);
+
+    if(pickupInput && returnInput){
+        const pickupMin = pickupInput.value || '{{ now()->format('Y-m-d') }}';
+        returnInput.min = nextDateString(pickupMin);
+
+        if(returnInput.value && returnInput.value < returnInput.min){
+            returnInput.value = '';
+        }
+    }
 
     if(!pickupInput || !returnInput){
         return;
@@ -700,36 +699,34 @@ function handleItemDateChange(input){
         return data;
     })
     .then(d=>{
-<<<<<<< HEAD
-        document.querySelector(`.days-display[data-item-id="${itemId}"]`)
-            .textContent = d.days;
-        document.querySelector(`.item-price[data-item-id="${itemId}"]`)
-            .textContent = formatCurrency(d.item_price);
-=======
-        const itemDays = Number(d.days || 0);
-        const itemPrice = Number(d.item_price || 0);
+        const daysEl = document.querySelector(`.days-display[data-item-id="${itemId}"]`);
+        if(daysEl){
+            daysEl.textContent = d.days;
+        }
 
-        document.querySelector(`.days-display[data-book-id="${bookId}"]`)
-            .textContent = itemDays;
+        const itemPriceEl = document.querySelector(`.item-price[data-item-id="${itemId}"]`);
+        if(itemPriceEl){
+            itemPriceEl.textContent = formatCurrency(Number(d.item_price || 0));
+        }
 
-        const breakdown = document.querySelector(`.reservation-fee-breakdown[data-book-id="${bookId}"]`);
-        if (breakdown) {
-            const dailyFee = Number(breakdown.dataset.dailyFee || 5000);
-            const breakdownTextEl = breakdown.querySelector(`.fee-breakdown-text[data-book-id="${bookId}"]`);
-            const breakdownTotalEl = breakdown.querySelector(`.fee-breakdown-total[data-book-id="${bookId}"]`);
+        const feeBox = document.querySelector(`.reservation-fee-breakdown[data-item-id="${itemId}"]`);
+        if(feeBox){
+            const dailyFee = Number(feeBox.dataset.dailyFee || 0);
+            const feeText = feeBox.querySelector(`.fee-breakdown-text[data-item-id="${itemId}"]`);
+            const feeTotal = feeBox.querySelector(`.fee-breakdown-total[data-item-id="${itemId}"]`);
 
-            if (breakdownTextEl) {
-                breakdownTextEl.textContent = `${itemDays} ngày × ${formatCurrency(dailyFee)}/ngày`;
+            if(feeText){
+                const itemCard = input.closest('.reservation-item');
+                const quantityEl = itemCard ? itemCard.querySelector('.reservation-quantity-value') : null;
+                const quantity = quantityEl ? Number(quantityEl.textContent || 1) : 1;
+                feeText.textContent = `${d.days} ngày × ${formatCurrency(dailyFee)}/ngày × ${quantity} cuốn`;
             }
 
-            if (breakdownTotalEl) {
-                breakdownTotalEl.innerHTML = `= <strong>${formatCurrency(itemPrice)}</strong>`;
+            if(feeTotal){
+                feeTotal.innerHTML = `= <strong>${formatCurrency(Number(d.item_price || 0))}</strong>`;
             }
         }
 
-        document.querySelector(`.item-price[data-book-id="${bookId}"]`)
-            .textContent = formatCurrency(itemPrice);
->>>>>>> 0676d3dcc72696c5fb6ba7c4e86b6eeef307c7e9
         document.getElementById('total-price')
             .textContent = formatCurrency(Number(d.total_price || 0));
 
