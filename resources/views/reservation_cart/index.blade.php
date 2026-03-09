@@ -215,20 +215,6 @@
         min-width: 140px;
     }
 
-    .reservation-qty-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .reservation-qty-label {
-        font-size: 12px;
-        color: var(--reserve-muted);
-    }
-
-    .reservation-qty-input {
-        width: 70px;
-    }
 
     .reservation-days-pill {
         font-size: 13px;
@@ -410,7 +396,11 @@
                     <div class="reservation-items-list">
 @foreach($items as $item)
     @php
-        $maxReservationQty = (int) (($item->book->inventories()->where('storage_type', 'Kho')->where('status', 'Co san')->count()) ?: ($item->book->so_luong ?? 0));
+        $computedDays = ($item->pickup_date && $item->return_date)
+            ? max(1, \Carbon\Carbon::parse($item->pickup_date)->diffInDays(\Carbon\Carbon::parse($item->return_date)))
+            : 0;
+        $dailyFee = (float) ($item->daily_fee ?? 5000);
+        $computedTotal = $computedDays > 0 ? ($computedDays * $dailyFee) : 0;
     @endphp
                             <div class="reservation-item">
                                 <div class="reservation-item-img-box">
@@ -432,18 +422,16 @@
                                             <span class="reservation-days-pill">
                                                 <span class="days-display"
                                                       data-book-id="{{ $item->book_id }}">
-                                                    {{ $item->days ?? 1 }}
+                                                    {{ $computedDays }}
                                                 </span> ngày
                                             </span>
                                         </span>
-                                        <span class="reservation-fee-breakdown">
-                                            <span>
-                                                {{ $item->days ?? 1 }} ngày
-                                                × {{ number_format($item->daily_fee ?? 5000,0,',','.') }}₫/ngày
-                                                × SL {{ $item->quantity ?? 1 }}
+                                        <span class="reservation-fee-breakdown" data-daily-fee="{{ (int) $dailyFee }}" data-book-id="{{ $item->book_id }}">
+                                            <span class="fee-breakdown-text" data-book-id="{{ $item->book_id }}">
+                                                {{ $computedDays }} ngày × {{ number_format($dailyFee,0,',','.') }}₫/ngày
                                             </span>
-                                            <span>
-                                                = <strong>{{ number_format($item->total_price,0,',','.') }}₫</strong>
+                                            <span class="fee-breakdown-total" data-book-id="{{ $item->book_id }}">
+                                                = <strong>{{ number_format($computedTotal,0,',','.') }}₫</strong>
                                             </span>
                                         </span>
                                     </div>
@@ -473,21 +461,10 @@
                                 </div>
 
                                 <div class="reservation-item-actions">
-                                    <div class="reservation-qty-wrapper">
-                                        <span class="reservation-qty-label">Số lượng</span>
-        <input type="number"
-               value="{{ $item->quantity }}"
-               min="1"
-             @if($maxReservationQty > 0) max="{{ $maxReservationQty }}" @endif
-               data-book-id="{{ $item->book_id }}"
-               onchange="updateQuantity(this)"
-                                               class="form-control reservation-qty-input">
-                                    </div>
-
                                     <div class="reservation-price">
         <span class="item-price"
               data-book-id="{{ $item->book_id }}">
-            {{ number_format($item->total_price,0,',','.') }}₫
+            {{ number_format($computedTotal,0,',','.') }}₫
         </span>
                                     </div>
 
@@ -517,7 +494,7 @@
 
                     <div class="reservation-summary-row">
                         <span>Tổng sách</span>
-                        <span><strong>{{ $items->sum('quantity') }}</strong> cuốn</span>
+                        <span><strong>{{ $items->count() }}</strong> cuốn</span>
                     </div>
 
                     <div class="reservation-summary-row total">
@@ -553,38 +530,6 @@
 <script>
 function formatCurrency(v){
     return new Intl.NumberFormat('vi-VN').format(v) + '₫';
-}
-
-function updateQuantity(input){
-    const previousQuantity = input.defaultValue || input.value;
-
-    fetch('{{ route("reservation-cart.update-quantity",":id") }}'
-        .replace(':id', input.dataset.bookId),{
-        method:'POST',
-        headers:{
-            'Content-Type':'application/json',
-            'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content
-        },
-        body:JSON.stringify({quantity:input.value})
-    })
-    .then(r=>r.json())
-    .then(d=>{
-        if(!d.success){
-            alert(d.message || 'Không thể cập nhật số lượng.');
-            input.value = previousQuantity;
-            return;
-        }
-
-        input.defaultValue = d.quantity;
-        document.querySelector(`.item-price[data-book-id="${input.dataset.bookId}"]`)
-            .textContent = formatCurrency(d.item_price);
-        document.getElementById('total-price').textContent =
-            formatCurrency(d.total_price);
-    })
-    .catch(() => {
-        alert('Không thể cập nhật số lượng.');
-        input.value = previousQuantity;
-    });
 }
 
 function ensureDateStatusEl(){
@@ -678,12 +623,31 @@ function handleItemDateChange(input){
         return data;
     })
     .then(d=>{
+        const itemDays = Number(d.days || 0);
+        const itemPrice = Number(d.item_price || 0);
+
         document.querySelector(`.days-display[data-book-id="${bookId}"]`)
-            .textContent = d.days;
+            .textContent = itemDays;
+
+        const breakdown = document.querySelector(`.reservation-fee-breakdown[data-book-id="${bookId}"]`);
+        if (breakdown) {
+            const dailyFee = Number(breakdown.dataset.dailyFee || 5000);
+            const breakdownTextEl = breakdown.querySelector(`.fee-breakdown-text[data-book-id="${bookId}"]`);
+            const breakdownTotalEl = breakdown.querySelector(`.fee-breakdown-total[data-book-id="${bookId}"]`);
+
+            if (breakdownTextEl) {
+                breakdownTextEl.textContent = `${itemDays} ngày × ${formatCurrency(dailyFee)}/ngày`;
+            }
+
+            if (breakdownTotalEl) {
+                breakdownTotalEl.innerHTML = `= <strong>${formatCurrency(itemPrice)}</strong>`;
+            }
+        }
+
         document.querySelector(`.item-price[data-book-id="${bookId}"]`)
-            .textContent = formatCurrency(d.item_price);
+            .textContent = formatCurrency(itemPrice);
         document.getElementById('total-price')
-            .textContent = formatCurrency(d.total_price);
+            .textContent = formatCurrency(Number(d.total_price || 0));
 
         statusMsg.style.background = '#22c55e';
         statusMsg.textContent = 'Đã cập nhật ngày cho sách này!';

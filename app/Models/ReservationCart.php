@@ -61,12 +61,12 @@ class ReservationCart extends Model
     }
     /**
      * Calculate total price for all items in cart
-     * Total = sum of (days * daily_fee * quantity) for all items
+     * Chỉ cộng các item đã chọn đủ ngày lấy + ngày trả
      */
     public function getTotalPriceAttribute(): float
     {
         return $this->items->sum(function ($item) {
-            return ($item->days ?? 1) * ($item->daily_fee ?? 5000) * ($item->quantity ?? 1);
+            return $item->total_price;
         });
     }
 

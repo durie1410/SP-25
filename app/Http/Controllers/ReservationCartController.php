@@ -178,8 +178,6 @@ class ReservationCartController extends Controller
             DB::beginTransaction();
 
             foreach ($cart->items as $item) {
-                $quantity = (int) ($item->quantity ?? 1);
-
                 $pickupDate = $item->pickup_date ? \Carbon\Carbon::parse($item->pickup_date) : null;
                 $returnDate = $item->return_date ? \Carbon\Carbon::parse($item->return_date) : null;
 
@@ -193,19 +191,16 @@ class ReservationCartController extends Controller
                 $dailyFee = (float) ($item->daily_fee ?? 5000);
                 $tienThue = $dailyFee * $borrowDays;
 
-                // Tạo N bản ghi dựa trên số lượng
-                for ($i = 0; $i < $quantity; $i++) {
-                    \App\Models\InventoryReservation::create([
-                        'book_id' => $item->book_id,
-                        'user_id' => $user->id,
-                        'reader_id' => $reader->id,
-                        'pickup_date' => $item->pickup_date,
-                        'return_date' => $item->return_date,
-                        'total_fee' => $tienThue,
-                        'notes' => $request->notes,
-                        'status' => 'pending',
-                    ]);
-                }
+                \App\Models\InventoryReservation::create([
+                    'book_id' => $item->book_id,
+                    'user_id' => $user->id,
+                    'reader_id' => $reader->id,
+                    'pickup_date' => $item->pickup_date,
+                    'return_date' => $item->return_date,
+                    'total_fee' => $tienThue,
+                    'notes' => $request->notes,
+                    'status' => 'pending',
+                ]);
             }
 
             // Xóa giỏ hàng sau khi gửi thành công
