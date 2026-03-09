@@ -2617,10 +2617,17 @@
 
             if (quantity > stockQuantity && stockQuantity > 0) {
                 if (typeof window.showToast === 'function') {
-                    window.showToast('Thông báo', `Bạn chọn ${quantity} cuốn nhưng kho chỉ còn ${stockQuantity} cuốn. (Giỏ đặt trước chỉ lưu 1 yêu cầu / sách)`, 'warning');
+                    window.showToast('Thông báo', `Bạn chọn ${quantity} cuốn nhưng kho chỉ còn ${stockQuantity} cuốn.`, 'warning');
                 }
 
                 return;
+            }
+
+            let shouldRedirectToCartForDifferentDates = false;
+
+            if (quantity > 1) {
+                const sameDay = confirm(`Bạn đang thêm ${quantity} cuốn cùng một đầu sách.\n\nBạn có muốn trả ${quantity} cuốn cùng một ngày không?\n\nChọn OK = cùng ngày trả\nChọn Cancel = sẽ tách thành nhiều dòng để chọn thời gian thuê riêng cho từng cuốn.`);
+                shouldRedirectToCartForDifferentDates = !sameDay;
             }
 
             fetch('{{ route("reservation-cart.add") }}', {
@@ -2642,6 +2649,12 @@
 
                     if (typeof window.loadReservationCartCount === 'function') {
                         window.loadReservationCartCount();
+                    }
+
+                    if (shouldRedirectToCartForDifferentDates) {
+                        setTimeout(() => {
+                            window.location.href = '{{ route("reservation-cart.index") }}?configure_dates=1&book_id={{ $book->id }}';
+                        }, 250);
                     }
                 } else {
                     if (typeof window.showToast === 'function') {
