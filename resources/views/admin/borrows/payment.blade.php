@@ -81,15 +81,23 @@
 
                         <form id="paymentWithImagesForm" action="{{ route('admin.borrows.confirm-cash-payment', $borrow->id) }}" method="POST" class="mt-3" enctype="multipart/form-data">
                             @csrf
-                            <input type="hidden" name="payment_method" value="online">
+                            <input type="hidden" id="payment_method" name="payment_method" value="online">
+
                             <div class="mb-3 form-text">
-                                Hệ thống sẽ tạo mã <strong>MoMo</strong> để khách hàng quét và thanh toán online.
+                                Chọn phương thức thanh toán: <strong>Tiền mặt</strong> hoặc <strong>MoMo</strong>.
                             </div>
 
-                            <button type="submit" class="btn btn-success w-100"
-                                    onclick="return confirm('Tiếp tục xử lý thanh toán cho phiếu mượn #{{ $borrow->id }}?')">
-                                <i class="fas fa-qrcode me-1"></i> Tạo mã thanh toán MoMo
-                            </button>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary w-100"
+                                        onclick="document.getElementById('payment_method').value='offline'; return confirm('Xác nhận đã thu TIỀN MẶT cho phiếu mượn #{{ $borrow->id }}?')">
+                                    <i class="fas fa-money-bill-wave me-1"></i> Xác nhận thanh toán tiền mặt
+                                </button>
+
+                                <button type="submit" class="btn btn-success w-100"
+                                        onclick="document.getElementById('payment_method').value='online'; return confirm('Tạo mã MoMo cho phiếu mượn #{{ $borrow->id }}?')">
+                                    <i class="fas fa-qrcode me-1"></i> Tạo mã thanh toán MoMo
+                                </button>
+                            </div>
                         </form>
                     @endif
                 </div>
@@ -103,7 +111,7 @@
                 </div>
                 <div class="card-body">
                     @if($successPayment)
-                        <div class="border border-success rounded p-3 mb-3">
+                        <div id="upload-evidence-section" class="border border-success rounded p-3 mb-3">
                             <div class="fw-bold text-success mb-2">
                                 <i class="fas fa-camera me-1"></i> Đã thanh toán, bấm nút dưới để lưu ảnh và ghi chú
                             </div>
@@ -150,7 +158,7 @@
                                                         data-preview-id="book_image_front_preview_{{ $item->id }}"
                                                         accept="image/*"
                                                         {{ empty($item->anh_bia_truoc) ? 'required' : '' }}>
-                                                    <img id="book_image_front_preview_{{ $item->id }}" class="img-thumbnail mt-1 d-none" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh bìa trước">
+                                                    <img id="book_image_front_preview_{{ $item->id }}" src="{{ $item->anh_bia_truoc ?? '' }}" class="img-thumbnail mt-1 {{ empty($item->anh_bia_truoc) ? 'd-none' : '' }}" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh bìa trước">
                                                 </td>
                                                 <td>
                                                     <input type="file"
@@ -160,7 +168,7 @@
                                                         data-preview-id="book_image_back_preview_{{ $item->id }}"
                                                         accept="image/*"
                                                         {{ empty($item->anh_bia_sau) ? 'required' : '' }}>
-                                                    <img id="book_image_back_preview_{{ $item->id }}" class="img-thumbnail mt-1 d-none" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh bìa sau">
+                                                    <img id="book_image_back_preview_{{ $item->id }}" src="{{ $item->anh_bia_sau ?? '' }}" class="img-thumbnail mt-1 {{ empty($item->anh_bia_sau) ? 'd-none' : '' }}" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh bìa sau">
                                                 </td>
                                                 <td>
                                                     <input type="file"
@@ -170,7 +178,7 @@
                                                         data-preview-id="book_image_spine_preview_{{ $item->id }}"
                                                         accept="image/*"
                                                         {{ empty($item->anh_gay_sach) ? 'required' : '' }}>
-                                                    <img id="book_image_spine_preview_{{ $item->id }}" class="img-thumbnail mt-1 d-none" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh gáy sách">
+                                                    <img id="book_image_spine_preview_{{ $item->id }}" src="{{ $item->anh_gay_sach ?? '' }}" class="img-thumbnail mt-1 {{ empty($item->anh_gay_sach) ? 'd-none' : '' }}" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh gáy sách">
                                                 </td>
                                                 <td>
                                                     <textarea name="book_notes[{{ $item->id }}]" rows="2" class="form-control form-control-sm" placeholder="Ghi chú tình trạng cuốn sách này..." form="saveReceiveEvidenceForm" required>{{ old('book_notes.' . $item->id, $item->ghi_chu_nhan_sach ?? '') }}</textarea>
@@ -233,7 +241,7 @@
                                                             form="paymentWithImagesForm"
                                                             data-preview-id="book_image_front_preview_{{ $item->id }}"
                                                             accept="image/*">
-                                                        <img id="book_image_front_preview_{{ $item->id }}" class="img-thumbnail mt-1 d-none" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh bìa trước">
+                                                        <img id="book_image_front_preview_{{ $item->id }}" src="{{ $item->anh_bia_truoc ?? '' }}" class="img-thumbnail mt-1 {{ empty($item->anh_bia_truoc) ? 'd-none' : '' }}" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh bìa trước">
                                                     </td>
                                                     <td>
                                                         <input type="file"
@@ -242,7 +250,7 @@
                                                             form="paymentWithImagesForm"
                                                             data-preview-id="book_image_back_preview_{{ $item->id }}"
                                                             accept="image/*">
-                                                        <img id="book_image_back_preview_{{ $item->id }}" class="img-thumbnail mt-1 d-none" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh bìa sau">
+                                                        <img id="book_image_back_preview_{{ $item->id }}" src="{{ $item->anh_bia_sau ?? '' }}" class="img-thumbnail mt-1 {{ empty($item->anh_bia_sau) ? 'd-none' : '' }}" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh bìa sau">
                                                     </td>
                                                     <td>
                                                         <input type="file"
@@ -251,7 +259,7 @@
                                                             form="paymentWithImagesForm"
                                                             data-preview-id="book_image_spine_preview_{{ $item->id }}"
                                                             accept="image/*">
-                                                        <img id="book_image_spine_preview_{{ $item->id }}" class="img-thumbnail mt-1 d-none" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh gáy sách">
+                                                        <img id="book_image_spine_preview_{{ $item->id }}" src="{{ $item->anh_gay_sach ?? '' }}" class="img-thumbnail mt-1 {{ empty($item->anh_gay_sach) ? 'd-none' : '' }}" style="height: 70px; width: 70px; object-fit: cover;" alt="Preview ảnh gáy sách">
                                                     </td>
                                                     <td>
                                                         <textarea name="book_notes[{{ $item->id }}]" rows="2" class="form-control form-control-sm" placeholder="Ghi chú tình trạng cuốn sách này..." form="paymentWithImagesForm">{{ old('book_notes.' . $item->id, $item->ghi_chu_nhan_sach ?? '') }}</textarea>
@@ -312,6 +320,13 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        @if(session('open_upload_evidence'))
+            const uploadSection = document.getElementById('upload-evidence-section');
+            if (uploadSection) {
+                uploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        @endif
+
         const bindImagePreview = (input, preview) => {
             if (!input || !preview) return;
 

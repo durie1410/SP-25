@@ -691,7 +691,10 @@ class BorrowController extends Controller
         if ($updated > 0) {
             $this->finalizeBorrowAfterSuccessfulPayment($borrow);
 
-            return back()->with('success', 'Đã xác nhận thanh toán ' . $paymentMethodText . ' thành công! Số tiền: ' . number_format($payment->amount ?? 0) . '₫');
+            return redirect()
+                ->route('admin.borrows.payment', $borrow->id)
+                ->with('success', 'Đã xác nhận thanh toán ' . $paymentMethodText . ' thành công! Số tiền: ' . number_format($payment->amount ?? 0) . '₫')
+                ->with('open_upload_evidence', true);
         } else {
             return back()->with('info', 'Không có thanh toán nào đang chờ xác nhận.');
         }
