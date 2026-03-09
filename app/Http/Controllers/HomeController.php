@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Book;
+use App\Models\User;
 use App\Models\Category;
 use App\Models\Borrow;
 use App\Models\Reader;
@@ -313,6 +314,7 @@ if (is_array($request->items ?? null) && count($request->items) === 0) {
             ], 401);
         }
 
+        /** @var User $user */
         $user = auth()->user();
         
         // Kiểm tra thông tin user có đầy đủ không
