@@ -301,6 +301,91 @@
 @endauth
 
 <style>
+    .main-header {
+        position: relative;
+        top: auto;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border-bottom: 1px solid rgba(226, 232, 240, 0.82);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+    }
+
+    .header-top {
+        width: min(92%, 1280px);
+        margin: 0 auto;
+        padding: 18px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+    }
+
+    .header-nav {
+        background: transparent;
+        border-bottom: none;
+        padding: 0 0 22px;
+    }
+
+    .user-actions {
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .auth-link,
+    .cart-link {
+        border-radius: 999px !important;
+        border: 1px solid rgba(226, 232, 240, 0.95) !important;
+        background: rgba(255, 255, 255, 0.95) !important;
+        color: #0f172a !important;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08);
+        transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease !important;
+    }
+
+    .auth-link:hover,
+    .cart-link:hover {
+        transform: translateY(-2px);
+        border-color: rgba(13, 148, 136, 0.35) !important;
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+    }
+
+    .cart-link {
+        padding-inline: 16px !important;
+    }
+
+    .search-bar {
+        background: rgba(255, 255, 255, 0.92) !important;
+        border: 1px solid rgba(226, 232, 240, 0.95) !important;
+        box-shadow: 0 22px 40px rgba(15, 23, 42, 0.10) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        padding: 6px 6px 6px 18px !important;
+    }
+
+    .search-form .search-input {
+        background: transparent !important;
+        font-weight: 500;
+    }
+
+    .search-form .search-input::placeholder {
+        color: #94a3b8;
+    }
+
+    .search-button {
+        min-width: 136px;
+        box-shadow: 0 14px 28px rgba(37, 99, 235, 0.28) !important;
+    }
+
+    .hotline-section {
+        gap: 18px;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(226, 232, 240, 0.85);
+        border-radius: 22px;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+    }
+
     /* Modern Header Styles */
     .logo-link {
         text-decoration: none;
@@ -318,7 +403,7 @@
     .logo-icon-wrapper svg {
         width: 100%;
         height: 100%;
-        filter: drop-shadow(0 2px 4px rgba(13, 148, 136, 0.3));
+        filter: drop-shadow(0 8px 18px rgba(13, 148, 136, 0.28));
         transition: transform 0.3s ease;
     }
     
@@ -343,6 +428,21 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
+    }
+
+    .hotline-label {
+        font-weight: 600;
+        color: #64748b;
+        letter-spacing: 0.01em;
+    }
+
+    .hotline-number {
+        color: #0f172a;
+        font-weight: 700;
+    }
+
+    .hotline-number:hover {
+        color: #0d9488;
     }
     
     .hotline-divider {
@@ -420,8 +520,8 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 16px;
-        background: linear-gradient(135deg, #f0fdfa, #ecfdf5);
+        padding: 18px;
+        background: linear-gradient(135deg, #f0fdfa, #ecfeff 60%, #eff6ff);
         border-bottom: 1px solid #e2e8f0;
     }
     
@@ -557,11 +657,12 @@
         width: 360px;
         max-height: 420px;
         overflow: hidden;
-        background: #fff;
+        background: rgba(255, 255, 255, 0.98);
         border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        box-shadow: 0 14px 50px rgba(15, 23, 42, 0.15);
+        border-radius: 18px;
+        box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
         z-index: 3000;
+        backdrop-filter: blur(18px);
     }
 
     .notif-panel.show {
@@ -601,6 +702,11 @@
         overflow-y: auto;
     }
 
+    .main-header + * {
+        position: relative;
+        z-index: 1;
+    }
+
     /* Login/Register buttons */
     .login-btn {
         background: transparent !important;
@@ -625,12 +731,25 @@
     }
 
     @media (max-width: 768px) {
+        .header-top {
+            width: min(94%, 1280px);
+            padding: 14px 0;
+        }
+
+        .header-nav {
+            padding: 0 0 16px;
+        }
+
         .hotline-section {
             display: none;
         }
 
         .logo-part1 {
             display: none;
+        }
+
+        .search-bar {
+            border-radius: 20px !important;
         }
         
         .user-actions .auth-link span {

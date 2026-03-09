@@ -1383,6 +1383,417 @@
                 margin: 0 auto;
             }
         }
+
+        :root {
+            --detail-accent: #0d9488;
+            --detail-accent-2: #2563eb;
+            --detail-text: #0f172a;
+            --detail-muted: #64748b;
+            --detail-border: #e2e8f0;
+            --detail-surface: rgba(255, 255, 255, 0.9);
+            --detail-shadow: 0 22px 44px rgba(15, 23, 42, 0.08);
+            --detail-shadow-soft: 0 16px 32px rgba(15, 23, 42, 0.06);
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(13, 148, 136, 0.08), transparent 24%),
+                radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 22%),
+                #f6f8fc;
+            color: var(--detail-text);
+        }
+
+        .content-wrapper {
+            max-width: 1280px;
+            gap: 28px;
+            padding: 30px 20px 48px;
+            align-items: flex-start;
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(226, 232, 240, 0.78);
+            border-radius: 30px;
+            padding: 26px;
+            box-shadow: var(--detail-shadow);
+            backdrop-filter: blur(16px);
+        }
+
+        .sidebar {
+            gap: 22px;
+        }
+
+        .breadcrumb.premium-breadcrumb {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            color: var(--detail-muted);
+        }
+
+        .breadcrumb.premium-breadcrumb a,
+        .breadcrumb.premium-breadcrumb span {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            text-decoration: none;
+            color: inherit;
+            font-weight: 600;
+        }
+
+        .breadcrumb.premium-breadcrumb a:hover {
+            color: var(--detail-accent);
+            background: #f0fdfa;
+        }
+
+        .book-detail-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .book-summary {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 28px;
+            padding: 24px;
+            box-shadow: var(--detail-shadow-soft);
+            gap: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .book-summary::before {
+            content: '';
+            position: absolute;
+            inset: 0 auto auto 0;
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(13, 148, 136, 0.12), transparent 68%);
+            pointer-events: none;
+        }
+
+        .book-cover {
+            width: 290px;
+            border-radius: 22px;
+            box-shadow: 0 22px 36px rgba(15, 23, 42, 0.16);
+            border: 1px solid rgba(226, 232, 240, 0.78);
+        }
+
+        .info-and-buy {
+            position: relative;
+            z-index: 1;
+        }
+
+        .book-title-row {
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .book-main-title {
+            margin: 0;
+            font-size: clamp(2rem, 3vw, 2.8rem);
+            line-height: 1.15;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--detail-text);
+        }
+
+        .favorite-toggle-btn {
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+            border-color: rgba(226, 232, 240, 0.9);
+        }
+
+        .book-quick-facts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 0 0 14px;
+        }
+
+        .quick-fact {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: var(--detail-muted);
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(226, 232, 240, 0.92);
+        }
+
+        .quick-fact i {
+            color: var(--detail-accent);
+        }
+
+        .info-and-buy > p {
+            color: var(--detail-muted);
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .info-and-buy > p strong {
+            color: var(--detail-text);
+        }
+
+        .rating-summary-inline {
+            display: inline-flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #fff7ed, #ffffff);
+            border: 1px solid rgba(251, 191, 36, 0.32);
+            margin: 8px 0 18px;
+        }
+
+        .rating-score {
+            color: #b45309;
+            font-weight: 800;
+        }
+
+        .rating-caption {
+            color: var(--detail-muted);
+        }
+
+        .rental-highlight {
+            margin: 0 0 20px;
+            padding: 16px 18px;
+            background: linear-gradient(135deg, #ecfeff, #eff6ff);
+            border-radius: 18px;
+            border: 1px solid rgba(6, 182, 212, 0.26);
+        }
+
+        .rental-highlight-title {
+            font-size: 0.92rem;
+            color: var(--detail-text);
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+
+        .rental-highlight-price {
+            font-size: 0.98rem;
+            color: #0369a1;
+            line-height: 1.7;
+        }
+
+        .buy-options,
+        .description-section,
+        .metadata-table,
+        .comment-section,
+        .related-books-section,
+        .sidebar-block {
+            background: var(--detail-surface);
+            border: 1px solid rgba(226, 232, 240, 0.84);
+            border-radius: 24px;
+            box-shadow: var(--detail-shadow-soft);
+        }
+
+        .buy-options {
+            padding: 22px;
+        }
+
+        .buy-options label {
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--detail-text);
+            margin-bottom: 16px;
+        }
+
+        .option-row {
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 18px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+        }
+
+        .option-row .type,
+        .total-price span:first-child {
+            color: var(--detail-text);
+            font-weight: 700;
+        }
+
+        .total-price {
+            border-top: 1px dashed rgba(148, 163, 184, 0.45);
+            margin-top: 18px;
+            padding-top: 16px;
+        }
+
+        .final-price,
+        .option-row .price {
+            color: var(--detail-accent);
+            font-weight: 800;
+        }
+
+        .action-buttons .btn,
+        .review-form-actions button,
+        .review-card-actions button {
+            border-radius: 16px;
+            box-shadow: 0 14px 26px rgba(13, 148, 136, 0.14);
+        }
+
+        .tab-section {
+            background: transparent;
+            border: none;
+            padding: 0;
+            gap: 12px;
+        }
+
+        .tab-link {
+            border-radius: 999px;
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            padding: 12px 18px;
+            font-weight: 700;
+            color: var(--detail-muted);
+        }
+
+        .tab-link.active,
+        .tab-link:hover {
+            color: #ffffff;
+            background: linear-gradient(135deg, var(--detail-accent), #14b8a6);
+            border-color: transparent;
+            box-shadow: 0 14px 24px rgba(13, 148, 136, 0.18);
+        }
+
+        .description-section,
+        .metadata-table,
+        .comment-section,
+        .related-books-section {
+            padding: 24px;
+        }
+
+        .description-section {
+            color: var(--detail-muted);
+            line-height: 1.9;
+            font-size: 1rem;
+        }
+
+        .metadata-table h2,
+        .comment-section h2,
+        .related-books-section h2,
+        .sidebar-block h3 {
+            font-size: 1.35rem;
+            line-height: 1.3;
+            margin-bottom: 18px;
+            color: var(--detail-text);
+        }
+
+        .book-metadata {
+            overflow: hidden;
+            border-radius: 18px;
+            border: 1px solid rgba(226, 232, 240, 0.88);
+        }
+
+        .book-metadata td {
+            padding: 15px 16px;
+            border-color: rgba(226, 232, 240, 0.72);
+        }
+
+        .book-metadata .label {
+            color: var(--detail-text);
+            background: #f8fafc;
+            font-weight: 700;
+        }
+
+        .review-form-wrapper,
+        .review-card {
+            border-radius: 20px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+        }
+
+        .review-card {
+            background: #ffffff;
+        }
+
+        .review-card-user,
+        .review-form-title {
+            color: var(--detail-text);
+        }
+
+        .review-card-date,
+        .review-form-subtitle,
+        .item-details .stats {
+            color: var(--detail-muted);
+        }
+
+        .review-card-text {
+            color: #334155;
+            line-height: 1.75;
+        }
+
+        .book-carousel-wrapper {
+            padding: 6px 2px 2px;
+        }
+
+        .related-books-section .book-item {
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.84);
+            border-radius: 20px;
+            padding: 14px;
+            box-shadow: 0 12px 20px rgba(15, 23, 42, 0.04);
+        }
+
+        .related-books-section .book-item:not(:last-child) {
+            border-bottom: 1px solid rgba(226, 232, 240, 0.84);
+        }
+
+        .sidebar-block {
+            padding: 22px;
+        }
+
+        .sidebar-thumb {
+            width: 66px;
+            height: 92px;
+            border-radius: 12px;
+            box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+        }
+
+        .item-details a {
+            color: var(--detail-text);
+        }
+
+        .item-details a:hover {
+            color: var(--detail-accent);
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 18px;
+                border-radius: 24px;
+            }
+
+            .book-summary {
+                padding: 18px;
+                border-radius: 22px;
+            }
+
+            .book-main-title {
+                font-size: 1.8rem;
+            }
+
+            .description-section,
+            .metadata-table,
+            .comment-section,
+            .related-books-section,
+            .buy-options,
+            .sidebar-block {
+                padding: 18px;
+                border-radius: 20px;
+            }
+        }
     </style>
 </head>
 
@@ -1544,8 +1955,8 @@
 
     <div class="content-wrapper">
         <main class="main-content">
-            <p class="breadcrumb">
-                <a href="{{ route('home') }}">🏠</a> /
+            <p class="breadcrumb premium-breadcrumb">
+                <a href="{{ route('home') }}"><i class="fas fa-house"></i> Trang chủ</a>
                 <span>{{ Str::limit($book->ten_sach, 50) }}</span>
             </p>
 
@@ -1557,7 +1968,7 @@
 
                     <div class="info-and-buy">
                         <div class="book-title-row">
-                            <h1 style="margin-bottom: 0;">{{ $book->ten_sach }}</h1>
+                            <h1 class="book-main-title">{{ $book->ten_sach }}</h1>
                             @auth
                                 <button type="button"
                                         id="favoriteToggleButton"
@@ -1577,6 +1988,13 @@
                                 </button>
                             @endauth
                         </div>
+                        <div class="book-quick-facts">
+                            <span class="quick-fact"><i class="fas fa-eye"></i> {{ $book->formatted_views }} lượt xem</span>
+                            <span class="quick-fact"><i class="fas fa-book"></i> {{ $book->formatted_quantity }} cuốn</span>
+                            @if($book->publisher)
+                                <span class="quick-fact"><i class="fas fa-building"></i> {{ $book->publisher->ten_nha_xuat_ban }}</span>
+                            @endif
+                        </div>
                         <p>Tác giả: <strong>{{ $book->formatted_author }}</strong></p>
                         @if($book->nam_xuat_ban)
                             <p>Năm xuất bản: <strong>{{ $book->formatted_year }}</strong></p>
@@ -1593,14 +2011,14 @@
                             <span class="rating-caption">{{ $stats['total_reviews'] ?? 0 }} đánh giá xác thực · {{ $book->formatted_views }} lượt xem</span>
                         </div>
 
-                        <div style="margin: 12px 0 20px; padding: 12px 14px; background: #ecfeff; border-radius: 10px; border: 1px dashed #06b6d4;">
-                            <div style="font-size: 0.9em; color: #0f172a; font-weight: 600; margin-bottom: 4px;">
+                        <div class="rental-highlight">
+                            <div class="rental-highlight-title">
                                 💰 Giá thuê tham khảo
                             </div>
                             @php
                                 $dailyFee = 5000;
                             @endphp
-                            <div style="font-size: 0.95em; color: #0369a1;">
+                            <div class="rental-highlight-price">
                                 Từ <strong>{{ number_format($dailyFee, 0, ',', '.') }}₫/ngày</strong>
                                 <span style="color:#64748b; font-weight:400;">(tiền thuê thực tế sẽ tính theo số ngày mượn từng cuốn trong giỏ hàng)</span>
                             </div>
