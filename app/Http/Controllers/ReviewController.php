@@ -10,6 +10,7 @@ use App\Models\Reader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class ReviewController extends Controller
 {
@@ -79,21 +80,32 @@ class ReviewController extends Controller
             return back()->withErrors(['rating' => 'Không tìm thấy lượt thuê hợp lệ để đánh giá.']);
         }
 
-        $existingReview = Review::where('borrow_item_id', $borrowItem->id)->first();
+        $supportsBorrowItemReview = Schema::hasColumn('reviews', 'borrow_item_id');
+
+        $existingReview = $supportsBorrowItemReview
+            ? Review::where('borrow_item_id', $borrowItem->id)->first()
+            : Review::where('book_id', $request->book_id)
+                ->where('user_id', Auth::id())
+                ->first();
 
         if ($existingReview) {
             return back()->withErrors(['rating' => 'Bạn đã đánh giá lượt thuê này rồi.']);
         }
 
-        Review::create([
+        $payload = [
             'book_id' => $request->book_id,
             'user_id' => Auth::id(),
-            'borrow_item_id' => $borrowItem->id,
             'rating' => $request->rating,
             'comment' => $request->comment,
             'is_verified' => $hasBorrowed,
             'status' => 'approved',
-        ]);
+        ];
+
+        if ($supportsBorrowItemReview) {
+            $payload['borrow_item_id'] = $borrowItem->id;
+        }
+
+        Review::create($payload);
 
         $book->refreshAverageRating();
 
@@ -224,7 +236,13 @@ class ReviewController extends Controller
             ], 422);
         }
 
-        $existingReview = Review::where('borrow_item_id', $borrowItem->id)->first();
+        $supportsBorrowItemReview = Schema::hasColumn('reviews', 'borrow_item_id');
+
+        $existingReview = $supportsBorrowItemReview
+            ? Review::where('borrow_item_id', $borrowItem->id)->first()
+            : Review::where('book_id', $request->book_id)
+                ->where('user_id', Auth::id())
+                ->first();
 
         if ($existingReview) {
             return response()->json([
@@ -233,15 +251,20 @@ class ReviewController extends Controller
             ], 400);
         }
 
-        $review = Review::create([
+        $payload = [
             'book_id' => $request->book_id,
             'user_id' => Auth::id(),
-            'borrow_item_id' => $borrowItem->id,
             'rating' => $request->rating,
             'comment' => $request->comment,
             'is_verified' => $hasBorrowed,
             'status' => 'approved',
-        ]);
+        ];
+
+        if ($supportsBorrowItemReview) {
+            $payload['borrow_item_id'] = $borrowItem->id;
+        }
+
+        $review = Review::create($payload);
 
         $book->refreshAverageRating();
 
