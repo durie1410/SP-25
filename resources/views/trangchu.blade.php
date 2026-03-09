@@ -543,9 +543,10 @@
                                     <div class="bestbook-item">
                                         <a href="{{ route('books.show', $book->id) }}" class="bestbook-link">
                                             <div class="bestbook-cover">
-                                                @if(isset($book->hinh_anh) && $book->hinh_anh && file_exists(public_path('storage/' . $book->hinh_anh)))
-                                                    <img src="{{ $book->image_url ?? asset('images/default-book.png') }}"
-                                                        alt="{{ $book->ten_sach }}">
+                                                @if(!empty($book->hinh_anh))
+                                                    <img src="{{ $book->image_url }}"
+                                                        alt="{{ $book->ten_sach }}"
+                                                        onerror="this.onerror=null;this.src='{{ asset('images/default-book.png') }}';">
                                                 @else
                                                     <svg viewBox="0 0 210 297" xmlns="http://www.w3.org/2000/svg">
                                                         <rect width="210" height="297" fill="#f0f0f0" />
@@ -580,9 +581,10 @@
                                     <div class="bestbook-item">
                                         <a href="{{ route('books.show', $book->id) }}" class="bestbook-link">
                                             <div class="bestbook-cover">
-                                                @if(isset($book->hinh_anh) && $book->hinh_anh && file_exists(public_path('storage/' . $book->hinh_anh)))
-                                                    <img src="{{ $book->image_url ?? asset('images/default-book.png') }}"
-                                                        alt="{{ $book->ten_sach }}">
+                                                @if(!empty($book->hinh_anh))
+                                                    <img src="{{ $book->image_url }}"
+                                                        alt="{{ $book->ten_sach }}"
+                                                        onerror="this.onerror=null;this.src='{{ asset('images/default-book.png') }}';">
                                                 @else
                                                     <svg viewBox="0 0 210 297" xmlns="http://www.w3.org/2000/svg">
                                                         <rect width="210" height="297" fill="#f0f0f0" />
