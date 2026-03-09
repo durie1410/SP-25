@@ -211,12 +211,12 @@ Route::prefix('reservation-cart')->name('reservation-cart.')->middleware('auth')
     Route::get('/', [ReservationCartController::class, 'index'])->name('index');
     Route::post('/add', [ReservationCartController::class, 'add'])->name('add');
     Route::post('/add-and-go', [ReservationCartController::class, 'addAndRedirect'])->name('add-and-go');
-    Route::post('/remove/{bookId}', [ReservationCartController::class, 'remove'])->name('remove');
+    Route::post('/remove/{itemId}', [ReservationCartController::class, 'remove'])->name('remove');
     Route::post('/submit', [ReservationCartController::class, 'submit'])->name('submit');
     Route::get('/count', [ReservationCartController::class, 'count'])->name('count');
-    Route::post('/update-days/{bookId}', [ReservationCartController::class, 'updateDays'])->name('update-days');
-    Route::post('/update-dates/{bookId}', [ReservationCartController::class, 'updateDates'])->name('update-dates');
-    Route::post('/update-quantity/{bookId}', [ReservationCartController::class, 'updateQuantity'])->name('update-quantity');
+    Route::post('/update-days/{itemId}', [ReservationCartController::class, 'updateDays'])->name('update-days');
+    Route::post('/update-dates/{itemId}', [ReservationCartController::class, 'updateDates'])->name('update-dates');
+    Route::post('/update-quantity/{itemId}', [ReservationCartController::class, 'updateQuantity'])->name('update-quantity');
 });
 
 // Notification bell (user)
