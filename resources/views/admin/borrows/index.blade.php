@@ -155,7 +155,6 @@ tạo phiếu mượn    </a>
                     <th style="width: 80px;">Mã phiếu</th>
                     <th>Độc giả</th>
                     <th>Tên khách hàng</th>
-                    <th style="width: 100px;">Tiền thuê</th>
                     <th style="min-width: 200px;">Trạng thái Items</th>
                     <th style="width: 100px;">Chi tiết</th>
                     <th style="width: 120px;">Gia hạn</th>
@@ -212,15 +211,10 @@ tạo phiếu mượn    </a>
         $paidAmount = optional(
             $borrow->payments()->where('payment_status', 'success')->latest()->first()
         )->amount;
-        $displayAmount = $paidAmount !== null ? floatval($paidAmount) : $tienThue;
-        
-        // Tổng tiền = tiền thuê (voucher column removed)
-        $tongTien = $displayAmount;
+        // Tổng tiền hiển thị: ưu tiên số tiền đã chốt khi thanh toán thành công.
+        $tongTien = $paidAmount !== null ? floatval($paidAmount) : $tienThue;
     @endphp
-    
-    <td>
-        {{ number_format($displayAmount) }}₫
-    </td>
+
     @php
 // Kiểm tra nếu có items
 if ($borrow->items && $borrow->items->count() > 0) {
@@ -341,7 +335,12 @@ if ($borrow->items && $borrow->items->count() > 0) {
             @if($latestPayment->payment_status === 'pending')
                 <span class="text-warning">Chờ thanh toán</span>
             @elseif($latestPayment->payment_status === 'success')
-                <span class="text-success">Đã thanh toán</span>
+                @php
+                    $paymentMethodLabel = $latestPayment->payment_method === 'offline'
+                        ? 'Tiền mặt'
+                        : ($latestPayment->payment_method === 'online' ? 'MoMo' : 'Không xác định');
+                @endphp
+                <span class="text-success">Đã thanh toán ({{ $paymentMethodLabel }})</span>
             @elseif($latestPayment->payment_status === 'failed')
                 <span class="text-danger">Thất bại</span>
             @else
@@ -451,7 +450,7 @@ if ($borrow->items && $borrow->items->count() > 0) {
 
 {{-- Row ẩn chứa danh sách sách chi tiết --}}
 <tr class="items-detail-row" id="items-row-{{ $borrow->id }}" style="display: none;">
-    <td colspan="11" style="padding: 0; background-color: #f8f9fa;">
+    <td colspan="10" style="padding: 0; background-color: #f8f9fa;">
         <div style="padding: 20px; margin: 0;">
             <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <h5 style="color: var(--primary-color); margin-bottom: 15px; font-weight: 600;">

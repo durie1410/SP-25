@@ -22,11 +22,17 @@ class ReservationCartItem extends Model
 
     /**
      * Calculate total price for this item
-     * Total = days * daily_fee * quantity
+     * Chỉ tính tiền khi đã chọn đủ ngày lấy + ngày trả
      */
     public function getTotalPriceAttribute(): float
     {
-        return ($this->days ?? 1) * ($this->daily_fee ?? 5000) * ($this->quantity ?? 1);
+        if (!$this->pickup_date || !$this->return_date) {
+            return 0;
+        }
+
+        $days = $this->calculateDaysFromDates();
+
+        return $days * ($this->daily_fee ?? 5000);
     }
 
     /**

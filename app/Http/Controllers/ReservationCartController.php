@@ -198,32 +198,7 @@ class ReservationCartController extends Controller
             DB::beginTransaction();
 
             foreach ($cart->items as $item) {
-                $quantity = (int) ($item->quantity ?? 1);
-                $pickupDate = $item->pickup_date ? Carbon::parse($item->pickup_date) : null;
-                $returnDate = $item->return_date ? Carbon::parse($item->return_date) : null;
 
-                $borrowDays = 1;
-                if ($pickupDate && $returnDate && $returnDate->greaterThan($pickupDate)) {
-                    $borrowDays = max(1, $pickupDate->diffInDays($returnDate));
-                } else {
-                    $borrowDays = (int) ($item->days ?? 1);
-                }
-
-                $dailyFee = (float) ($item->daily_fee ?? 5000);
-                $totalFee = $dailyFee * $borrowDays;
-
-                for ($i = 0; $i < $quantity; $i++) {
-                    InventoryReservation::create([
-                        'book_id' => $item->book_id,
-                        'user_id' => $user->id,
-                        'reader_id' => $reader->id,
-                        'pickup_date' => $item->pickup_date,
-                        'return_date' => $item->return_date,
-                        'total_fee' => $totalFee,
-                        'notes' => $request->notes,
-                        'status' => 'pending',
-                    ]);
-                }
             }
 
             $cart->items()->delete();

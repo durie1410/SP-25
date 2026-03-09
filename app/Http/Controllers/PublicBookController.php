@@ -10,6 +10,7 @@ use App\Models\Inventory;
 use App\Models\Review;
 use App\Services\CacheService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class PublicBookController extends Controller
 {
@@ -188,11 +189,23 @@ class PublicBookController extends Controller
                 ->first();
 
             $completedBorrowItems = $book->getCompletedBorrowItemsByUser($currentUserId);
-            $reviewedBorrowItemIds = Review::query()
-                ->where('book_id', $book->id)
-                ->where('user_id', $currentUserId)
-                ->whereNotNull('borrow_item_id')
-                ->pluck('borrow_item_id');
+                if (Schema::hasColumn('reviews', 'borrow_item_id')) {
+                    $reviewedBorrowItemIds = Review::query()
+                        ->where('book_id', $book->id)
+                        ->where('user_id', $currentUserId)
+                        ->whereNotNull('borrow_item_id')
+                        ->pluck('borrow_item_id');
+                } else {
+                    // Schema cũ: chưa có borrow_item_id, fallback theo cơ chế 1 review cho 1 sách/user.
+                    $hasReviewedBook = Review::query()
+                        ->where('book_id', $book->id)
+                        ->where('user_id', $currentUserId)
+                        ->exists();
+
+                    $reviewedBorrowItemIds = $hasReviewedBook
+                        ? $completedBorrowItems->pluck('id')
+                        : collect();
+                }
 
             $reviewDraftBorrowItem = $completedBorrowItems->first(function ($borrowItem) use ($reviewedBorrowItemIds) {
                 return !$reviewedBorrowItemIds->contains($borrowItem->id);
