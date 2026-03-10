@@ -128,6 +128,13 @@ class BookApiController extends Controller
         $bookId = $request->book_id;
         $userId = Auth::id();
 
+        if (!$userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vui lòng đăng nhập để sử dụng chức năng yêu thích.'
+            ], 401);
+        }
+
         // Kiểm tra xem user đã yêu thích sách này chưa
         $existingFavorite = Favorite::where('book_id', $bookId)
             ->where('user_id', $userId)
@@ -151,7 +158,8 @@ class BookApiController extends Controller
         return response()->json([
             'success' => true,
             'message' => $message,
-            'is_favorited' => $isFavorited
+            'is_favorited' => $isFavorited,
+            'favorites_count' => Favorite::where('book_id', $bookId)->count(),
         ]);
     }
 }

@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\InventoryReservation;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class ReservationCart extends Model
 {
     protected $fillable = ['user_id', 'reader_id', 'pickup_date'];
+
     protected $dates = ['pickup_date'];
 
     public function user(): BelongsTo
@@ -29,7 +30,7 @@ class ReservationCart extends Model
 
     public function getItemCountAttribute(): int
     {
-        return $this->items()->count();
+        return (int) $this->items()->sum('quantity');
     }
 
     public function hasBook(int $bookId): bool
@@ -37,64 +38,55 @@ class ReservationCart extends Model
         return $this->items()->where('book_id', $bookId)->exists();
     }
 
-    public function addBook(int $bookId): ?ReservationCartItem
+    public function addBook(int $bookId, int $quantity = 1): ?ReservationCartItem
     {
-        if ($this->hasBook($bookId)) {
-            return null; // Đã có sách này trong giỏ
-        }
-
-        return $this->items()->create(['book_id' => $bookId]);
+        return $this->items()->create([
+            'book_id' => $bookId,
+            'quantity' => max(1, $quantity),
+        ]);
     }
 
-    public function removeBook(int $bookId): bool
+    public function removeBook(int $itemId): bool
     {
-        return (bool) $this->items()->where('book_id', $bookId)->delete();
+        return (bool) $this->items()->where('id', $itemId)->delete();
     }
 
     public function clear(): void
     {
         $this->items()->delete();
     }
-    /**
-     * Calculate total price for all items in cart
-     * Total = sum of (days * daily_fee * quantity) for all items
-     */
+
     public function getTotalPriceAttribute(): float
     {
-        return $this->items->sum(function ($item) {
-            return ($item->days ?? 1) * ($item->daily_fee ?? 5000) * ($item->quantity ?? 1);
+        return (float) $this->items->sum(function ($item) {
+            return (float) ($item->total_price ?? 0);
         });
     }
 
-    /**
-     * Update quantity for a specific book item
-     */
-    public function updateQuantity(int $bookId, int $quantity): array
+    public function updateQuantity(int $itemId, int $quantity): array
     {
-        $item = $this->items()->where('book_id', $bookId)->first();
+        $item = $this->items()->where('id', $itemId)->first();
+
         if (!$item) {
             return ['success' => false, 'message' => 'Sách không có trong giỏ'];
         }
 
-        if ($quantity < 1) {
-            $quantity = 1;
-        }
+        $quantity = max(1, $quantity);
 
         $item->update(['quantity' => $quantity]);
+
         return [
             'success' => true,
             'quantity' => $quantity,
-            'item_price' => $item->total_price,
-            'total_price' => $this->total_price
+            'item_price' => $item->fresh()->total_price,
+            'total_price' => $this->fresh()->total_price,
         ];
     }
 
-    /**
-     * Update pickup and return dates for a specific book item
-     */
-    public function updateDates(int $bookId, string $pickupDate, string $returnDate): array
+    public function updateDates(int $itemId, string $pickupDate, string $returnDate): array
     {
-        $item = $this->items()->where('book_id', $bookId)->first();
+        $item = $this->items()->where('id', $itemId)->first();
+
         if (!$item) {
             return ['success' => false, 'message' => 'Sách không có trong giỏ'];
         }
@@ -112,30 +104,30 @@ class ReservationCart extends Model
             return ['success' => false, 'message' => 'Ngày trả phải sau ngày lấy'];
         }
 
-        $days = max(1, (int)$pickup->diff($return)->days);
+        $days = max(1, (int) $pickup->diff($return)->days);
+
         $item->update([
             'pickup_date' => $pickupDate,
             'return_date' => $returnDate,
-            'days' => $days
+            'days' => $days,
         ]);
 
         return [
             'success' => true,
             'days' => $days,
-            'item_price' => $item->total_price,
-            'total_price' => $this->total_price
+            'item_price' => $item->fresh()->total_price,
+            'total_price' => $this->fresh()->total_price,
         ];
     }
+
     public function submitReservations(string $notes = null): array
     {
         $createdReservations = [];
         $skippedCount = 0;
 
-        return \DB::transaction(function () use ($notes, &$createdReservations, &$skippedCount) {
-            // Lấy danh sách book_id từ giỏ hàng
+        return DB::transaction(function () use ($notes, &$createdReservations, &$skippedCount) {
             $bookIds = $this->items->pluck('book_id')->toArray();
 
-            // Lock các reservation hiện có để tránh race condition
             $existingByBookId = InventoryReservation::where('user_id', $this->user_id)
                 ->whereIn('book_id', $bookIds)
                 ->lockForUpdate()
@@ -145,13 +137,11 @@ class ReservationCart extends Model
             foreach ($this->items as $item) {
                 $existing = $existingByBookId->get($item->book_id);
 
-                // Chỉ skip nếu đã có reservation đang pending/ready
                 if ($existing && in_array($existing->status, ['pending', 'ready'], true)) {
                     $skippedCount++;
                     continue;
                 }
 
-                // Nếu đã fulfilled/cancelled, cho phép tạo lại (đè status cũ)
                 try {
                     if ($existing) {
                         $existing->update([
@@ -177,12 +167,10 @@ class ReservationCart extends Model
                         $createdReservations[] = $reservation;
                     }
                 } catch (\Illuminate\Database\QueryException $e) {
-                    // 1062 Duplicate entry (race condition)
                     $skippedCount++;
                 }
             }
 
-            // Xóa giỏ sau khi gửi yêu cầu
             $this->clear();
 
             return [

@@ -11,12 +11,14 @@ use App\Models\Borrow;
 use App\Models\Reader;
 use App\Models\Wallet;
 use App\Models\BorrowPayment;
+use App\Models\Review;
  use App\Services\MomoService;
 use App\Services\ShippingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class OrderController extends Controller
 {
@@ -443,7 +445,42 @@ return response()->json([
                 abort(403, 'Bạn không có quyền xem đơn mượn này');
             }
 
-            return view('orders.show', compact('borrow'));
+            $borrowItemIds = $borrow->items
+                ->pluck('id')
+                ->filter()
+                ->unique()
+                ->values();
+
+            if (Schema::hasColumn('reviews', 'borrow_item_id')) {
+                $userReviews = Review::where('user_id', Auth::id())
+                    ->whereIn('borrow_item_id', $borrowItemIds)
+                    ->get()
+                    ->keyBy('borrow_item_id');
+            } else {
+                // Fallback cho schema cũ: chưa có borrow_item_id trong reviews.
+                $bookIds = $borrow->items
+                    ->pluck('book_id')
+                    ->filter()
+                    ->unique()
+                    ->values();
+
+                $reviewsByBook = Review::where('user_id', Auth::id())
+                    ->whereIn('book_id', $bookIds)
+                    ->latest('created_at')
+                    ->get()
+                    ->keyBy('book_id');
+
+                // Chuẩn hóa về key borrow_item_id để view hiện tại dùng lại được.
+                $userReviews = collect();
+                foreach ($borrow->items as $borrowItem) {
+                    $review = $reviewsByBook->get($borrowItem->book_id);
+                    if ($review) {
+                        $userReviews->put($borrowItem->id, $review);
+                    }
+                }
+            }
+
+            return view('orders.show', compact('borrow', 'userReviews'));
             
         } catch (\Exception $e) {
             \Log::error('Error viewing borrow details', [

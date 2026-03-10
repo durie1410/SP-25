@@ -73,7 +73,7 @@ Route::post('/reviews', [\App\Http\Controllers\ReviewController::class, 'createR
 Route::get('/books/{bookId}/reviews', [\App\Http\Controllers\ReviewController::class, 'getBookReviews']);
 
 // Favorites API (sử dụng web authentication)
-Route::post('/favorites/toggle', [\App\Http\Controllers\Api\BookApiController::class, 'toggleFavorite'])->middleware('web');
+Route::post('/favorites/toggle', [\App\Http\Controllers\Api\BookApiController::class, 'toggleFavorite'])->middleware(['web', 'auth']);
 
 // Borrow API routes (public for mobile app)
 Route::prefix('borrows')->group(function () {

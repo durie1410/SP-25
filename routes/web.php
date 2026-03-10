@@ -30,6 +30,28 @@ use App\Http\Controllers\MomoController;
 use App\Http\Controllers\ReturnController;
 use App\Http\Controllers\FinePaymentController;
 use App\Http\Controllers\FinePaymentsController;
+use App\Http\Controllers\GeminiChatController;
+
+// ============================================================
+// GEMINI AI CHATBOX ROUTES
+// ============================================================
+Route::post('/gemini-chat/send', [GeminiChatController::class, 'send'])->name('gemini.chat.send');
+Route::post('/gemini-chat/clear', [GeminiChatController::class, 'clearHistory'])->name('gemini.chat.clear');
+Route::get('/gemini-chat/debug', [GeminiChatController::class, 'debug'])->name('gemini.chat.debug');
+
+// Test chatbox page
+Route::get('/test/chatbox', function () {
+    return view('test.chatbox-test');
+})->name('gemini.chat.test');
+
+Route::get('/test/chatbox/config', function () {
+    $apiKey = config('services.gemini.api_key');
+    return response()->json([
+        'env_exists' => !empty($apiKey),
+        'key_length' => strlen($apiKey ?? ''),
+        'config_exists' => config()->has('services.gemini'),
+    ]);
+})->name('gemini.chat.test.config');
 
 Route::post('/momo/create', [MomoController::class, 'createPayment'])
     ->name('momo.create');
@@ -189,12 +211,13 @@ Route::post('/borrow-book', [HomeController::class, 'borrowBook'])->name('borrow
 Route::prefix('reservation-cart')->name('reservation-cart.')->middleware('auth')->group(function () {
     Route::get('/', [ReservationCartController::class, 'index'])->name('index');
     Route::post('/add', [ReservationCartController::class, 'add'])->name('add');
-    Route::post('/remove/{bookId}', [ReservationCartController::class, 'remove'])->name('remove');
+    Route::post('/add-and-go', [ReservationCartController::class, 'addAndRedirect'])->name('add-and-go');
+    Route::post('/remove/{itemId}', [ReservationCartController::class, 'remove'])->name('remove');
     Route::post('/submit', [ReservationCartController::class, 'submit'])->name('submit');
     Route::get('/count', [ReservationCartController::class, 'count'])->name('count');
-    Route::post('/update-days/{bookId}', [ReservationCartController::class, 'updateDays'])->name('update-days');
-    Route::post('/update-dates/{bookId}', [ReservationCartController::class, 'updateDates'])->name('update-dates');
-    Route::post('/update-quantity/{bookId}', [ReservationCartController::class, 'updateQuantity'])->name('update-quantity');
+    Route::post('/update-days/{itemId}', [ReservationCartController::class, 'updateDays'])->name('update-days');
+    Route::post('/update-dates/{itemId}', [ReservationCartController::class, 'updateDates'])->name('update-dates');
+    Route::post('/update-quantity/{itemId}', [ReservationCartController::class, 'updateQuantity'])->name('update-quantity');
 });
 
 // Notification bell (user)
@@ -277,6 +300,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/account', [App\Http\Controllers\UserAccountController::class, 'account'])->name('account');
     Route::put('/account', [App\Http\Controllers\UserAccountController::class, 'updateAccount'])->name('account.update');
     Route::get('/account/borrowed-books', [App\Http\Controllers\UserAccountController::class, 'borrowedBooks'])->name('account.borrowed-books');
+    Route::get('/account/favorite-books', [App\Http\Controllers\UserAccountController::class, 'favoriteBooks'])->name('account.favorite-books');
+    Route::post('/account/favorites/toggle', [App\Http\Controllers\Api\BookApiController::class, 'toggleFavorite'])->name('account.favorites.toggle');
     Route::get('/account/reading-books', [App\Http\Controllers\UserAccountController::class, 'readingBooks'])->name('account.reading-books');
     Route::get('/account/purchased-documents', [App\Http\Controllers\UserAccountController::class, 'purchasedDocuments'])->name('account.purchased-documents');
     Route::get('/account/change-password', [App\Http\Controllers\UserAccountController::class, 'showChangePassword'])->name('account.change-password');
@@ -400,6 +425,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('borrows/{id}/payment', [BorrowController::class, 'payment'])->name('borrows.payment')->middleware('permission:edit-borrows');
     Route::post('borrows/{id}/approve', [BorrowController::class, 'approve'])->name('borrows.approve')->middleware('permission:edit-borrows');
     Route::post('borrows/{id}/confirm-cash-payment', [BorrowController::class, 'confirmCashPayment'])->name('borrows.confirm-cash-payment')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/save-receive-evidence', [BorrowController::class, 'saveReceiveEvidenceAfterPayment'])->name('borrows.save-receive-evidence')->middleware('permission:edit-borrows');
 
     // ===== 11 TRẠNG THÁI MỚI - Quản lý quy trình vận chuyển =====
     Route::post('borrows/{id}/confirm-order', [BorrowController::class, 'confirmOrder'])->name('borrows.confirm-order')->middleware('permission:edit-borrows');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BorrowCart;
 use App\Models\BorrowCartItem;
 use App\Models\Book;
+use App\Models\User;
 use App\Models\Reader;
 use App\Models\Inventory;
 use App\Models\Wallet;
@@ -59,6 +60,7 @@ class BorrowCartController extends Controller
      */
     private function getOrCreateCart()
     {
+        /** @var User $user */
         $user = auth()->user();
         if (!$user) {
             return null;
@@ -446,6 +448,8 @@ class BorrowCartController extends Controller
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập để đặt mượn sách');
         }
 
+        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         // Kiểm tra thông tin user có đầy đủ không
@@ -1033,6 +1037,7 @@ class BorrowCartController extends Controller
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập để đặt mượn sách');
         }
 
+        /** @var User $user */
         $user = auth()->user();
 
         // Kiểm tra thông tin user có đầy đủ không

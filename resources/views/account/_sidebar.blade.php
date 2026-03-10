@@ -17,21 +17,24 @@
         <ul>
             @if($user && $user->reader)
                 <li class="{{ $currentRoute === 'account.borrowed-books' ? 'active' : '' }}">
-                    <a href="{{ route('account.borrowed-books') }}"><span class="icon">📚</span> Sách đang mượn</a>
+                    <a href="{{ route('account.borrowed-books') }}"><span class="icon">📚</span><span class="nav-label">Sách đang mượn</span></a>
                 </li>
             @endif
+            <li class="{{ $currentRoute === 'account.favorite-books' ? 'active' : '' }}">
+                <a href="{{ route('account.favorite-books') }}"><span class="icon">❤️</span><span class="nav-label">Sách yêu thích</span></a>
+            </li>
             <li class="{{ $currentRoute === 'account' ? 'active' : '' }}">
-                <a href="{{ route('account') }}"><span class="icon">👤</span> Thông tin cá nhân</a>
+                <a href="{{ route('account') }}"><span class="icon">👤</span><span class="nav-label">Thông tin cá nhân</span></a>
             </li>
             <li class="{{ $currentRoute === 'account.change-password' ? 'active' : '' }}">
-                <a href="{{ route('account.change-password') }}"><span class="icon">🔒</span> Đổi mật khẩu</a>
+                <a href="{{ route('account.change-password') }}"><span class="icon">🔒</span><span class="nav-label">Đổi mật khẩu</span></a>
             </li>
             <li class="{{ in_array($currentRoute, ['orders.index', 'orders.detail', 'orders.show']) ? 'active' : '' }}">
-                <a href="{{ route('orders.index') }}"><span class="icon">📋</span> Lịch sử đơn mượn</a>
+                <a href="{{ route('orders.index') }}"><span class="icon">📋</span><span class="nav-label">Lịch sử đơn mượn</span></a>
             </li>
             <li><a href="#" class="logout-link"
                     onclick="event.preventDefault(); document.getElementById('logout-form').submit();"><span
-                        class="icon">➡️</span> Đăng xuất</a></li>
+                        class="icon">➡️</span><span class="nav-label">Đăng xuất</span></a></li>
         </ul>
     </nav>
     <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">

@@ -5,8 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Review;
 use App\Models\Book;
 use App\Models\Borrow;
+use App\Models\BorrowItem;
+use App\Models\Reader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class ReviewController extends Controller
 {
@@ -38,36 +42,72 @@ class ReviewController extends Controller
     {
         $request->validate([
             'book_id' => 'required|exists:books,id',
+            'borrow_item_id' => 'nullable|integer|exists:borrow_items,id',
             'rating' => 'required|integer|min:1|max:5',
             'comment' => 'nullable|string|max:1000',
         ]);
 
-        // Kiểm tra user đã đánh giá sách này chưa
-        $existingReview = Review::where('book_id', $request->book_id)
-            ->where('user_id', Auth::id())
-            ->first();
+        $book = Book::findOrFail($request->book_id);
+        $hasBorrowed = $book->hasCompletedBorrowByUser(Auth::id());
 
-        if ($existingReview) {
-            return back()->withErrors(['rating' => 'Bạn đã đánh giá sách này rồi.']);
+        if (!$hasBorrowed) {
+            return back()->withErrors(['rating' => 'Chỉ người đã thuê và hoàn tất đơn mượn mới có thể đánh giá sách này.']);
         }
 
-        // Kiểm tra user đã mượn sách này chưa (để xác minh)
-        $hasBorrowed = Borrow::where('book_id', $request->book_id)
-            ->where('reader_id', function($query) {
-                $query->select('id')
-                    ->from('readers')
-                    ->where('email', Auth::user()->email);
-            })
-            ->where('trang_thai', 'Da tra')
-            ->exists();
+        $readerId = Reader::where('user_id', Auth::id())->value('id');
 
-        Review::create([
+        $eligibleBorrowItems = BorrowItem::query()
+            ->where('book_id', $request->book_id)
+            ->whereHas('borrow', function ($query) use ($readerId) {
+                $query->where('reader_id', $readerId)
+                    ->where(function ($statusQuery) {
+                        $statusQuery->where('trang_thai', 'Da tra')
+                            ->orWhereIn('trang_thai_chi_tiet', [
+                                Borrow::STATUS_DA_NHAN_VA_KIEM_TRA,
+                                Borrow::STATUS_HOAN_TAT_DON_HANG,
+                            ]);
+                    });
+            })
+            ->orderByDesc('ngay_tra_thuc_te')
+            ->orderByDesc('updated_at')
+            ->get();
+
+        $borrowItem = $request->filled('borrow_item_id')
+            ? $eligibleBorrowItems->firstWhere('id', (int) $request->borrow_item_id)
+            : $eligibleBorrowItems->first();
+
+        if (!$borrowItem) {
+            return back()->withErrors(['rating' => 'Không tìm thấy lượt thuê hợp lệ để đánh giá.']);
+        }
+
+        $supportsBorrowItemReview = Schema::hasColumn('reviews', 'borrow_item_id');
+
+        $existingReview = $supportsBorrowItemReview
+            ? Review::where('borrow_item_id', $borrowItem->id)->first()
+            : Review::where('book_id', $request->book_id)
+                ->where('user_id', Auth::id())
+                ->first();
+
+        if ($existingReview) {
+            return back()->withErrors(['rating' => 'Bạn đã đánh giá lượt thuê này rồi.']);
+        }
+
+        $payload = [
             'book_id' => $request->book_id,
             'user_id' => Auth::id(),
             'rating' => $request->rating,
             'comment' => $request->comment,
             'is_verified' => $hasBorrowed,
-        ]);
+            'status' => 'approved',
+        ];
+
+        if ($supportsBorrowItemReview) {
+            $payload['borrow_item_id'] = $borrowItem->id;
+        }
+
+        Review::create($payload);
+
+        $book->refreshAverageRating();
 
         return back()->with('success', 'Đánh giá của bạn đã được gửi thành công!');
     }
@@ -148,46 +188,88 @@ class ReviewController extends Controller
     public function createReview(Request $request)
     {
         // Debug: Log request data
-        \Log::info('Review request data:', $request->all());
+        Log::info('Review request data:', $request->all());
         
         $request->validate([
             'book_id' => 'required|exists:books,id',
+            'borrow_item_id' => 'nullable|integer|exists:borrow_items,id',
             'rating' => 'required|integer|min:1|max:5',
             'comment' => 'nullable|string|max:1000',
         ]);
 
-        // Kiểm tra user đã đánh giá sách này chưa
-        $existingReview = Review::where('book_id', $request->book_id)
-            ->where('user_id', Auth::id())
-            ->first();
+        $book = Book::findOrFail($request->book_id);
+        $hasBorrowed = $book->hasCompletedBorrowByUser(Auth::id());
+
+        if (!$hasBorrowed) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Chỉ người đã thuê và hoàn tất đơn mượn mới có thể đánh giá sách này.'
+            ], 422);
+        }
+
+        $readerId = Reader::where('user_id', Auth::id())->value('id');
+
+        $eligibleBorrowItems = BorrowItem::query()
+            ->where('book_id', $request->book_id)
+            ->whereHas('borrow', function ($query) use ($readerId) {
+                $query->where('reader_id', $readerId)
+                    ->where(function ($statusQuery) {
+                        $statusQuery->where('trang_thai', 'Da tra')
+                            ->orWhereIn('trang_thai_chi_tiet', [
+                                Borrow::STATUS_DA_NHAN_VA_KIEM_TRA,
+                                Borrow::STATUS_HOAN_TAT_DON_HANG,
+                            ]);
+                    });
+            })
+            ->orderByDesc('ngay_tra_thuc_te')
+            ->orderByDesc('updated_at')
+            ->get();
+
+        $borrowItem = $request->filled('borrow_item_id')
+            ? $eligibleBorrowItems->firstWhere('id', (int) $request->borrow_item_id)
+            : $eligibleBorrowItems->first();
+
+        if (!$borrowItem) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Không tìm thấy lượt thuê hợp lệ để đánh giá.'
+            ], 422);
+        }
+
+        $supportsBorrowItemReview = Schema::hasColumn('reviews', 'borrow_item_id');
+
+        $existingReview = $supportsBorrowItemReview
+            ? Review::where('borrow_item_id', $borrowItem->id)->first()
+            : Review::where('book_id', $request->book_id)
+                ->where('user_id', Auth::id())
+                ->first();
 
         if ($existingReview) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Bạn đã đánh giá sách này rồi.'
+                'message' => 'Bạn đã đánh giá lượt thuê này rồi.'
             ], 400);
         }
 
-        // Kiểm tra user đã mượn sách này chưa (để xác minh)
-        $hasBorrowed = Borrow::where('book_id', $request->book_id)
-            ->where('reader_id', function($query) {
-                $query->select('id')
-                    ->from('readers')
-                    ->where('email', Auth::user()->email);
-            })
-            ->where('trang_thai', 'Da tra')
-            ->exists();
-
-        $review = Review::create([
+        $payload = [
             'book_id' => $request->book_id,
             'user_id' => Auth::id(),
             'rating' => $request->rating,
             'comment' => $request->comment,
             'is_verified' => $hasBorrowed,
-        ]);
+            'status' => 'approved',
+        ];
+
+        if ($supportsBorrowItemReview) {
+            $payload['borrow_item_id'] = $borrowItem->id;
+        }
+
+        $review = Review::create($payload);
+
+        $book->refreshAverageRating();
 
         // Debug: Log created review
-        \Log::info('Created review:', $review->toArray());
+        Log::info('Created review:', $review->toArray());
 
         return response()->json([
             'status' => 'success',

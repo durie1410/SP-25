@@ -12,6 +12,8 @@ use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Throwable;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
+
 
 class Handler extends ExceptionHandler
 {
@@ -40,18 +42,18 @@ class Handler extends ExceptionHandler
      *
      * @return void
      */
-    public function register()
-    {
-        $this->reportable(function (Throwable $e) {
-            // Log all exceptions
-            \Log::error('Exception occurred', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-        });
-    }
+public function register()
+{
+    $this->reportable(function (Throwable $e) {
+        // Log all exceptions
+        Log::error('Exception occurred', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]);
+    });
+}
 
     /**
      * Render an exception into an HTTP response.

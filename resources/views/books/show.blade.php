@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sách: {{ $book->ten_sach }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <style>
@@ -20,6 +21,44 @@
         h2,
         h3 {
             margin-top: 0;
+        }
+
+        .book-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 8px;
+        }
+
+        .favorite-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #fecaca;
+            background: #fff;
+            color: #dc2626;
+            border-radius: 999px;
+            width: 48px;
+            height: 48px;
+            padding: 0;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s ease;
+            flex-shrink: 0;
+        }
+
+        .favorite-toggle-btn:hover {
+            background: #fff1f2;
+        }
+
+        .favorite-toggle-btn.active {
+            background: #fee2e2;
+            border-color: #f87171;
+        }
+
+        .favorite-toggle-btn i {
+            font-size: 20px;
         }
 
         .content-wrapper {
@@ -254,9 +293,28 @@
             margin: 10px 0;
         }
 
+        .rating-summary-inline {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 12px 0 18px;
+        }
+
+        .rating-score {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #111827;
+        }
+
         .stars {
             color: orange;
             letter-spacing: 2px;
+        }
+
+        .rating-caption {
+            color: #6b7280;
+            font-size: 0.95rem;
         }
 
         /* --- BUY OPTIONS & BUTTONS --- */
@@ -291,15 +349,6 @@
 
         .option-row .duration {
             color: #666;
-        }
-
-        .option-row input[type="checkbox"] {
-            cursor: pointer;
-            accent-color: #4CAF50;
-        }
-
-        .option-row input[type="checkbox"]:checked {
-            accent-color: #4CAF50;
         }
 
         .price,
@@ -715,6 +764,354 @@
             resize: vertical;
         }
 
+        .review-form {
+            padding: 18px;
+            border: 1px solid #f1f5f9;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #ffffff, #fffaf5);
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+        }
+
+        .review-form-wrapper {
+            margin-bottom: 20px;
+        }
+
+        .review-form-wrapper.is-hidden {
+            display: none;
+        }
+
+        .inline-review-editor {
+            margin-top: 16px;
+        }
+
+        .inline-review-editor.is-hidden {
+            display: none;
+        }
+
+        .review-form-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .review-form-title {
+            font-weight: 700;
+            color: #111827;
+            margin: 0;
+        }
+
+        .review-form-subtitle {
+            margin: 4px 0 0;
+            font-size: 0.92rem;
+            color: #6b7280;
+        }
+
+        .verified-review-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: #ecfdf5;
+            color: #047857;
+            font-size: 0.82rem;
+            font-weight: 700;
+            border: 1px solid #a7f3d0;
+        }
+
+        .star-rating-input {
+            display: inline-flex;
+            flex-direction: row-reverse;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .star-rating-input input {
+            display: none;
+        }
+
+        .star-rating-input label {
+            cursor: pointer;
+            font-size: 2rem;
+            line-height: 1;
+            color: #d1d5db;
+            transition: transform 0.15s ease, color 0.15s ease;
+        }
+
+        .star-rating-input label:hover,
+        .star-rating-input label:hover ~ label,
+        .star-rating-input input:checked ~ label {
+            color: #f59e0b;
+        }
+
+        .star-rating-input label:hover {
+            transform: scale(1.06);
+        }
+
+        .rating-helper {
+            margin-bottom: 10px;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .review-locked-box,
+        .review-login-box {
+            padding: 18px;
+            border-radius: 14px;
+            margin-bottom: 18px;
+        }
+
+        .review-locked-box {
+            background: #fff7ed;
+            color: #9a3412;
+            border: 1px solid #fdba74;
+        }
+
+        .review-login-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .reviews-summary-card {
+            display: grid;
+            grid-template-columns: minmax(180px, 220px) 1fr;
+            gap: 18px;
+            margin: 24px 0;
+            padding: 20px;
+            border-radius: 18px;
+            background: #fff;
+            border: 1px solid #eef2f7;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+        }
+
+        .reviews-summary-score {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-right: 1px solid #f1f5f9;
+            padding-right: 18px;
+        }
+
+        .reviews-summary-score strong {
+            font-size: 2.5rem;
+            line-height: 1;
+            color: #111827;
+        }
+
+        .reviews-summary-score span {
+            margin-top: 8px;
+            color: #6b7280;
+            font-size: 0.92rem;
+        }
+
+        .reviews-breakdown {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .reviews-breakdown-row {
+            display: grid;
+            grid-template-columns: 56px 1fr 40px;
+            gap: 10px;
+            align-items: center;
+            font-size: 0.92rem;
+            color: #475569;
+        }
+
+        .reviews-breakdown-bar {
+            height: 8px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            overflow: hidden;
+        }
+
+        .reviews-breakdown-fill {
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #f59e0b, #f97316);
+        }
+
+        .review-card {
+            padding: 18px;
+            background: #fff;
+            border: 1px solid #edf2f7;
+            border-radius: 16px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+            margin-bottom: 16px;
+        }
+
+        .review-card.review-card-own {
+            border-color: #bbf7d0;
+            background: linear-gradient(180deg, #ffffff, #f0fdf4);
+        }
+
+        .review-card-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .review-card-user {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .review-card-date {
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+
+        .review-card-text {
+            margin: 12px 0 0;
+            color: #334155;
+            line-height: 1.7;
+            white-space: pre-line;
+        }
+
+        .review-card-actions {
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .review-edit-link {
+            border: none;
+            background: none;
+            padding: 0;
+            color: #0f766e;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+
+        .review-edit-link:hover {
+            color: #0d9488;
+            text-decoration: underline;
+        }
+
+        .review-owner-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: #ecfeff;
+            border: 1px solid #a5f3fc;
+            color: #155e75;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .review-owner-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+
+        .review-edit-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .review-edit-limit {
+            color: #64748b;
+            font-size: 0.84rem;
+        }
+
+        .review-expired-note {
+            color: #b45309;
+            font-size: 0.84rem;
+            font-weight: 600;
+        }
+
+        .review-note-box {
+            padding: 16px 18px;
+            border-radius: 14px;
+            margin-bottom: 18px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #334155;
+        }
+
+        .review-inline-error {
+            margin-bottom: 12px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            font-size: 0.92rem;
+        }
+
+        .review-form-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .review-cancel-btn {
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #475569;
+        }
+
+        .review-replies {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px dashed #e2e8f0;
+        }
+
+        .review-reply-item {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
+        }
+
+        .review-reply-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .review-reply-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 0.82rem;
+            color: #64748b;
+        }
+
+        @media (max-width: 768px) {
+            .reviews-summary-card {
+                grid-template-columns: 1fr;
+            }
+
+            .reviews-summary-score {
+                border-right: none;
+                border-bottom: 1px solid #f1f5f9;
+                padding-right: 0;
+                padding-bottom: 18px;
+            }
+        }
+
         .char-count {
             font-size: 0.8em;
             color: #999;
@@ -986,6 +1383,417 @@
                 margin: 0 auto;
             }
         }
+
+        :root {
+            --detail-accent: #0d9488;
+            --detail-accent-2: #2563eb;
+            --detail-text: #0f172a;
+            --detail-muted: #64748b;
+            --detail-border: #e2e8f0;
+            --detail-surface: rgba(255, 255, 255, 0.9);
+            --detail-shadow: 0 22px 44px rgba(15, 23, 42, 0.08);
+            --detail-shadow-soft: 0 16px 32px rgba(15, 23, 42, 0.06);
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(13, 148, 136, 0.08), transparent 24%),
+                radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 22%),
+                #f6f8fc;
+            color: var(--detail-text);
+        }
+
+        .content-wrapper {
+            max-width: 1280px;
+            gap: 28px;
+            padding: 30px 20px 48px;
+            align-items: flex-start;
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(226, 232, 240, 0.78);
+            border-radius: 30px;
+            padding: 26px;
+            box-shadow: var(--detail-shadow);
+            backdrop-filter: blur(16px);
+        }
+
+        .sidebar {
+            gap: 22px;
+        }
+
+        .breadcrumb.premium-breadcrumb {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            color: var(--detail-muted);
+        }
+
+        .breadcrumb.premium-breadcrumb a,
+        .breadcrumb.premium-breadcrumb span {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            text-decoration: none;
+            color: inherit;
+            font-weight: 600;
+        }
+
+        .breadcrumb.premium-breadcrumb a:hover {
+            color: var(--detail-accent);
+            background: #f0fdfa;
+        }
+
+        .book-detail-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .book-summary {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 28px;
+            padding: 24px;
+            box-shadow: var(--detail-shadow-soft);
+            gap: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .book-summary::before {
+            content: '';
+            position: absolute;
+            inset: 0 auto auto 0;
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(13, 148, 136, 0.12), transparent 68%);
+            pointer-events: none;
+        }
+
+        .book-cover {
+            width: 290px;
+            border-radius: 22px;
+            box-shadow: 0 22px 36px rgba(15, 23, 42, 0.16);
+            border: 1px solid rgba(226, 232, 240, 0.78);
+        }
+
+        .info-and-buy {
+            position: relative;
+            z-index: 1;
+        }
+
+        .book-title-row {
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+
+        .book-main-title {
+            margin: 0;
+            font-size: clamp(2rem, 3vw, 2.8rem);
+            line-height: 1.15;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--detail-text);
+        }
+
+        .favorite-toggle-btn {
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+            border-color: rgba(226, 232, 240, 0.9);
+        }
+
+        .book-quick-facts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 0 0 14px;
+        }
+
+        .quick-fact {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: var(--detail-muted);
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(226, 232, 240, 0.92);
+        }
+
+        .quick-fact i {
+            color: var(--detail-accent);
+        }
+
+        .info-and-buy > p {
+            color: var(--detail-muted);
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .info-and-buy > p strong {
+            color: var(--detail-text);
+        }
+
+        .rating-summary-inline {
+            display: inline-flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #fff7ed, #ffffff);
+            border: 1px solid rgba(251, 191, 36, 0.32);
+            margin: 8px 0 18px;
+        }
+
+        .rating-score {
+            color: #b45309;
+            font-weight: 800;
+        }
+
+        .rating-caption {
+            color: var(--detail-muted);
+        }
+
+        .rental-highlight {
+            margin: 0 0 20px;
+            padding: 16px 18px;
+            background: linear-gradient(135deg, #ecfeff, #eff6ff);
+            border-radius: 18px;
+            border: 1px solid rgba(6, 182, 212, 0.26);
+        }
+
+        .rental-highlight-title {
+            font-size: 0.92rem;
+            color: var(--detail-text);
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+
+        .rental-highlight-price {
+            font-size: 0.98rem;
+            color: #0369a1;
+            line-height: 1.7;
+        }
+
+        .buy-options,
+        .description-section,
+        .metadata-table,
+        .comment-section,
+        .related-books-section,
+        .sidebar-block {
+            background: var(--detail-surface);
+            border: 1px solid rgba(226, 232, 240, 0.84);
+            border-radius: 24px;
+            box-shadow: var(--detail-shadow-soft);
+        }
+
+        .buy-options {
+            padding: 22px;
+        }
+
+        .buy-options label {
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--detail-text);
+            margin-bottom: 16px;
+        }
+
+        .option-row {
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 18px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+        }
+
+        .option-row .type,
+        .total-price span:first-child {
+            color: var(--detail-text);
+            font-weight: 700;
+        }
+
+        .total-price {
+            border-top: 1px dashed rgba(148, 163, 184, 0.45);
+            margin-top: 18px;
+            padding-top: 16px;
+        }
+
+        .final-price,
+        .option-row .price {
+            color: var(--detail-accent);
+            font-weight: 800;
+        }
+
+        .action-buttons .btn,
+        .review-form-actions button,
+        .review-card-actions button {
+            border-radius: 16px;
+            box-shadow: 0 14px 26px rgba(13, 148, 136, 0.14);
+        }
+
+        .tab-section {
+            background: transparent;
+            border: none;
+            padding: 0;
+            gap: 12px;
+        }
+
+        .tab-link {
+            border-radius: 999px;
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.92);
+            padding: 12px 18px;
+            font-weight: 700;
+            color: var(--detail-muted);
+        }
+
+        .tab-link.active,
+        .tab-link:hover {
+            color: #ffffff;
+            background: linear-gradient(135deg, var(--detail-accent), #14b8a6);
+            border-color: transparent;
+            box-shadow: 0 14px 24px rgba(13, 148, 136, 0.18);
+        }
+
+        .description-section,
+        .metadata-table,
+        .comment-section,
+        .related-books-section {
+            padding: 24px;
+        }
+
+        .description-section {
+            color: var(--detail-muted);
+            line-height: 1.9;
+            font-size: 1rem;
+        }
+
+        .metadata-table h2,
+        .comment-section h2,
+        .related-books-section h2,
+        .sidebar-block h3 {
+            font-size: 1.35rem;
+            line-height: 1.3;
+            margin-bottom: 18px;
+            color: var(--detail-text);
+        }
+
+        .book-metadata {
+            overflow: hidden;
+            border-radius: 18px;
+            border: 1px solid rgba(226, 232, 240, 0.88);
+        }
+
+        .book-metadata td {
+            padding: 15px 16px;
+            border-color: rgba(226, 232, 240, 0.72);
+        }
+
+        .book-metadata .label {
+            color: var(--detail-text);
+            background: #f8fafc;
+            font-weight: 700;
+        }
+
+        .review-form-wrapper,
+        .review-card {
+            border-radius: 20px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+        }
+
+        .review-card {
+            background: #ffffff;
+        }
+
+        .review-card-user,
+        .review-form-title {
+            color: var(--detail-text);
+        }
+
+        .review-card-date,
+        .review-form-subtitle,
+        .item-details .stats {
+            color: var(--detail-muted);
+        }
+
+        .review-card-text {
+            color: #334155;
+            line-height: 1.75;
+        }
+
+        .book-carousel-wrapper {
+            padding: 6px 2px 2px;
+        }
+
+        .related-books-section .book-item {
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.84);
+            border-radius: 20px;
+            padding: 14px;
+            box-shadow: 0 12px 20px rgba(15, 23, 42, 0.04);
+        }
+
+        .related-books-section .book-item:not(:last-child) {
+            border-bottom: 1px solid rgba(226, 232, 240, 0.84);
+        }
+
+        .sidebar-block {
+            padding: 22px;
+        }
+
+        .sidebar-thumb {
+            width: 66px;
+            height: 92px;
+            border-radius: 12px;
+            box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+        }
+
+        .item-details a {
+            color: var(--detail-text);
+        }
+
+        .item-details a:hover {
+            color: var(--detail-accent);
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 18px;
+                border-radius: 24px;
+            }
+
+            .book-summary {
+                padding: 18px;
+                border-radius: 22px;
+            }
+
+            .book-main-title {
+                font-size: 1.8rem;
+            }
+
+            .description-section,
+            .metadata-table,
+            .comment-section,
+            .related-books-section,
+            .buy-options,
+            .sidebar-block {
+                padding: 18px;
+                border-radius: 20px;
+            }
+        }
     </style>
 </head>
 
@@ -1041,6 +1849,9 @@
                                     <span>📚</span> Sách đang mượn
                                 </a>
                             @endif
+                            <a href="{{ route('account.favorite-books') }}" class="dropdown-item">
+                                <span>❤️</span> Sách yêu thích
+                            </a>
                             <a href="{{ route('account') }}" class="dropdown-item">
                                 <span>👤</span> Thông tin tài khoản
                             </a>
@@ -1144,8 +1955,8 @@
 
     <div class="content-wrapper">
         <main class="main-content">
-            <p class="breadcrumb">
-                <a href="{{ route('home') }}">🏠</a> /
+            <p class="breadcrumb premium-breadcrumb">
+                <a href="{{ route('home') }}"><i class="fas fa-house"></i> Trang chủ</a>
                 <span>{{ Str::limit($book->ten_sach, 50) }}</span>
             </p>
 
@@ -1156,24 +1967,58 @@
                         onerror="this.onerror=null; this.src='{{ asset('images/default-book.png') }}';">
 
                     <div class="info-and-buy">
-                        <h1>{{ $book->ten_sach }}</h1>
+                        <div class="book-title-row">
+                            <h1 class="book-main-title">{{ $book->ten_sach }}</h1>
+                            @auth
+                                <button type="button"
+                                        id="favoriteToggleButton"
+                                        class="favorite-toggle-btn {{ $isFavorited ? 'active' : '' }}"
+                                        aria-label="{{ $isFavorited ? 'Bỏ yêu thích' : 'Thêm vào yêu thích' }}"
+                                        title="{{ $isFavorited ? 'Bỏ yêu thích' : 'Thêm vào yêu thích' }}"
+                                        onclick="toggleFavorite({{ $book->id }}, this)">
+                                    <i class="{{ $isFavorited ? 'fas' : 'far' }} fa-heart"></i>
+                                </button>
+                            @else
+                                <button type="button"
+                                        class="favorite-toggle-btn"
+                                        aria-label="Đăng nhập để thêm vào yêu thích"
+                                        title="Đăng nhập để thêm vào yêu thích"
+                                        onclick="window.location.href='{{ route('login') }}'">
+                                    <i class="far fa-heart"></i>
+                                </button>
+                            @endauth
+                        </div>
+                        <div class="book-quick-facts">
+                            <span class="quick-fact"><i class="fas fa-eye"></i> {{ $book->formatted_views }} lượt xem</span>
+                            <span class="quick-fact"><i class="fas fa-book"></i> {{ $book->formatted_quantity }} cuốn</span>
+                            @if($book->publisher)
+                                <span class="quick-fact"><i class="fas fa-building"></i> {{ $book->publisher->ten_nha_xuat_ban }}</span>
+                            @endif
+                        </div>
                         <p>Tác giả: <strong>{{ $book->formatted_author }}</strong></p>
                         @if($book->nam_xuat_ban)
                             <p>Năm xuất bản: <strong>{{ $book->formatted_year }}</strong></p>
                         @endif
 
-                        <div class="rating">
-                            {{ $book->formatted_views }} lượt xem
+                        <div class="rating-summary-inline">
+                            <span class="rating-score">{{ number_format($stats['average_rating'] ?? 0, 1) }}/5</span>
+                            <span class="stars">
+                                @php $roundedAverage = round($stats['average_rating'] ?? 0); @endphp
+                                @for($i = 1; $i <= 5; $i++)
+                                    {{ $i <= $roundedAverage ? '★' : '☆' }}
+                                @endfor
+                            </span>
+                            <span class="rating-caption">{{ $stats['total_reviews'] ?? 0 }} đánh giá xác thực · {{ $book->formatted_views }} lượt xem</span>
                         </div>
 
-                        <div style="margin: 12px 0 20px; padding: 12px 14px; background: #ecfeff; border-radius: 10px; border: 1px dashed #06b6d4;">
-                            <div style="font-size: 0.9em; color: #0f172a; font-weight: 600; margin-bottom: 4px;">
+                        <div class="rental-highlight">
+                            <div class="rental-highlight-title">
                                 💰 Giá thuê tham khảo
                             </div>
                             @php
                                 $dailyFee = 5000;
                             @endphp
-                            <div style="font-size: 0.95em; color: #0369a1;">
+                            <div class="rental-highlight-price">
                                 Từ <strong>{{ number_format($dailyFee, 0, ',', '.') }}₫/ngày</strong>
                                 <span style="color:#64748b; font-weight:400;">(tiền thuê thực tế sẽ tính theo số ngày mượn từng cuốn trong giỏ hàng)</span>
                             </div>
@@ -1256,14 +2101,12 @@
                                         <input type="number" id="paper-quantity" value="1" min="1"
                                             max="{{ $stats['stock_quantity'] ?? 999 }}"
                                             style="width: 50px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; text-align: center;"
-                                            onchange="updateTotalPrice()">
+                                            onchange="validateReservationQuantity(); updateTotalPrice();">
                                         <button type="button" onclick="changeQuantity('paper', 1)"
                                             style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">+</button>
                                     </div>
                                     <span class="price"
                                         id="paper-price">{{ number_format($book->gia ?? 111000, 0, ',', '.') }}₫</span>
-                                    <input type="checkbox" id="paper-checkbox" checked onchange="updateTotalPrice()"
-                                        style="width: 20px; height: 20px; cursor: pointer;">
                                 </div>
 
                                 @if(($stats['stock_quantity'] ?? 0) == 0)
@@ -1316,7 +2159,7 @@
                             <td class="label">Số lượng:</td>
                             <td>{{ $book->formatted_quantity }} cuốn</td>
                             <td class="label">Đánh giá:</td>
-                            <td>—</td>
+                            <td>{{ number_format($stats['average_rating'] ?? 0, 1) }}/5 ({{ $stats['total_reviews'] ?? 0 }} đánh giá)</td>
                         </tr>
                         @if($book->so_trang)
                         <tr>
@@ -1330,42 +2173,208 @@
                 </div>
 
                 <div class="comment-section">
-                    <h2>Bình luận</h2>
+                    <h2>Đánh giá & bình luận</h2>
+                    @php
+                        $recentReviews = $book->reviews;
+                        $reviewFormBorrowItemId = (int) old('borrow_item_id', 0);
+                        $reviewEditWindowDays = max(1, (int) ceil(($reviewEditWindowHours ?? 168) / 24));
+                    @endphp
+
                     @auth
-                        <form class="comment-form" action="{{ route('books.comments.store', $book->id) }}" method="POST">
-                            @csrf
-                            <textarea name="content" placeholder="Để lại bình luận của bạn..." maxlength="1500"
-                                oninput="updateCharCount(this)" required></textarea>
-                            <p class="char-count">
-                                <span id="char-count">0</span>/1500
-                            </p>
-                            <button type="submit" class="btn btn-comment">Gửi bình luận</button>
-                        </form>
+                        @if($canReview)
+                            @if($reviewDraftBorrowItem)
+                                <div class="review-form-wrapper">
+                                <form class="comment-form review-form" action="{{ route('books.comments.store', $book->id) }}" method="POST">
+                                    @csrf
+                                    <input type="hidden" name="borrow_item_id"
+                                        value="{{ old('borrow_item_id', $reviewDraftBorrowItem->id) }}">
+
+                                    @if(($errors->has('rating') || $errors->has('content') || $errors->has('borrow_item_id')) && $reviewFormBorrowItemId === (int) $reviewDraftBorrowItem->id)
+                                        <div class="review-inline-error">
+                                            {{ $errors->first('content') ?: $errors->first('rating') ?: $errors->first('borrow_item_id') }}
+                                        </div>
+                                    @endif
+
+                                    <div class="review-form-header">
+                                        <div>
+                                            <p class="review-form-title">Viết đánh giá cho lượt thuê chưa đánh giá</p>
+                                            <p class="review-form-subtitle">Chỉ người đã thuê xong mới được gửi đánh giá. Bạn có thể sửa trong {{ $reviewEditWindowDays }} ngày kể từ lúc gửi.</p>
+                                        </div>
+                                        <span class="verified-review-badge">✓ Người thuê đã xác thực</span>
+                                    </div>
+
+                                    <div class="rating-helper">Chọn số sao của bạn</div>
+                                    <div class="star-rating-input">
+                                        @for($i = 5; $i >= 1; $i--)
+                                            <input type="radio" id="create-rating-{{ $i }}" name="rating" value="{{ $i }}"
+                                                {{ (int) old('rating', 0) === $i ? 'checked' : '' }} required>
+                                            <label for="create-rating-{{ $i }}" title="{{ $i }} sao">★</label>
+                                        @endfor
+                                    </div>
+
+                                    <textarea name="content" placeholder="Chia sẻ trải nghiệm thực tế của bạn về cuốn sách này..." maxlength="1500"
+                                        oninput="updateCharCount(this)" required>{{ $reviewFormBorrowItemId === (int) $reviewDraftBorrowItem->id ? old('content', '') : '' }}</textarea>
+                                    <p class="char-count">
+                                        <span class="js-char-count">{{ strlen($reviewFormBorrowItemId === (int) $reviewDraftBorrowItem->id ? old('content', '') : '') }}</span>/1500
+                                    </p>
+                                    <div class="review-form-actions">
+                                        <button type="submit" class="btn btn-comment">Gửi đánh giá</button>
+                                    </div>
+                                </form>
+                                </div>
+                            @else
+                                <div class="review-note-box">
+                                    Bạn đã đánh giá các lượt thuê của mình cho sách này. Các đánh giá của bạn được đưa lên đầu danh sách để tiện sửa nhanh trong {{ $reviewEditWindowDays }} ngày đầu.
+                                </div>
+                            @endif
+                        @else
+                            <div class="review-locked-box">
+                                <strong>Chưa thể đánh giá</strong>
+                                <p style="margin: 8px 0 0;">{{ $reviewEligibilityMessage }}</p>
+                            </div>
+                        @endif
                     @else
-                        <div style="padding: 20px; background: #f9f9f9; border-radius: 8px; text-align: center;">
+                        <div class="review-login-box">
                             <p>Vui lòng <a href="{{ route('login') }}" style="color: #cc0000; font-weight: bold;">đăng
-                                    nhập</a> để bình luận.</p>
+                                    nhập</a> để đánh giá sau khi thuê sách.</p>
                         </div>
                     @endauth
 
-                    @if($book->reviews && $book->reviews->count() > 0)
-                        <div style="margin-top: 30px;">
-                            <h3 style="margin-bottom: 15px;">Bình luận ({{ $book->reviews->count() }})</h3>
-                            @foreach($book->reviews->take(5) as $review)
-                                @if($review->comments && $review->comments->count() > 0)
-                                    @foreach($review->comments->whereNull('parent_id') as $comment)
-                                        <div style="padding: 15px; background: #f9f9f9; border-radius: 8px; margin-bottom: 15px;">
-                                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                                                <strong>{{ $comment->user->name ?? 'Người dùng' }}</strong>
-                                                <span
-                                                    style="color: #666; font-size: 12px;">{{ $comment->created_at->format('d/m/Y H:i') }}</span>
-                                            </div>
-                                            <p style="margin: 0; line-height: 1.6;">{{ $comment->content }}</p>
+                    @if($stats['total_reviews'] > 0)
+                        <div class="reviews-summary-card">
+                            <div class="reviews-summary-score">
+                                <strong>{{ number_format($stats['average_rating'] ?? 0, 1) }}</strong>
+                                <div class="stars">
+                                    @for($i = 1; $i <= 5; $i++)
+                                        {{ $i <= round($stats['average_rating'] ?? 0) ? '★' : '☆' }}
+                                    @endfor
+                                </div>
+                                <span>{{ $stats['total_reviews'] ?? 0 }} đánh giá từ người đã thuê</span>
+                            </div>
+                            <div class="reviews-breakdown">
+                                @foreach($ratingBreakdown as $star => $count)
+                                    @php
+                                        $percent = ($stats['total_reviews'] ?? 0) > 0 ? ($count / $stats['total_reviews']) * 100 : 0;
+                                    @endphp
+                                    <div class="reviews-breakdown-row">
+                                        <span>{{ $star }} sao</span>
+                                        <div class="reviews-breakdown-bar">
+                                            <div class="reviews-breakdown-fill" style="width: {{ $percent }}%;"></div>
                                         </div>
-                                    @endforeach
-                                @endif
-                            @endforeach
+                                        <span>{{ $count }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
+
+                        @if($recentReviews->count() > 0)
+                            <div style="margin-top: 30px;">
+                                <h3 style="margin-bottom: 15px;">Đánh giá gần đây ({{ $stats['total_reviews'] }})</h3>
+                                @foreach($recentReviews->take(10) as $review)
+                                    @php
+                                        $isOwnReview = auth()->check() && auth()->id() === $review->user_id;
+                                        $canEditThisReview = $isOwnReview && $review->canBeEditedBy(auth()->id());
+                                        $isInlineEditorOpen = $canEditThisReview && ($reviewFormBorrowItemId === (int) ($review->borrow_item_id ?? 0));
+                                    @endphp
+
+                                    <div class="review-card {{ $isOwnReview ? 'review-card-own' : '' }}">
+                                        <div class="review-card-header">
+                                            <div class="review-card-user">
+                                                <strong>{{ $review->user->name ?? 'Người dùng' }}</strong>
+                                                <span class="verified-review-badge">✓ Đã thuê sách</span>
+                                            </div>
+                                            <span class="review-card-date">{{ $review->created_at->format('d/m/Y H:i') }}</span>
+                                        </div>
+
+                                        <div class="stars">
+                                            @for($i = 1; $i <= 5; $i++)
+                                                {{ $i <= $review->rating ? '★' : '☆' }}
+                                            @endfor
+                                        </div>
+
+                                        @if(!empty($review->comment))
+                                            <p class="review-card-text">{{ $review->comment }}</p>
+                                        @endif
+
+                                        @if($isOwnReview)
+                                            <div class="review-owner-row">
+                                                <span class="review-owner-label">🟢 Đánh giá của bạn</span>
+                                                <div class="review-edit-meta">
+                                                    @if($canEditThisReview)
+                                                        <span class="review-edit-limit">Có thể sửa đến {{ optional($review->edit_deadline)->format('d/m/Y H:i') }}</span>
+                                                        <button type="button" class="review-edit-link"
+                                                            onclick="toggleInlineReviewEditor({{ $review->id }}, true)">✏️ Sửa đánh giá</button>
+                                                    @else
+                                                        <span class="review-expired-note">Đã hết thời gian sửa đánh giá</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+
+                                            @if($canEditThisReview)
+                                                <div id="inline-review-editor-{{ $review->id }}"
+                                                    class="inline-review-editor {{ $isInlineEditorOpen ? '' : 'is-hidden' }}"
+                                                    data-review-id="{{ $review->id }}">
+                                                    <form class="comment-form review-form" action="{{ route('books.comments.store', $book->id) }}" method="POST">
+                                                        @csrf
+                                                        <input type="hidden" name="borrow_item_id" value="{{ $review->borrow_item_id }}">
+
+                                                        @if(($errors->has('rating') || $errors->has('content') || $errors->has('borrow_item_id')) && $reviewFormBorrowItemId === (int) ($review->borrow_item_id ?? 0))
+                                                            <div class="review-inline-error">
+                                                                {{ $errors->first('content') ?: $errors->first('rating') ?: $errors->first('borrow_item_id') }}
+                                                            </div>
+                                                        @endif
+
+                                                        <div class="review-form-header">
+                                                            <div>
+                                                                <p class="review-form-title">Cập nhật đánh giá của bạn</p>
+                                                                <p class="review-form-subtitle">Bạn đang sửa đúng tại đánh giá này. Thời hạn sửa đến {{ optional($review->edit_deadline)->format('d/m/Y H:i') }}.</p>
+                                                            </div>
+                                                            <span class="verified-review-badge">✓ Người thuê đã xác thực</span>
+                                                        </div>
+
+                                                        <div class="rating-helper">Chọn số sao của bạn</div>
+                                                        <div class="star-rating-input">
+                                                            @for($i = 5; $i >= 1; $i--)
+                                                                <input type="radio" id="review-{{ $review->id }}-rating-{{ $i }}" name="rating" value="{{ $i }}"
+                                                                    {{ (int) old('borrow_item_id') === (int) ($review->borrow_item_id ?? 0)
+                                                                        ? ((int) old('rating', $review->rating) === $i ? 'checked' : '')
+                                                                        : ((int) $review->rating === $i ? 'checked' : '') }} required>
+                                                                <label for="review-{{ $review->id }}-rating-{{ $i }}" title="{{ $i }} sao">★</label>
+                                                            @endfor
+                                                        </div>
+
+                                                        <textarea name="content" placeholder="Chia sẻ trải nghiệm thực tế của bạn về cuốn sách này..." maxlength="1500"
+                                                            oninput="updateCharCount(this)" required>{{ (int) old('borrow_item_id') === (int) ($review->borrow_item_id ?? 0) ? old('content', $review->comment ?? '') : ($review->comment ?? '') }}</textarea>
+                                                        <p class="char-count">
+                                                            <span class="js-char-count">{{ strlen((int) old('borrow_item_id') === (int) ($review->borrow_item_id ?? 0) ? old('content', $review->comment ?? '') : ($review->comment ?? '')) }}</span>/1500
+                                                        </p>
+                                                        <div class="review-form-actions">
+                                                            <button type="submit" class="btn btn-comment">Cập nhật đánh giá</button>
+                                                            <button type="button" class="btn review-cancel-btn" onclick="toggleInlineReviewEditor({{ $review->id }}, false)">Ẩn phần sửa</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            @endif
+                                        @endif
+
+                                        @if($review->comments && $review->comments->whereNull('parent_id')->count() > 0)
+                                            <div class="review-replies">
+                                                @foreach($review->comments->whereNull('parent_id') as $comment)
+                                                    <div class="review-reply-item">
+                                                        <div class="review-reply-meta">
+                                                            <strong>{{ $comment->user->name ?? 'Người dùng' }}</strong>
+                                                            <span>•</span>
+                                                            <span>{{ $comment->created_at->format('d/m/Y H:i') }}</span>
+                                                        </div>
+                                                        <div>{{ $comment->content }}</div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
                     @endif
                 </div>
             </section>
@@ -1428,7 +2437,35 @@
         }
 
         function updateCharCount(textarea) {
-            document.getElementById('char-count').textContent = textarea.value.length;
+            const form = textarea.closest('form');
+            const counter = form ? form.querySelector('.js-char-count') : null;
+
+            if (counter) {
+                counter.textContent = textarea.value.length;
+            }
+        }
+
+        function toggleInlineReviewEditor(reviewId, shouldOpen) {
+            document.querySelectorAll('.inline-review-editor').forEach((editor) => {
+                if (String(editor.dataset.reviewId) !== String(reviewId)) {
+                    editor.classList.add('is-hidden');
+                }
+            });
+
+            const editor = document.getElementById(`inline-review-editor-${reviewId}`);
+            if (!editor) return;
+
+            if (!shouldOpen) {
+                editor.classList.add('is-hidden');
+                return;
+            }
+
+            editor.classList.remove('is-hidden');
+
+            const textarea = editor.querySelector('textarea[name="content"]');
+            if (textarea) {
+                updateCharCount(textarea);
+            }
         }
 
         // Hàm thay đổi số lượng sách giấy
@@ -1464,6 +2501,26 @@
             updateTotalPrice();
         }
 
+        function validateReservationQuantity() {
+            const quantityInput = document.getElementById('paper-quantity');
+            if (!quantityInput) return 1;
+
+            const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
+            let quantity = parseInt(quantityInput.value) || 1;
+
+            if (quantity < 1) {
+                quantity = 1;
+            }
+
+            if (stockQuantity > 0 && quantity > stockQuantity) {
+                quantity = stockQuantity;
+                alert(`Chỉ còn ${stockQuantity} cuốn trong kho.`);
+            }
+
+            quantityInput.value = quantity;
+            return quantity;
+        }
+
         // Hàm cập nhật giá tổng
         function updateTotalPrice() {
             // Kiểm tra chế độ mượn sách
@@ -1476,21 +2533,17 @@
             const basePrice = {{ $book->gia ?? 111000 }};
             let totalPrice = 0;
 
-            // Tính và cập nhật giá sách giấy
-            const paperCheckbox = document.getElementById('paper-checkbox');
-            if (paperCheckbox && paperCheckbox.checked) {
-                const paperQuantity = parseInt(document.getElementById('paper-quantity')?.value) || 1;
-                const paperTotal = basePrice * paperQuantity;
-                totalPrice += paperTotal;
-                const paperPriceElement = document.getElementById('paper-price');
-                if (paperPriceElement) {
-                    paperPriceElement.textContent = new Intl.NumberFormat('vi-VN').format(paperTotal) + '₫';
-                }
-            } else {
-                const paperPriceElement = document.getElementById('paper-price');
-                if (paperPriceElement) {
-                    paperPriceElement.textContent = new Intl.NumberFormat('vi-VN').format(basePrice) + '₫';
-                }
+            const paperQuantity = parseInt(document.getElementById('paper-quantity')?.value) || 1;
+            const paperTotal = basePrice * paperQuantity;
+            totalPrice += paperTotal;
+
+            const paperPriceElement = document.getElementById('paper-price');
+            if (paperPriceElement) {
+                paperPriceElement.textContent = new Intl.NumberFormat('vi-VN').format(paperTotal) + '₫';
+            }
+        
+            if (paperQuantity < 1) {
+                document.getElementById('paper-quantity').value = 1;
             }
 
             // Cập nhật giá tổng
@@ -1498,6 +2551,48 @@
             if (totalPriceElement) {
                 totalPriceElement.textContent = new Intl.NumberFormat('vi-VN').format(Math.round(totalPrice)) + '₫';
             }
+        }
+
+        function showFavoriteMessage(message, type = 'success') {
+            if (typeof window.showToast === 'function') {
+                window.showToast(type === 'success' ? 'Thành công' : 'Thông báo', message, type);
+            } else {
+                alert(message);
+            }
+        }
+
+        function toggleFavorite(bookId, button) {
+            fetch('{{ route('account.favorites.toggle') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ book_id: bookId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    showFavoriteMessage(data.message || 'Không thể cập nhật sách yêu thích.', 'error');
+                    return;
+                }
+
+                button.classList.toggle('active', !!data.is_favorited);
+                const icon = button.querySelector('i');
+
+                if (icon) {
+                    icon.className = `${data.is_favorited ? 'fas' : 'far'} fa-heart`;
+                }
+
+                button.setAttribute('aria-label', data.is_favorited ? 'Bỏ yêu thích' : 'Thêm vào yêu thích');
+                button.setAttribute('title', data.is_favorited ? 'Bỏ yêu thích' : 'Thêm vào yêu thích');
+
+                showFavoriteMessage(data.message || 'Đã cập nhật sách yêu thích.');
+            })
+            .catch(() => {
+                showFavoriteMessage('Có lỗi xảy ra khi cập nhật sách yêu thích.', 'error');
+            });
         }
 
         function addToReservationCart() {
@@ -1511,19 +2606,7 @@
                 return;
             @endguest
 
-            const paperCheckbox = document.getElementById('paper-checkbox');
-            const paperChecked = paperCheckbox ? paperCheckbox.checked : false;
-
-            if (!paperChecked) {
-                if (typeof window.showToast === 'function') {
-                    window.showToast('Thông báo', 'Vui lòng chọn sản phẩm!', 'warning');
-                } else {
-                    alert('Vui lòng chọn sản phẩm!');
-                }
-                return;
-            }
-
-            const quantity = parseInt(document.getElementById('paper-quantity')?.value) || 1;
+            const quantity = validateReservationQuantity();
             const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
 
             if (stockQuantity === 0) {
@@ -1534,8 +2617,17 @@
 
             if (quantity > stockQuantity && stockQuantity > 0) {
                 if (typeof window.showToast === 'function') {
-                    window.showToast('Thông báo', `Bạn chọn ${quantity} cuốn nhưng kho chỉ còn ${stockQuantity} cuốn. (Giỏ đặt trước chỉ lưu 1 yêu cầu / sách)`, 'warning');
+                    window.showToast('Thông báo', `Bạn chọn ${quantity} cuốn nhưng kho chỉ còn ${stockQuantity} cuốn.`, 'warning');
                 }
+
+                return;
+            }
+
+            let splitReservationItems = false;
+
+            if (quantity > 1) {
+                const sameDay = confirm(`Bạn đang thêm ${quantity} cuốn cùng một đầu sách.\n\nBạn có muốn trả ${quantity} cuốn cùng một ngày không?\n\nChọn OK = cùng ngày trả\nChọn Cancel = sẽ tách thành nhiều dòng để chọn thời gian thuê riêng cho từng cuốn.`);
+                splitReservationItems = !sameDay;
             }
 
             fetch('{{ route("reservation-cart.add") }}', {
@@ -1544,7 +2636,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({ book_id: {{ $book->id }} })
+                body: JSON.stringify({ book_id: {{ $book->id }}, quantity, split_items: splitReservationItems })
             })
             .then(res => res.json())
             .then(data => {
