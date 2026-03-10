@@ -78,6 +78,7 @@ class UserAccountController extends Controller
             ]);
 
             // Xử lý upload ảnh CCCD
+            
             if ($request->hasFile('cccd_image')) {
                 try {
                     // Xóa ảnh cũ nếu có

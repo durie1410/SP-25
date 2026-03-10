@@ -1065,7 +1065,7 @@
                     {{ auth()->user()->isAdmin() ? 'Admin' : 'Nhân viên' }}
                 </span>
             </div>
-            
+
             <div class="user-menu">
                 <button class="btn-user" onclick="toggleUserMenu()">
                     <div class="user-avatar">
@@ -1120,50 +1120,50 @@
                 <!-- Quản lý kho -->
                 <div class="menu-section-title">QUẢN LÝ KHO</div>
                 @if(Route::has('admin.inventory.index'))
-                    <a href="{{ route('admin.inventory.index') }}"
-                        class="menu-item {{ request()->routeIs('admin.inventory.index') || request()->routeIs('admin.inventory.show') || request()->routeIs('admin.inventory.edit') ? 'active' : '' }}">
-                        <i class="fas fa-warehouse"></i>
-                        <span>Danh sách kho</span>
-                    </a>
+                <a href="{{ route('admin.inventory.index') }}"
+                    class="menu-item {{ request()->routeIs('admin.inventory.index') || request()->routeIs('admin.inventory.show') || request()->routeIs('admin.inventory.edit') ? 'active' : '' }}">
+                    <i class="fas fa-warehouse"></i>
+                    <span>Danh sách kho</span>
+                </a>
                 @endif
                 @if(Route::has('admin.inventory.receipts'))
-                    <a href="{{ route('admin.inventory.receipts') }}"
-                        class="menu-item {{ request()->routeIs('admin.inventory.receipts.*') ? 'active' : '' }}">
-                        <i class="fas fa-file-invoice"></i>
-                        <span>Phiếu nhập kho</span>
-                    </a>
+                <a href="{{ route('admin.inventory.receipts') }}"
+                    class="menu-item {{ request()->routeIs('admin.inventory.receipts.*') ? 'active' : '' }}">
+                    <i class="fas fa-file-invoice"></i>
+                    <span>Phiếu nhập kho</span>
+                </a>
                 @endif
                 @if(Route::has('admin.inventory.transactions'))
-                    <a href="{{ route('admin.inventory.transactions') }}"
-                        class="menu-item {{ request()->routeIs('admin.inventory.transactions') ? 'active' : '' }}">
-                        <i class="fas fa-exchange-alt"></i>
-                        <span>Giao dịch kho</span>
-                    </a>
+                <a href="{{ route('admin.inventory.transactions') }}"
+                    class="menu-item {{ request()->routeIs('admin.inventory.transactions') ? 'active' : '' }}">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>Giao dịch kho</span>
+                </a>
                 @endif
                 @if(Route::has('admin.inventory.report'))
-                    <a href="{{ route('admin.inventory.report') }}"
-                        class="menu-item {{ request()->routeIs('admin.inventory.report') ? 'active' : '' }}">
-                        <i class="fas fa-chart-bar"></i>
-                        <span>Báo cáo kho</span>
-                    </a>
+                <a href="{{ route('admin.inventory.report') }}"
+                    class="menu-item {{ request()->routeIs('admin.inventory.report') ? 'active' : '' }}">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Báo cáo kho</span>
+                </a>
                 @endif
                 @if(auth()->user()->isAdmin() && Route::has('admin.inventory.delete-requests.index'))
-                    <a href="{{ route('admin.inventory.delete-requests.index') }}"
-                       class="menu-item {{ request()->routeIs('admin.inventory.delete-requests.index') ? 'active' : '' }}">
-                        <i class="fas fa-trash-alt"></i>
-                        <span>Duyệt xóa sách</span>
-                    </a>
+                <a href="{{ route('admin.inventory.delete-requests.index') }}"
+                    class="menu-item {{ request()->routeIs('admin.inventory.delete-requests.index') ? 'active' : '' }}">
+                    <i class="fas fa-trash-alt"></i>
+                    <span>Duyệt xóa sách</span>
+                </a>
                 @endif
 
                 <!-- Quản lý Độc giả - Only for Admin -->
                 @if(!auth()->user()->isStaff())
                 <div class="menu-section-title">PHÂN QUYỀN</div>
                 @if(Route::has('admin.user-management.dashboard'))
-                    <a href="{{ route('admin.user-management.dashboard') }}"
-                        class="menu-item {{ request()->routeIs('admin.user-management.*') ? 'active' : '' }}">
-                        <i class="fas fa-users"></i>
-                        <span>Tổng quan</span>
-                    </a>
+                <a href="{{ route('admin.user-management.dashboard') }}"
+                    class="menu-item {{ request()->routeIs('admin.user-management.*') ? 'active' : '' }}">
+                    <i class="fas fa-users"></i>
+                    <span>Tổng quan</span>
+                </a>
                 @endif
                 <a href="{{ route('admin.users.index') }}"
                     class="menu-item {{ request()->routeIs('admin.users.*') && !request()->routeIs('admin.user-management.*') ? 'active' : '' }}">
@@ -1171,14 +1171,19 @@
                     <span>Admin</span>
                 </a>
                 @endif
+            
 
+                <a href="{{ route('admin.users.pending') }}" class="menu-item">
+                    <i class="fas fa-user-clock"></i>
+                    <span>Duyệt đăng ký</span>
+                </a>
                 <div class="menu-section-title">ĐẶT TRƯỚC</div>
                 @if(Route::has('admin.inventory-reservations.index'))
-                    <a href="{{ route('admin.inventory-reservations.index') }}"
-                        class="menu-item {{ request()->routeIs('admin.inventory-reservations.*') ? 'active' : '' }}">
-                        <i class="fas fa-bookmark"></i>
-                        <span>Quản lý đặt trước</span>
-                    </a>
+                <a href="{{ route('admin.inventory-reservations.index') }}"
+                    class="menu-item {{ request()->routeIs('admin.inventory-reservations.*') ? 'active' : '' }}">
+                    <i class="fas fa-bookmark"></i>
+                    <span>Quản lý đặt trước</span>
+                </a>
                 @endif
 
 
@@ -1191,16 +1196,16 @@
                     <span>Quản lý đơn mượn</span>
                 </a>
                 @if(Route::has('admin.returns.index'))
-                    <a href="{{ route('admin.returns.index') }}"
-                        class="menu-item {{ request()->routeIs('admin.returns.*') ? 'active' : '' }}">
-                        <i class="fas fa-undo"></i>
-                        <span>Trả sách</span>
-                    </a>
+                <a href="{{ route('admin.returns.index') }}"
+                    class="menu-item {{ request()->routeIs('admin.returns.*') ? 'active' : '' }}">
+                    <i class="fas fa-undo"></i>
+                    <span>Trả sách</span>
+                </a>
                 @endif
-                {{-- <a href="{{ route('admin.shipping_logs.index') }}" class="menu-item d-flex align-items-center gap-2 
-                          {{ request()->routeIs('admin.shipping_logs.*') ? 'active' : '' }}">
-                    <i class="bi bi-truck fs-5"></i>
-                    <span>🚚 Giao Hàng (Đơn Mua)</span>
+                {{-- <a href="{{ route('admin.shipping_logs.index') }}" class="menu-item d-flex align-items-center gap-2
+                {{ request()->routeIs('admin.shipping_logs.*') ? 'active' : '' }}">
+                <i class="bi bi-truck fs-5"></i>
+                <span>🚚 Giao Hàng (Đơn Mua)</span>
                 </a> --}}
                 <!-- Tài chính -->
 
@@ -1208,20 +1213,20 @@
                 <!-- Hệ thống -->
                 <div class="menu-section-title">HỆ THỐNG</div>
                 @can('manage-notifications')
-                    @if(Route::has('admin.notifications.index'))
-                        <a href="{{ route('admin.notifications.index') }}"
-                            class="menu-item {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}">
-                            <i class="fas fa-bell"></i>
-                            <span>Thông báo</span>
-                        </a>
-                    @endif
+                @if(Route::has('admin.notifications.index'))
+                <a href="{{ route('admin.notifications.index') }}"
+                    class="menu-item {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}">
+                    <i class="fas fa-bell"></i>
+                    <span>Thông báo</span>
+                </a>
+                @endif
                 @endcan
                 @if(Route::has('admin.banners.index'))
-                    <a href="{{ route('admin.banners.index') }}"
-                        class="menu-item {{ request()->routeIs('admin.banners.*') ? 'active' : '' }}">
-                        <i class="fas fa-images"></i>
-                        <span>Quản lý Banner</span>
-                    </a>
+                <a href="{{ route('admin.banners.index') }}"
+                    class="menu-item {{ request()->routeIs('admin.banners.*') ? 'active' : '' }}">
+                    <i class="fas fa-images"></i>
+                    <span>Quản lý Banner</span>
+                </a>
                 @endif
             </div>
         </div>
@@ -1242,7 +1247,7 @@
         }
 
         // Close dropdown when clicking outside
-        document.addEventListener('click', function (event) {
+        document.addEventListener('click', function(event) {
             const userMenu = document.querySelector('.user-menu');
             if (!userMenu.contains(event.target)) {
                 document.getElementById('userDropdown').classList.remove('show');
@@ -1264,7 +1269,7 @@
         }
 
         // Close sidebar when clicking outside on mobile
-        document.addEventListener('click', function (event) {
+        document.addEventListener('click', function(event) {
             const sidebar = document.getElementById('sidebar');
             const toggle = document.querySelector('.mobile-menu-toggle');
 

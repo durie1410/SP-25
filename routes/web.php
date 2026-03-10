@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\VoucherController;
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
@@ -287,7 +288,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/account/wallet/transactions', [App\Http\Controllers\WalletController::class, 'transactions'])->name('account.wallet.transactions');
 
 
-    
+
 
     // Customer confirmation routes
     Route::post('/account/borrows/{id}/confirm-delivery', [BorrowController::class, 'customerConfirmDelivery'])->name('account.borrows.confirm-delivery');
@@ -378,20 +379,20 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::put('borrow-items/{id}', [BorrowItemController::class, 'update'])->name('borrowitems.update');
     Route::get('borrow-items/{id}', [BorrowItemController::class, 'show'])->name('borrowitems.show');
 
-     // ===== 11 TRẠNG THÁI MỚI - Quản lý quy trình vận chuyển =====
-     Route::post('borrows/{id}/confirm-order', [BorrowController::class, 'confirmOrder'])->name('borrows.confirm-order')->middleware('permission:edit-borrows');
-     Route::post('borrows/{id}/complete-packaging', [BorrowController::class, 'completePackaging'])->name('borrows.complete-packaging')->middleware('permission:edit-borrows');
-     Route::post('borrows/{id}/handover-shipper', [BorrowController::class, 'handoverToShipper'])->name('borrows.handover-shipper')->middleware('permission:edit-borrows');
-     Route::post('borrows/{id}/confirm-delivery-success', [BorrowController::class, 'confirmDeliverySuccess'])->name('borrows.confirm-delivery-success')->middleware('permission:edit-borrows');
-     Route::post('borrows/{id}/report-delivery-failed', [BorrowController::class, 'reportDeliveryFailed'])->name('borrows.report-delivery-failed')->middleware('permission:edit-borrows');
-     Route::post('borrows/{id}/request-return', [BorrowController::class, 'requestReturn'])->name('borrows.request-return')->middleware('permission:edit-borrows');
-     Route::post('borrows/{id}/confirm-return-shipping', [BorrowController::class, 'confirmReturnShipping'])->name('borrows.confirm-return-shipping')->middleware('permission:edit-borrows');
-     Route::post('borrows/{id}/confirm-customer-received', [BorrowController::class, 'adminConfirmCustomerReceived'])->name('borrows.confirm-customer-received')->middleware('permission:edit-borrows');
-     Route::post('borrows/{id}/confirm-receive-check', [BorrowController::class, 'confirmReceiveAndCheck'])->name('borrows.confirm-receive-check')->middleware('permission:edit-borrows');
-     Route::post('borrows/{id}/complete-order', [BorrowController::class, 'completeOrder'])->name('borrows.complete-order')->middleware('permission:edit-borrows');
-     Route::post('borrows/{id}/refund-cancelled', [BorrowController::class, 'refundCancelledOrder'])->name('borrows.refund-cancelled')->middleware('permission:edit-borrows');
-     Route::get('borrows/{id}/status-detail', [BorrowController::class, 'statusDetail'])->name('borrows.status-detail')->middleware('permission:view-borrows');
-     // ============================================================
+    // ===== 11 TRẠNG THÁI MỚI - Quản lý quy trình vận chuyển =====
+    Route::post('borrows/{id}/confirm-order', [BorrowController::class, 'confirmOrder'])->name('borrows.confirm-order')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/complete-packaging', [BorrowController::class, 'completePackaging'])->name('borrows.complete-packaging')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/handover-shipper', [BorrowController::class, 'handoverToShipper'])->name('borrows.handover-shipper')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/confirm-delivery-success', [BorrowController::class, 'confirmDeliverySuccess'])->name('borrows.confirm-delivery-success')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/report-delivery-failed', [BorrowController::class, 'reportDeliveryFailed'])->name('borrows.report-delivery-failed')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/request-return', [BorrowController::class, 'requestReturn'])->name('borrows.request-return')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/confirm-return-shipping', [BorrowController::class, 'confirmReturnShipping'])->name('borrows.confirm-return-shipping')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/confirm-customer-received', [BorrowController::class, 'adminConfirmCustomerReceived'])->name('borrows.confirm-customer-received')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/confirm-receive-check', [BorrowController::class, 'confirmReceiveAndCheck'])->name('borrows.confirm-receive-check')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/complete-order', [BorrowController::class, 'completeOrder'])->name('borrows.complete-order')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/refund-cancelled', [BorrowController::class, 'refundCancelledOrder'])->name('borrows.refund-cancelled')->middleware('permission:edit-borrows');
+    Route::get('borrows/{id}/status-detail', [BorrowController::class, 'statusDetail'])->name('borrows.status-detail')->middleware('permission:view-borrows');
+    // ============================================================
 
 
     Route::post('borrows/{id}/process', [BorrowController::class, 'processBorrow'])->name('borrows.process');
@@ -507,38 +508,38 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('fines/create-late-returns', [FineController::class, 'createLateReturnFines'])->name('fines.create-late-returns')->middleware('permission:create-fines');
     Route::get('fines-report', [FineController::class, 'report'])->name('fines.report')->middleware('permission:view-reports');
 
-      // Reports routes
-      Route::get('reports', [ReportController::class, 'index'])->name('reports.index')->middleware('permission:view-reports');
-      Route::get('reports/borrows', [ReportController::class, 'borrowsReport'])->name('reports.borrows')->middleware('permission:view-reports');
-      Route::get('reports/readers', [ReportController::class, 'readersReport'])->name('reports.readers')->middleware('permission:view-reports');
-      Route::get('reports/books', [ReportController::class, 'booksReport'])->name('reports.books')->middleware('permission:view-reports');
-      
-      // Inventory Reports routes (Báo cáo kho sách)
-      Route::prefix('inventory-reports')->name('inventory-reports.')->group(function() {
-          Route::get('/', [App\Http\Controllers\InventoryReportController::class, 'index'])->name('index')->middleware('permission:view-reports');
-          Route::get('book-statistics', [App\Http\Controllers\InventoryReportController::class, 'bookStatistics'])->name('book-statistics')->middleware('permission:view-reports');
-          Route::get('borrow-return', [App\Http\Controllers\InventoryReportController::class, 'borrowReturnReport'])->name('borrow-return')->middleware('permission:view-reports');
-          Route::get('import', [App\Http\Controllers\InventoryReportController::class, 'importReport'])->name('import')->middleware('permission:view-reports');
-          Route::get('disposal', [App\Http\Controllers\InventoryReportController::class, 'disposalReport'])->name('disposal')->middleware('permission:view-reports');
-          Route::get('fine', [App\Http\Controllers\InventoryReportController::class, 'fineReport'])->name('fine')->middleware('permission:view-reports');
-          Route::get('late-return', [App\Http\Controllers\InventoryReportController::class, 'lateReturnReport'])->name('late-return')->middleware('permission:view-reports');
-      });
-      
-      // Reviews routes
-      Route::resource('reviews', ReviewController::class)->middleware('permission:view-reviews');
-      Route::post('comments', [CommentController::class, 'store'])->name('comments.store')->middleware('permission:create-reviews');
-      Route::put('comments/{id}', [CommentController::class, 'update'])->name('comments.update')->middleware('permission:edit-reviews');
-      Route::delete('comments/{id}', [CommentController::class, 'destroy'])->name('comments.destroy')->middleware('permission:delete-reviews');
-      Route::post('comments/{id}/like', [CommentController::class, 'like'])->name('comments.like')->middleware('permission:view-reviews');
-      Route::post('comments/{id}/approve', [CommentController::class, 'approve'])->name('comments.approve')->middleware('permission:approve-reviews');
-      Route::post('comments/{id}/reject', [CommentController::class, 'reject'])->name('comments.reject')->middleware('permission:approve-reviews');
-      
-      // Fines routes
-      Route::resource('fines', FineController::class)->middleware('permission:view-fines');
-      Route::post('fines/{id}/mark-paid', [FineController::class, 'markAsPaid'])->name('fines.mark-paid')->middleware('permission:edit-fines');
-      Route::post('fines/{id}/waive', [FineController::class, 'waive'])->name('fines.waive')->middleware('permission:waive-fines');
-      Route::post('fines/create-late-returns', [FineController::class, 'createLateReturnFines'])->name('fines.create-late-returns')->middleware('permission:create-fines');
-      Route::get('fines-report', [FineController::class, 'report'])->name('fines.report')->middleware('permission:view-reports');
+    // Reports routes
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index')->middleware('permission:view-reports');
+    Route::get('reports/borrows', [ReportController::class, 'borrowsReport'])->name('reports.borrows')->middleware('permission:view-reports');
+    Route::get('reports/readers', [ReportController::class, 'readersReport'])->name('reports.readers')->middleware('permission:view-reports');
+    Route::get('reports/books', [ReportController::class, 'booksReport'])->name('reports.books')->middleware('permission:view-reports');
+
+    // Inventory Reports routes (Báo cáo kho sách)
+    Route::prefix('inventory-reports')->name('inventory-reports.')->group(function () {
+        Route::get('/', [App\Http\Controllers\InventoryReportController::class, 'index'])->name('index')->middleware('permission:view-reports');
+        Route::get('book-statistics', [App\Http\Controllers\InventoryReportController::class, 'bookStatistics'])->name('book-statistics')->middleware('permission:view-reports');
+        Route::get('borrow-return', [App\Http\Controllers\InventoryReportController::class, 'borrowReturnReport'])->name('borrow-return')->middleware('permission:view-reports');
+        Route::get('import', [App\Http\Controllers\InventoryReportController::class, 'importReport'])->name('import')->middleware('permission:view-reports');
+        Route::get('disposal', [App\Http\Controllers\InventoryReportController::class, 'disposalReport'])->name('disposal')->middleware('permission:view-reports');
+        Route::get('fine', [App\Http\Controllers\InventoryReportController::class, 'fineReport'])->name('fine')->middleware('permission:view-reports');
+        Route::get('late-return', [App\Http\Controllers\InventoryReportController::class, 'lateReturnReport'])->name('late-return')->middleware('permission:view-reports');
+    });
+
+    // Reviews routes
+    Route::resource('reviews', ReviewController::class)->middleware('permission:view-reviews');
+    Route::post('comments', [CommentController::class, 'store'])->name('comments.store')->middleware('permission:create-reviews');
+    Route::put('comments/{id}', [CommentController::class, 'update'])->name('comments.update')->middleware('permission:edit-reviews');
+    Route::delete('comments/{id}', [CommentController::class, 'destroy'])->name('comments.destroy')->middleware('permission:delete-reviews');
+    Route::post('comments/{id}/like', [CommentController::class, 'like'])->name('comments.like')->middleware('permission:view-reviews');
+    Route::post('comments/{id}/approve', [CommentController::class, 'approve'])->name('comments.approve')->middleware('permission:approve-reviews');
+    Route::post('comments/{id}/reject', [CommentController::class, 'reject'])->name('comments.reject')->middleware('permission:approve-reviews');
+
+    // Fines routes
+    Route::resource('fines', FineController::class)->middleware('permission:view-fines');
+    Route::post('fines/{id}/mark-paid', [FineController::class, 'markAsPaid'])->name('fines.mark-paid')->middleware('permission:edit-fines');
+    Route::post('fines/{id}/waive', [FineController::class, 'waive'])->name('fines.waive')->middleware('permission:waive-fines');
+    Route::post('fines/create-late-returns', [FineController::class, 'createLateReturnFines'])->name('fines.create-late-returns')->middleware('permission:create-fines');
+    Route::get('fines-report', [FineController::class, 'report'])->name('fines.report')->middleware('permission:view-reports');
 
 
     // Fine Payment Routes (Tiền mặt & MoMo cũ)
@@ -746,6 +747,31 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/export-csv', [ReportController::class, 'exportCSV'])->name('reports.export.csv');
     Route::get('reports/export-pdf', [ReportController::class, 'exportPDF'])->name('reports.export.pdf');
+
+    //duyet dki
+   Route::prefix('admin')->middleware(['auth','admin'])->group(function () {
+
+    // danh sách user
+    Route::get('users', [AuthController::class, 'index'])->name('users.index');
+
+    // user chờ duyệt
+    Route::get('users/pending', [AuthController::class, 'pendingUsers'])->name('users.pending');
+
+    // duyệt user
+    Route::get('users/approve/{id}', [AuthController::class, 'approveUser'])->name('users.approve');
+
+    // khóa user
+    Route::get('users/lock/{id}', [AuthController::class, 'lockUser'])->name('users.lock');
+
+    // mở khóa
+    Route::get('users/unlock/{id}', [AuthController::class, 'unlockUser'])->name('users.unlock');
+
+});
+    // Route::get('users/pending', [AuthController::class, 'pendingUsers'])->name('users.pending');
+
+    // Route::get('users/approve/{id}', [AuthController::class, 'approveUser'])->name('users.approve');
+
+    // Route::get('users/lock/{id}', [AuthController::class, 'lockUser'])->name('users.lock');
 });
 
 // VnPay Payment Routes

@@ -29,12 +29,12 @@ class AuthController extends Controller
         ]);
 
         $credentials = $request->only('email', 'password');
-        
+
         // DEBUG: Log login attempt
         Log::info('=== LOGIN ATTEMPT DEBUG ===');
         Log::info('Email input: ' . $credentials['email']);
         Log::info('Password input length: ' . strlen($credentials['password']));
-        
+
         // Check if user exists
         $user = User::where('email', $credentials['email'])->first();
         if ($user) {
@@ -45,21 +45,34 @@ class AuthController extends Controller
         } else {
             Log::info('User NOT found with email: ' . $credentials['email']);
         }
-        
+
         // Log guard being used
         Log::info('Guard being used: ' . Auth::getDefaultDriver());
 
         if (Auth::attempt($credentials, $request->filled('remember'))) {
             $request->session()->regenerate();
-            
+
             Log::info('Auth::attempt SUCCESS');
-            
+
             // Log successful login
             AuditService::logLogin('User logged in successfully');
-            
+
             // Get the authenticated user
             $user = Auth::user();
-            
+            // Kiểm tra trạng thái tài khoản
+            if ($user->status == 'pending') {
+                Auth::logout();
+                return back()->withErrors([
+                    'email' => 'Tài khoản đang chờ quản trị viên duyệt'
+                ]);
+            }
+
+            if ($user->status == 'locked') {
+                Auth::logout();
+                return back()->withErrors([
+                    'email' => 'Tài khoản đã bị khóa'
+                ]);
+            }
             // Redirect based on user role
             if ($user->role === 'admin') {
                 return redirect()->route('admin.dashboard');
@@ -70,7 +83,7 @@ class AuthController extends Controller
                 return redirect()->route('home');
             }
         }
-        
+
         Log::info('Auth::attempt FAILED');
         Log::info('=== END LOGIN DEBUG ===');
 
@@ -93,13 +106,14 @@ class AuthController extends Controller
         ]);
 
         DB::beginTransaction();
-        
+
         try {
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'role' => 'user', // SECURITY FIX: Always 'user'
+                'status' => 'pending'
             ]);
 
             // Assign role using Spatie Permission
@@ -118,16 +132,13 @@ class AuthController extends Controller
                 Log::error('Failed to send welcome email: ' . $e->getMessage());
             }
 
-            Auth::login($user);
-            
-            // Regenerate session sau khi login
-            $request->session()->regenerate();
-
-            return redirect()->route('home')->with('success', 'Đăng ký thành công! Email chào mừng đã được gửi đến hộp thư của bạn.');
-            
+            return redirect()->route('login')->with(
+                'success',
+                'Đăng ký thành công! Tài khoản của bạn đang chờ quản trị viên duyệt.'
+            );
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return back()->withErrors([
                 'email' => 'Có lỗi xảy ra khi đăng ký. Vui lòng thử lại.',
             ])->withInput();
@@ -138,11 +149,11 @@ class AuthController extends Controller
     {
         // Log logout before destroying session
         AuditService::logLogout('User logged out');
-        
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        
+
         return redirect()->route('home');
     }
 
@@ -250,5 +261,50 @@ class AuthController extends Controller
         $request->user()->sendEmailVerificationNotification();
 
         return back()->with('status', 'verification-link-sent');
+    }
+
+
+    public function index()
+    {
+        $users = User::paginate(10);
+
+        return view('admin.users.index', compact('users'));
+    }
+
+    public function pendingUsers()
+    {
+        $users = User::where('status', 'pending')->get();
+
+        return view('admin.users.pending', compact('users'));
+    }
+
+    public function approveUser($id)
+    {
+        $user = User::findOrFail($id);
+
+        $user->status = 'active';
+        $user->save();
+
+        return back()->with('success', 'Đã duyệt tài khoản');
+    }
+
+    public function lockUser($id)
+    {
+        $user = User::findOrFail($id);
+
+        $user->status = 'locked';
+        $user->save();
+
+        return back()->with('success', 'Đã khóa tài khoản');
+    }
+
+    public function unlockUser($id)
+    {
+        $user = User::findOrFail($id);
+
+        $user->status = 'active';
+        $user->save();
+
+        return back()->with('success', 'Đã mở khóa tài khoản');
     }
 }
