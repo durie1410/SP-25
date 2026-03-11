@@ -40,12 +40,16 @@ class UserController extends Controller
         $totalUsers = User::count();
         $adminUsers = User::where('role', 'admin')->count();
         $regularUsers = User::where('role', 'user')->count();
+        $newUsersThisMonth = User::whereYear('created_at', now()->year)
+            ->whereMonth('created_at', now()->month)
+            ->count();
         
         return view('admin.users.index', compact(
             'users', 
             'totalUsers', 
             'adminUsers', 
-            'regularUsers'
+            'regularUsers',
+            'newUsersThisMonth'
         ));
     }
     
