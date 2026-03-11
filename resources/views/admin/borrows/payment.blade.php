@@ -141,7 +141,7 @@
                                                 <td>
                                                     <div style="width:40px; height:55px; background:#f1f5f9; border-radius:6px; overflow:hidden;">
                                                         @if(optional($item->book)->hinh_anh)
-                                                            <img src="{{ asset('storage/' . $item->book->hinh_anh) }}" alt="" style="width:100%; height:100%; object-fit:cover;">
+                                                            <img src="{{ $item->book->image_url }}" alt="" style="width:100%; height:100%; object-fit:cover;">
                                                         @else
                                                             <div class="d-flex align-items-center justify-content-center" style="width:100%; height:100%; color:#94a3b8;">📘</div>
                                                         @endif
@@ -225,7 +225,7 @@
                                                     <td>
                                                         <div style="width:40px; height:55px; background:#f1f5f9; border-radius:6px; overflow:hidden;">
                                                             @if(optional($item->book)->hinh_anh)
-                                                                <img src="{{ asset('storage/' . $item->book->hinh_anh) }}" alt="" style="width:100%; height:100%; object-fit:cover;">
+                                                                <img src="{{ $item->book->image_url }}" alt="" style="width:100%; height:100%; object-fit:cover;">
                                                             @else
                                                                 <div class="d-flex align-items-center justify-content-center" style="width:100%; height:100%; color:#94a3b8;">📘</div>
                                                             @endif
@@ -291,7 +291,7 @@
                                             <td>
                                                 <div style="width:40px; height:55px; background:#f1f5f9; border-radius:6px; overflow:hidden;">
                                                     @if(optional($item->book)->hinh_anh)
-                                                        <img src="{{ asset('storage/' . $item->book->hinh_anh) }}" alt="" style="width:100%; height:100%; object-fit:cover;">
+                                                        <img src="{{ $item->book->image_url }}" alt="" style="width:100%; height:100%; object-fit:cover;">
                                                     @else
                                                         <div class="d-flex align-items-center justify-content-center" style="width:100%; height:100%; color:#94a3b8;">📘</div>
                                                     @endif
