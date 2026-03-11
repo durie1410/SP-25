@@ -26,7 +26,6 @@ class StaffOnlyDashboard
             
             // Block staff khỏi các trang quản lý người dùng
             $blockedPaths = [
-                'admin/user-management',
                 'admin/users',
                 'admin/librarians',
             ];
