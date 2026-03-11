@@ -1106,7 +1106,7 @@
                 <a href="{{ route('admin.dashboard') }}"
                     class="menu-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                     <i class="fas fa-tachometer-alt"></i>
-                    <span>Tổng quan</span>
+                    <span>Dashboard</span>
                 </a>
 
                 <!-- Quản lý dữ liệu -->
@@ -1158,15 +1158,8 @@
                 <!-- Quản lý Độc giả - Only for Admin -->
                 @if(!auth()->user()->isStaff())
                 <div class="menu-section-title">PHÂN QUYỀN</div>
-                @if(Route::has('admin.user-management.dashboard'))
-                <a href="{{ route('admin.user-management.dashboard') }}"
-                    class="menu-item {{ request()->routeIs('admin.user-management.*') ? 'active' : '' }}">
-                    <i class="fas fa-users"></i>
-                    <span>Tổng quan</span>
-                </a>
-                @endif
                 <a href="{{ route('admin.users.index') }}"
-                    class="menu-item {{ request()->routeIs('admin.users.*') && !request()->routeIs('admin.user-management.*') ? 'active' : '' }}">
+                    class="menu-item {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                     <i class="fas fa-users-cog"></i>
                     <span>Admin</span>
                 </a>
