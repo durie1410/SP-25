@@ -4,60 +4,88 @@
 
 @section('content')
 <div class="page-header">
-    <div class="row align-items-center">
-        <div class="col-md-6">
-            <h1 class="page-title">
-                <i class="fas fa-users-cog me-3"></i>
-                Người Dùng
-            </h1>
-            <p class="page-subtitle">Quản lý tài khoản và phân quyền người dùng trong hệ thống</p>
+    <div>
+        <h1 class="page-title">
+            <i class="fas fa-users" style="color: #22c55e;"></i>
+            Quản lý và theo dõi người dùng
+        </h1>
+    </div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{{ route('admin.users.create') }}" class="btn btn-primary" style="background: #22c55e; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;">
+            <i class="fas fa-user-plus"></i>
+            Thêm Người Dùng
+        </a>
+        <a href="{{ route('admin.users.index') }}" class="btn btn-info" style="background: #3b82f6; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;">
+            <i class="fas fa-users"></i>
+            Quản Lý Người Dùng
+        </a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px;">
+    <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; border-radius: 12px; padding: 24px; position: relative; min-height: 180px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <h6 style="font-size: 13px; font-weight: 700; text-transform: uppercase; margin: 0 0 16px 0; letter-spacing: 0.5px; line-height: 1.4; opacity: 0.9;">TỔNG NGƯỜI DÙNG</h6>
+        <h3 style="font-size: 42px; font-weight: 700; margin: 0 0 8px 0; line-height: 1.2;">{{ $totalUsers }}</h3>
+        <div style="margin-top: 12px; font-size: 14px; opacity: 0.9;">
+            <i class="fas fa-user-plus"></i> {{ $newUsersThisMonth }} mới trong tháng
         </div>
-        <div class="col-md-6 text-end">
-            <a href="{{ route('admin.users.create') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Thêm Người Dùng
-            </a>
+        <div style="position: absolute; bottom: 24px; right: 24px; opacity: 0.3;">
+            <i class="fas fa-users" style="font-size: 64px;"></i>
+        </div>
+    </div>
+
+    <div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; position: relative; min-height: 180px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <h6 style="font-size: 13px; font-weight: 700; color: #374151; text-transform: uppercase; margin: 0 0 16px 0; letter-spacing: 0.5px; line-height: 1.4;">PHÂN LOẠI NGƯỜI DÙNG</h6>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #6b7280; font-size: 14px;"><i class="fas fa-crown" style="color: #dc3545;"></i> Quản trị viên</span>
+                <strong style="color: #1f2937; font-size: 18px;">{{ $adminUsers }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #6b7280; font-size: 14px;"><i class="fas fa-user" style="color: #17a2b8;"></i> Người dùng</span>
+                <strong style="color: #1f2937; font-size: 18px;">{{ $regularUsers }}</strong>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Filters and Search -->
-<div class="admin-table">
-    <form method="GET" class="row g-3 mb-4">
-        <div class="col-md-4">
-            <label class="form-label">Tìm kiếm</label>
-            <input type="text" class="form-control" name="search" value="{{ request('search') }}" placeholder="Tìm theo tên, email...">
-        </div>
-        
-        <div class="col-md-3">
-            <label class="form-label">Vai trò</label>
-            <select class="form-select" name="role">
-                <option value="">Tất cả vai trò</option>
-                <option value="admin" {{ request('role') == 'admin' ? 'selected' : '' }}>Quản trị viên</option>
-                <option value="user" {{ request('role') == 'user' ? 'selected' : '' }}>Người dùng</option>
-            </select>
-        </div>
-        
-        <div class="col-md-3">
-            <label class="form-label">Trạng thái</label>
-            <select class="form-select" name="status">
-                <option value="">Tất cả trạng thái</option>
-                <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Hoạt động</option>
-                <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Không hoạt động</option>
-            </select>
-        </div>
-        
-        <div class="col-md-2">
-            <label class="form-label">&nbsp;</label>
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-success">
-                    <i class="fas fa-search"></i>
-                </button>
-                <a href="{{ route('admin.users.index') }}" class="btn btn-secondary">
-                    <i class="fas fa-times"></i>
-                </a>
+<div class="card" style="margin-bottom: 25px; background: white; border: 1px solid #e5e7eb; border-radius: 12px;">
+    <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px;">
+        <h3 class="card-title" style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
+            <i class="fas fa-search" style="color: #22c55e; margin-right: 8px;"></i>
+            Tìm kiếm & Lọc
+        </h3>
+    </div>
+    <form method="GET" action="{{ route('admin.users.index') }}" style="padding: 0 25px 25px 25px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #374151;">Tìm kiếm người dùng</label>
+                <input type="text" name="search" class="form-control" value="{{ request('search') }}" placeholder="Tên, email..." style="width: 100%;">
+            </div>
+            <div>
+                <label style="display: block; margin-bottom: 5px; font-weight: 500; color: #374151;">Vai trò</label>
+                <select name="role" class="form-control" style="width: 100%;">
+                    <option value="">-- Tất cả vai trò --</option>
+                    <option value="admin" {{ request('role') == 'admin' ? 'selected' : '' }}>Quản trị viên</option>
+                    <option value="user" {{ request('role') == 'user' ? 'selected' : '' }}>Người dùng</option>
+                </select>
             </div>
         </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-start;">
+            <button type="submit" class="btn btn-primary" style="background: #22c55e; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;">
+                <i class="fas fa-filter"></i>
+                Lọc
+            </button>
+            <a href="{{ route('admin.users.index') }}" class="btn btn-secondary" style="background: white; color: #1f2937; border: 1px solid #e5e7eb; padding: 10px 20px; border-radius: 10px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;">
+                <i class="fas fa-redo"></i>
+                Reset
+            </a>
+        </div>
     </form>
+</div>
+
+<!-- Users Table -->
+<div class="admin-table">
     
     <!-- Users Table -->
     <div class="table-responsive">
@@ -192,6 +220,11 @@
         border-radius: 15px;
         margin-bottom: 30px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
     }
     
     .page-title {
