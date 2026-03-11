@@ -54,39 +54,6 @@ tạo phiếu mượn    </a>
 
     <div class="stat-card">
         <div class="stat-header">
-            <div class="stat-title">Đã hủy</div>
-            <div class="stat-icon secondary">
-                <i class="fas fa-times-circle"></i>
-            </div>
-        </div>
-        <div class="stat-value">{{ $stats['huy'] }}</div>
-        <div class="stat-label">Đơn đã hủy</div>
-    </div>
-
-    <div class="stat-card">
-        <div class="stat-header">
-            <div class="stat-title">Bị hỏng</div>
-            <div class="stat-icon" style="background: rgba(108, 117, 125, 0.15); color: #6c757d;">
-                <i class="fas fa-tools"></i>
-            </div>
-        </div>
-        <div class="stat-value">{{ $stats['hong'] }}</div>
-        <div class="stat-label">Sách bị hỏng</div>
-    </div>
-
-    <div class="stat-card">
-        <div class="stat-header">
-            <div class="stat-title">Bị mất</div>
-            <div class="stat-icon" style="background: rgba(233, 62, 140, 0.15); color: #e83e8c;">
-                <i class="fas fa-search"></i>
-            </div>
-        </div>
-        <div class="stat-value">{{ $stats['mat_sach'] }}</div>
-        <div class="stat-label">Sách bị mất</div>
-    </div>
-
-    <div class="stat-card">
-        <div class="stat-header">
             <div class="stat-title">Tổng số</div>
             <div class="stat-icon warning">
                 <i class="fas fa-list"></i>
@@ -475,10 +442,13 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                 <td><strong>{{ $item->id }}</strong></td>
                                 <td>
                                     <div style="font-weight: 500;">{{ $item->book->ten_sach ?? 'N/A' }}</div>
-                                    @if($item->book && $item->book->hinh_anh)
-                                    <small class="text-muted">
-                                        <i class="fas fa-image"></i> Có ảnh
-                                    </small>
+                                    @if(optional($item->book)->hinh_anh)
+                                        <div style="margin-top: 6px;">
+                                            <img src="{{ $item->book->image_url }}" alt="{{ $item->book->ten_sach ?? 'Ảnh sách' }}"
+                                                style="width: 42px; height: 58px; object-fit: cover; border: 1px solid #dee2e6; border-radius: 4px;">
+                                        </div>
+                                    @else
+                                        <small class="text-muted">Không có ảnh</small>
                                     @endif
                                 </td>
                                 <td>{{ $item->book->tac_gia ?? 'N/A' }}</td>
