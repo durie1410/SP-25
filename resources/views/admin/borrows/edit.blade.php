@@ -5,89 +5,193 @@
 @section('content')
 
 <style>
-/* Modal nền mờ */
-.modal-bg {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.4);
-    backdrop-filter: blur(5px);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 1055;
+.borrow-edit-page {
+    padding-top: 8px;
 }
+
+.borrow-edit-card {
+    border: 0;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 18px 38px rgba(15, 23, 42, 0.1);
+}
+
+.borrow-edit-card .card-header {
+    border: 0;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #0f766e, #0ea5e9);
+}
+
+.borrow-edit-card .card-body {
+    padding: 22px;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+}
+
+.borrow-edit-card .form-label {
+    font-weight: 700;
+    font-size: 13px;
+    color: #334155;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.borrow-edit-card .form-control,
+.borrow-edit-card .form-select {
+    border-radius: 12px;
+    border: 1px solid #dbe2ea;
+    min-height: 44px;
+    box-shadow: 0 1px 1px rgba(15, 23, 42, 0.02);
+}
+
+.borrow-edit-card .form-control:focus,
+.borrow-edit-card .form-select:focus {
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 0.2rem rgba(14, 165, 233, 0.15);
+}
+
+.reader-selected-box {
+    border-radius: 12px;
+    border: 1px solid #bfe5ff;
+    background: #ecf8ff;
+    color: #0f4c81;
+    padding: 12px 14px;
+}
+
+.borrow-books-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.borrow-books-card .card-header {
+    background: #f1f5f9;
+    color: #0f172a;
+    font-weight: 700;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.borrow-books-table {
+    margin: 0;
+}
+
+.borrow-books-table thead th {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #f8fafc;
+    color: #475569;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.borrow-books-table tbody tr:hover {
+    background: #f8fbff;
+}
+
+.borrow-books-table td.money-col {
+    text-align: right;
+    white-space: nowrap;
+    font-weight: 700;
+    color: #0f766e;
+}
+
+.borrow-books-table td.date-col {
+    white-space: nowrap;
+    font-weight: 600;
+    color: #334155;
+}
+
 .status-badge {
     display: inline-block;
-    padding: 0.25em 0.5em;
-    font-size: 0.85rem;
-    font-weight: 500;
-    border-radius: 0.25rem;
+    padding: 0.3em 0.65em;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border-radius: 999px;
     color: #fff;
     text-align: center;
 }
 
-.status-Cho-duyet { background-color: #6c757d; }    /* xám */
-.status-Chua-nhan { background-color: #0d6efd; }    /* xanh dương */
-.status-Dang-muon { background-color: #0dcaf0; }    /* xanh nhạt */
-.status-Da-tra { background-color: #198754; }       /* xanh lá */
-.status-Qua-han { background-color: #ffc107; color: #000; } /* vàng */
-.status-Mat-sach { background-color: #dc3545; }     /* đỏ */
-.status-Hong { background-color: #fd7e14; }        /* cam */
-.status-Khong-xac-dinh { background-color: #6c757d; } /* xám */
+.status-Cho-duyet { background-color: #6b7280; }
+.status-Chua-nhan { background-color: #2563eb; }
+.status-Dang-muon { background-color: #0891b2; }
+.status-Da-tra { background-color: #16a34a; }
+.status-Qua-han { background-color: #f59e0b; color: #111827; }
+.status-Mat-sach { background-color: #dc2626; }
+.status-Hong { background-color: #ea580c; }
+.status-Khong-xac-dinh { background-color: #6b7280; }
 
-/* Hộp modal */
-.modal-box {
-    background: #fff;
+.summary-bar {
+    margin-top: 14px;
+    margin-bottom: 2px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #ecfeff;
+    border: 1px solid #bae6fd;
+}
+
+.summary-bar strong {
+    color: #0f172a;
+}
+
+.summary-bar .text-success {
+    color: #0284c7 !important;
+}
+
+.action-row .btn {
     border-radius: 10px;
-    padding: 25px 30px;
-    max-width: 480px;
-    width: 90%;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    animation: showModal 0.3s ease;
+    min-width: 120px;
+    font-weight: 600;
 }
-
-@keyframes showModal {
-    from { opacity: 0; transform: scale(0.8); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-.modal-box h5 { margin-top: 0; font-weight: 700; color: #007bff; }
-.modal-box ul { margin-top: 10px; padding-left: 18px; }
-.modal-box button {
-    background: #6c757d; color: #fff; border: none;
-    padding: 8px 14px; border-radius: 6px;
-    margin-top: 15px; cursor: pointer; transition: 0.2s;
-}
-.modal-box button:hover { background: #5a6268; }
 
 /* Dropdown autocomplete */
-.dropdown-menu {
+#readerDropdown {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 4px);
     left: 0;
     z-index: 1000;
     display: none;
-    float: left;
     min-width: 100%;
-    padding: 0;
-    margin: 2px 0 0;
+    padding: 4px;
+    margin: 0;
     font-size: 0.875rem;
-    color: #212529;
-    text-align: left;
     list-style: none;
     background-color: #fff;
-    background-clip: padding-box;
-    border: 1px solid rgba(0,0,0,.15);
-    border-radius: 0.25rem;
-    max-height: 200px;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 10px;
+    max-height: 230px;
     overflow-y: auto;
+    box-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
 }
-.dropdown-item { cursor: pointer; }
+
+#readerDropdown .dropdown-item {
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+#readerDropdown .dropdown-item:hover {
+    background: #f0f9ff;
+}
+
+@media (max-width: 768px) {
+    .borrow-edit-card .card-body {
+        padding: 16px;
+    }
+
+    .action-row {
+        flex-direction: column;
+    }
+
+    .action-row .btn {
+        width: 100%;
+    }
+}
 </style>
 
-<div class="container py-4">
-    <div class="card shadow-sm border-0">
+<div class="container py-4 borrow-edit-page">
+    <div class="card shadow-sm borrow-edit-card">
         <div class="card-header bg-primary text-white">
             <h4 class="mb-0"><i class="fas fa-edit me-2"></i>Sửa Phiếu Mượn</h4>
         </div>
@@ -111,7 +215,7 @@
 </div>
 
         <div id="selectedReader" class="mt-2">
-            <div class="alert alert-info">
+            <div class="reader-selected-box">
                 <strong>Đã chọn:</strong> <span id="readerName">{{ $borrow->reader->ho_ten }} ({{ $borrow->reader->so_the_doc_gia }})</span>
                 <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearReader()">Xóa</button>
             </div>
@@ -182,18 +286,18 @@
                 </div>
 
                 {{-- Sách mượn --}}
-                <div class="card mb-3">
+                <div class="card mb-3 borrow-books-card">
                     <div class="card-header">Sách mượn
                         <span class="badge badge-info">Tổng: {{ $borrow->items->count() }} sách</span>
                     </div>
                     <div class="card-body table-responsive">
-                        <table class="table table-bordered">
+                        <table class="table table-bordered borrow-books-table">
                             <thead>
                                 <tr>
                                     <th>Tên sách</th>
                                     <th>Tác giả</th>
                                     <th>vị trí</th>
-                                    <th>Tiền thuê</th>
+                                    <th>Ngày lấy sách</th>
                                     <th>Ngày hẹn trả</th>
                                     <th>Trạng thái</th>
                                 </tr>
@@ -207,8 +311,8 @@
     <span class="badge badge-info">ID: {{ $item->inventory->id }}</span>
     <span class="badge badge-secondary">Vị trí: {{ $item->inventory->location ?? 'Không có' }}</span>
 </td>
-                                    <td>{{ number_format($item->tien_thue) }}₫</td>
-                                    <td>{{ $item->ngay_hen_tra->format('d/m/Y') }}</td>
+                                    <td class="date-col">{{ optional($item->ngay_muon)->format('d/m/Y') ?? optional($borrow->ngay_muon)->format('d/m/Y') ?? 'Chưa có' }}</td>
+                                    <td class="date-col">{{ optional($item->ngay_hen_tra)->format('d/m/Y') ?? 'Chưa có' }}</td>
 <td>
     @php
         $statusClass = str_replace(' ', '-', $item->trang_thai);
@@ -238,10 +342,12 @@
 
                 @endif
 
-                <p class="mb-1"><strong>Tổng thanh toán:</strong> <span class="fw-bold text-success" id="finalAmount">{{ number_format($borrow->tong_tien) }}₫</span></p>
+                <div class="summary-bar">
+                    <p class="mb-0"><strong>Tổng thanh toán:</strong> <span class="fw-bold text-success" id="finalAmount">{{ number_format($borrow->tong_tien) }}₫</span></p>
+                </div>
                 <input type="hidden" name="tong_tien" id="tongTienInput" value="{{ $borrow->tong_tien }}">
 
-                <div class="d-flex justify-content-end gap-2 mt-4">
+                <div class="d-flex justify-content-end gap-2 mt-4 action-row">
                     <a href="{{ route('admin.borrows.index') }}" class="btn btn-secondary"><i class="fas fa-arrow-left me-1"></i> Quay lại</a>
                     <button type="submit" class="btn btn-success"><i class="fas fa-save me-1"></i> Cập nhật</button>
                 </div>
@@ -252,20 +358,18 @@
 
 @push('scripts')
 <script>
-// --- Tính tổng tiền ---
-function calculateTotal() {
-    let finalAmount = 0;
-    document.querySelectorAll('tbody tr td:nth-child(4)').forEach(td => {
-        const raw = (td.innerText || '').replace(/[^\d.-]/g, '');
-        finalAmount += parseFloat(raw || 0);
-    });
-
-    document.getElementById('finalAmount').innerText = new Intl.NumberFormat().format(finalAmount) + '₫';
-    document.getElementById('tongTienInput').value = finalAmount;
-}
-
 window.addEventListener('DOMContentLoaded', () => {
-    calculateTotal();
+    const initialTongTien = Number(@json($borrow->tong_tien ?? 0));
+    const finalAmountEl = document.getElementById('finalAmount');
+    const tongTienInputEl = document.getElementById('tongTienInput');
+
+    if (finalAmountEl) {
+        finalAmountEl.innerText = new Intl.NumberFormat('vi-VN').format(initialTongTien) + '₫';
+    }
+
+    if (tongTienInputEl) {
+        tongTienInputEl.value = initialTongTien;
+    }
 });
 
 // --- Độc giả Autocomplete ---
