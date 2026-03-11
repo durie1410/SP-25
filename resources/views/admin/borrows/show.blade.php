@@ -305,8 +305,8 @@
                         <td>{{ $item->book->id }}</td>
                         <td>
                             <div class="d-flex align-items-center">
-                                @if($item->book->hinh_anh)
-                                    <img src="{{ asset('storage/' . $item->book->hinh_anh) }}" alt="" 
+                                @if(optional($item->book)->image_url)
+                                    <img src="{{ $item->book->image_url }}" alt="" 
                                          style="width: 40px; height: 60px; object-fit: cover; margin-right: 10px;" class="img-thumbnail">
                                 @endif
                                 <div>
@@ -437,137 +437,11 @@
     </div>
     @endif
 
-    @if($borrow->trang_thai_chi_tiet === \App\Models\Borrow::STATUS_DANG_VAN_CHUYEN_TRA_VE)
-    <div class="card mt-4 border-warning shadow-sm">
-        <div class="card-header bg-warning text-dark fw-bold">
-            <i class="fas fa-check-double me-2"></i> Xử lý nhận trả sách
-        </div>
-        <div class="card-body">
-            <p>Sách hiện đang được vận chuyển trả về. Sau khi nhận được sách vật lý, vui lòng kiểm tra và xác nhận.</p>
-            <button type="button" class="btn btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#confirmCheckModal">
-                <i class="fas fa-check-circle me-1"></i> Xác nhận đã nhận & Kiểm tra sách
-            </button>
-        </div>
-    </div>
-    @endif
-
     <div class="mt-3">
         <a href="{{ route('admin.borrows.index') }}" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Quay lại
         </a>
     </div>
 </div>
-
-<!-- Modal Xác nhận & Kiểm tra sách -->
-<div class="modal fade" id="confirmCheckModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-warning">
-                <h5 class="modal-title fw-bold text-dark">Xác nhận & Kiểm tra sách</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form action="{{ route('admin.borrows.confirm-receive-check', $borrow->id) }}" method="POST">
-                @csrf
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Tình trạng sách thực tế:</label>
-                        <select name="tinh_trang_sach" class="form-select" required id="admin_tinh_trang_sach">
-                            <option value="binh_thuong" {{ $borrow->tinh_trang_sach == 'binh_thuong' ? 'selected' : '' }}>Bình thường (Trả cọc đầy đủ)</option>
-                            <option value="hong_nhe" {{ $borrow->tinh_trang_sach == 'hong_nhe' ? 'selected' : '' }}>Hỏng nhẹ (Khấu trừ một phần cọc)</option>
-                            <option value="hong_nang" {{ $borrow->tinh_trang_sach == 'hong_nang' ? 'selected' : '' }}>Hỏng nặng (Khấu trừ phần lớn cọc)</option>
-                            <option value="mat_sach" {{ $borrow->tinh_trang_sach == 'mat_sach' ? 'selected' : '' }}>Mất sách (Không hoàn trả cọc)</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Phí hỏng sách (₫):</label>
-                        <input type="number" name="phi_hong_sach" class="form-control" placeholder="Để trống để tự động tính" value="{{ $borrow->phi_hong_sach }}">
-                        <small class="text-muted">Nếu để trống, hệ thống sẽ tự tính dựa trên bảng giá hỏng hóc.</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Ghi chú kiểm tra:</label>
-                        <textarea name="ghi_chu" class="form-control" rows="3" placeholder="Ghi chú chi tiết về tình trạng sách khi nhận được..."></textarea>
-                    </div>
-
-                    <div class="alert alert-info py-2 px-3 mt-3">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>Tiền cọc ban đầu:</span>
-                            <span class="fw-bold">{{ number_format($borrow->tien_coc) }}₫</span>
-                        </div>
-                        <div id="fine-impact-container" style="display: none;">
-                            <div class="d-flex justify-content-between mb-1 text-danger">
-                                <span>Phí hỏng sách:</span>
-                                <span class="fw-bold">-<span id="display-fine-amount">0</span>₫</span>
-                            </div>
-                            <hr class="my-1">
-                            <div class="d-flex justify-content-between fw-bold text-success">
-                                <span>Tiền cọc hoàn trả:</span>
-                                <span><span id="display-refund-amount">{{ number_format($borrow->tien_coc) }}</span>₫</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-warning fw-bold">Xác nhận & Cập nhật</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-@push('scripts')
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const phiHongInput = document.querySelector('input[name="phi_hong_sach"]');
-        const impactContainer = document.getElementById('fine-impact-container');
-        const displayFine = document.getElementById('display-fine-amount');
-        const displayRefund = document.getElementById('display-refund-amount');
-        const tienCoc = {{ $borrow->tien_coc }};
-
-        function updateImpact() {
-            const fine = parseInt(phiHongInput.value) || 0;
-            if (fine > 0) {
-                impactContainer.style.display = 'block';
-                displayFine.textContent = fine.toLocaleString();
-                displayRefund.textContent = Math.max(0, tienCoc - fine).toLocaleString();
-            } else {
-                impactContainer.style.display = 'none';
-            }
-        }
-
-        if (phiHongInput) {
-            phiHongInput.addEventListener('input', updateImpact);
-            updateImpact(); // Initial call
-        }
-
-        const bindImagePreview = (inputId, previewId) => {
-            const input = document.getElementById(inputId);
-            const preview = document.getElementById(previewId);
-            if (!input || !preview) return;
-
-            input.addEventListener('change', function() {
-                const file = this.files && this.files[0];
-                if (!file) {
-                    preview.src = '';
-                    preview.classList.add('d-none');
-                    return;
-                }
-
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.src = e.target.result;
-                    preview.classList.remove('d-none');
-                };
-                reader.readAsDataURL(file);
-            });
-        };
-
-        bindImagePreview('anh_bia_truoc_input', 'anh_bia_truoc_preview');
-        bindImagePreview('anh_bia_sau_input', 'anh_bia_sau_preview');
-        bindImagePreview('anh_gay_sach_input', 'anh_gay_sach_preview');
-    });
-</script>
-@endpush
 @endsection
 
