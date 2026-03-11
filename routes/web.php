@@ -716,7 +716,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('faculties-bulk-action', [App\Http\Controllers\Admin\FacultyController::class, 'bulkAction'])->name('faculties.bulk-action')->middleware('permission:edit-readers');
 
     // User Management routes
-    Route::get('user-management', [App\Http\Controllers\Admin\UserManagementController::class, 'dashboard'])->name('user-management.dashboard')->middleware('permission:view-users');
     Route::resource('users', App\Http\Controllers\Admin\UserController::class)->middleware('permission:view-users');
     Route::post('users-bulk-action', [App\Http\Controllers\Admin\UserController::class, 'bulkAction'])->name('users.bulk-action')->middleware('permission:edit-users');
     Route::get('users-export', [App\Http\Controllers\Admin\UserController::class, 'export'])->name('users.export')->middleware('permission:view-users');
