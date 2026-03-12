@@ -1,23 +1,3 @@
-    .borrow-card-badge {
-        position: absolute;
-        top: 14px;
-        left: 14px;
-        z-index: 2;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.92);
-        color: #1d4ed8;
-        border: 1px solid rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(12px);
-        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
-        font-size: 13px;
-        font-weight: 800;
-        letter-spacing: .02em;
-    }
-
 @extends('account._layout')
 
 @section('title', 'Sách đang mượn')
@@ -143,6 +123,26 @@
         font-size: 13px;
         font-weight: 700;
         color: #0f766e;
+    }
+
+    .borrow-card-badge {
+        position: absolute;
+        top: 14px;
+        left: 14px;
+        z-index: 2;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #1d4ed8;
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.14);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: .02em;
     }
 
     .borrow-meta-inline,

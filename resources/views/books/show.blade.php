@@ -1480,10 +1480,46 @@
         }
 
         .book-cover {
-            width: 290px;
+            width: 240px;
             border-radius: 22px;
             box-shadow: 0 22px 36px rgba(15, 23, 42, 0.16);
             border: 1px solid rgba(226, 232, 240, 0.78);
+        }
+
+        /* Main detail cover image (dedicated wrapper to avoid white margins) */
+        .main-book-cover-wrap {
+            width: min(300px, 100%);
+            height:400px;
+            aspect-ratio: 2 / 3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, #eff6ff, #e2e8f0);
+            overflow: hidden;
+            border-radius: 16px;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            padding: 0;
+            box-sizing: border-box;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+            margin: 4px 0;
+            flex-shrink: 0;
+        }
+
+        .main-book-cover {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            transform: scale(0.9);
+        }
+
+        @media (max-width: 768px) {
+            .main-book-cover-wrap {
+                width: 100%;
+                max-width: 180px;
+                margin: 0 auto;
+            }
         }
 
         .info-and-buy {
@@ -1962,9 +1998,11 @@
 
             <section class="book-detail-section">
                 <div class="book-summary">
-                    <img src="{{ $book->image_url }}"
-                        alt="Bìa sách {{ $book->ten_sach }}" class="book-cover"
-                        onerror="this.onerror=null; this.src='{{ asset('images/default-book.png') }}';">
+                    <div class="main-book-cover-wrap">
+                        <img src="{{ $book->image_url }}"
+                            alt="Bìa sách {{ $book->ten_sach }}" class="main-book-cover"
+                            onerror="this.onerror=null; this.src='{{ asset('images/default-book.png') }}';">
+                    </div>
 
                     <div class="info-and-buy">
                         <div class="book-title-row">

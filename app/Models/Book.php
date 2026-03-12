@@ -155,8 +155,10 @@ class Book extends Model
             return asset('images/default-book.png');
         }
 
-        // Normalize slashes (Windows -> URL)
+        // Normalize slashes (Windows -> URL) and remove surrounding spaces
+        $path = trim((string) $path);
         $path = str_replace('\\', '/', $path);
+        $path = preg_replace('#^\./+#', '', $path);
         $path = ltrim($path, '/');
 
         // Full URL (Cloudinary, etc.)
@@ -164,15 +166,26 @@ class Book extends Model
             return $path;
         }
 
-        // Public assets
-        if (str_starts_with($path, 'assets/')) {
-            return asset($path);
+        // Normalize common legacy prefixes from migrated data
+        $legacyPrefixes = [
+            'public/storage/',
+            'storage/app/public/',
+            'app/public/',
+            'public/',
+            'storage/',
+        ];
+
+        foreach ($legacyPrefixes as $prefix) {
+            if (str_starts_with($path, $prefix)) {
+                $path = substr($path, strlen($prefix));
+                $path = ltrim($path, '/');
+                break;
+            }
         }
 
-        // Some old data may already include 'storage/' prefix
-        if (str_starts_with($path, 'storage/')) {
-            $path = substr($path, strlen('storage/'));
-            $path = ltrim($path, '/');
+        // Public assets
+        if (str_starts_with($path, 'assets/') || str_starts_with($path, 'images/')) {
+            return asset($path);
         }
 
         // Default: store everything under public storage
