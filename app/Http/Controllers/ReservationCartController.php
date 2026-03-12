@@ -178,6 +178,51 @@ class ReservationCartController extends Controller
         return back()->with('success', 'Đã xoá khỏi giỏ.');
     }
 
+    public function splitItem(Request $request, $itemId)
+    {
+        $user = $request->user();
+        $reader = $user?->reader;
+
+        if (!$reader) {
+            return redirect()->route('account')
+                ->with('error', 'Bạn cần đăng ký thông tin độc giả trước khi sử dụng chức năng đặt trước.');
+        }
+
+        $cart = ReservationCart::where('user_id', $user->id)->first();
+
+        if (!$cart) {
+            return back()->with('info', 'Giỏ đang trống.');
+        }
+
+        $item = $cart->items()->where('id', (int) $itemId)->first();
+
+        if (!$item) {
+            return back()->with('error', 'Không tìm thấy sách trong giỏ.');
+        }
+
+        $quantity = max(1, (int) ($item->quantity ?? 1));
+        if ($quantity < 2) {
+            return back()->with('info', 'Dòng này đã là 1 cuốn, không cần tách thêm.');
+        }
+
+        DB::transaction(function () use ($cart, $item, $quantity) {
+            for ($copy = 0; $copy < $quantity; $copy++) {
+                $cart->items()->create([
+                    'book_id' => $item->book_id,
+                    'quantity' => 1,
+                    'days' => $item->days,
+                    'daily_fee' => $item->daily_fee,
+                    'pickup_date' => $item->pickup_date,
+                    'return_date' => $item->return_date,
+                ]);
+            }
+
+            $item->delete();
+        });
+
+        return back()->with('success', 'Đã tách số lượng thành từng cuốn riêng để bạn chọn đặt trước từng cuốn.');
+    }
+
     public function submit(Request $request)
     {
         $user = $request->user();
@@ -190,9 +235,11 @@ class ReservationCartController extends Controller
 
         $request->validate([
             'notes' => 'nullable|string|max:1000',
+            'selected_item_ids' => 'required|array|min:1',
+            'selected_item_ids.*' => 'integer',
         ]);
 
-        $cart = ReservationCart::with('items')->where('user_id', $user->id)->first();
+        $cart = ReservationCart::with(['items.book'])->where('user_id', $user->id)->first();
 
         if (!$cart || $cart->items->isEmpty()) {
             return back()->with('error', 'Giỏ đặt trước đang trống.');
@@ -202,23 +249,39 @@ class ReservationCartController extends Controller
             $cart->update(['reader_id' => $reader->id]);
         }
 
+        $selectedItemIds = collect($request->input('selected_item_ids', []))
+            ->map(fn ($itemId) => (int) $itemId)
+            ->filter(fn ($itemId) => $itemId > 0)
+            ->unique()
+            ->values();
+
+        $selectedItems = $cart->items->whereIn('id', $selectedItemIds->all())->values();
+
+        if ($selectedItems->isEmpty()) {
+            return back()->with('error', 'Vui lòng chọn ít nhất 1 cuốn sách hợp lệ để đặt trước.');
+        }
+
+        $invalidDateItem = $selectedItems->first(function ($item) {
+            return empty($item->pickup_date) || empty($item->return_date);
+        });
+
+        if ($invalidDateItem) {
+            return back()->with('error', 'Vui lòng chọn đầy đủ ngày lấy và ngày trả cho các sách đã chọn.');
+        }
+
         try {
-            DB::beginTransaction();
+            $result = $cart->submitReservations(
+                $request->input('notes'),
+                $selectedItemIds->all()
+            );
 
-            foreach ($cart->items as $item) {
-
-            }
-
-            $cart->items()->delete();
-            $cart->delete();
-
-            DB::commit();
+            $submittedCopies = (int) ($result['submitted_copies'] ?? 0);
 
             return redirect()->route('reservation-cart.index')
-                ->with('success', 'Yêu cầu đặt trước của bạn đã được gửi thành công. Thủ thư sẽ sớm kiểm tra và phản hồi.');
+                ->with('success', $submittedCopies > 0
+                    ? "Đã gửi {$submittedCopies} yêu cầu đặt trước. Các sách chưa chọn vẫn được giữ lại trong giỏ."
+                    : 'Không có sách nào được gửi đi.');
         } catch (\Exception $e) {
-            DB::rollBack();
-
             return back()->with('error', 'Có lỗi khi gửi yêu cầu: ' . $e->getMessage());
         }
     }
