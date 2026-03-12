@@ -120,62 +120,63 @@ class ReservationCart extends Model
         ];
     }
 
-    public function submitReservations(string $notes = null): array
+    public function submitReservations(string $notes = null, array $selectedItemIds = []): array
     {
         $createdReservations = [];
-        $skippedCount = 0;
+        $submittedItems = 0;
+        $submittedCopies = 0;
 
-        return DB::transaction(function () use ($notes, &$createdReservations, &$skippedCount) {
-            $bookIds = $this->items->pluck('book_id')->toArray();
+        return DB::transaction(function () use ($notes, $selectedItemIds, &$createdReservations, &$submittedItems, &$submittedCopies) {
+            $itemIds = collect($selectedItemIds)
+                ->map(fn ($itemId) => (int) $itemId)
+                ->filter(fn ($itemId) => $itemId > 0)
+                ->unique()
+                ->values();
 
-            $existingByBookId = InventoryReservation::where('user_id', $this->user_id)
-                ->whereIn('book_id', $bookIds)
-                ->lockForUpdate()
-                ->get()
-                ->keyBy('book_id');
-
-            foreach ($this->items as $item) {
-                $existing = $existingByBookId->get($item->book_id);
-
-                if ($existing && in_array($existing->status, ['pending', 'ready'], true)) {
-                    $skippedCount++;
-                    continue;
-                }
-
-                try {
-                    if ($existing) {
-                        $existing->update([
-                            'status' => 'pending',
-                            'notes' => $notes,
-                            'admin_note' => null,
-                            'inventory_id' => null,
-                            'borrow_id' => null,
-                            'processed_by' => null,
-                            'ready_at' => null,
-                            'fulfilled_at' => null,
-                            'cancelled_at' => null,
-                        ]);
-                        $createdReservations[] = $existing;
-                    } else {
-                        $reservation = InventoryReservation::create([
-                            'book_id' => $item->book_id,
-                            'user_id' => $this->user_id,
-                            'reader_id' => $this->reader_id,
-                            'status' => 'pending',
-                            'notes' => $notes,
-                        ]);
-                        $createdReservations[] = $reservation;
-                    }
-                } catch (\Illuminate\Database\QueryException $e) {
-                    $skippedCount++;
-                }
+            $itemsQuery = $this->items()->with('book')->orderBy('id');
+            if ($itemIds->isNotEmpty()) {
+                $itemsQuery->whereIn('id', $itemIds->all());
             }
 
-            $this->clear();
+            $items = $itemsQuery->get();
+
+            foreach ($items as $item) {
+                $quantity = max(1, (int) ($item->quantity ?? 1));
+                $days = max(1, (int) ($item->days ?? $item->calculateDaysFromDates()));
+                $dailyFee = (float) ($item->daily_fee ?? 5000);
+                $perCopyFee = $days * $dailyFee;
+
+                for ($copy = 0; $copy < $quantity; $copy++) {
+                    $reservation = InventoryReservation::create([
+                        'book_id' => $item->book_id,
+                        'user_id' => $this->user_id,
+                        'reader_id' => $this->reader_id,
+                        'pickup_date' => $item->pickup_date,
+                        'return_date' => $item->return_date,
+                        'total_fee' => $perCopyFee,
+                        'status' => 'pending',
+                        'notes' => $notes,
+                    ]);
+
+                    $createdReservations[] = $reservation;
+                    $submittedCopies++;
+                }
+
+                $submittedItems++;
+            }
+
+            if ($items->isNotEmpty()) {
+                $this->items()->whereIn('id', $items->pluck('id')->all())->delete();
+            }
+
+            if (!$this->items()->exists()) {
+                $this->delete();
+            }
 
             return [
                 'created' => $createdReservations,
-                'skipped' => $skippedCount,
+                'submitted_items' => $submittedItems,
+                'submitted_copies' => $submittedCopies,
             ];
         });
     }

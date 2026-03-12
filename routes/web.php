@@ -213,6 +213,7 @@ Route::prefix('reservation-cart')->name('reservation-cart.')->middleware('auth')
     Route::post('/add', [ReservationCartController::class, 'add'])->name('add');
     Route::post('/add-and-go', [ReservationCartController::class, 'addAndRedirect'])->name('add-and-go');
     Route::post('/remove/{itemId}', [ReservationCartController::class, 'remove'])->name('remove');
+    Route::post('/split-item/{itemId}', [ReservationCartController::class, 'splitItem'])->name('split-item');
     Route::post('/submit', [ReservationCartController::class, 'submit'])->name('submit');
     Route::get('/count', [ReservationCartController::class, 'count'])->name('count');
     Route::post('/update-days/{itemId}', [ReservationCartController::class, 'updateDays'])->name('update-days');
