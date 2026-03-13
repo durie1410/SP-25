@@ -175,10 +175,14 @@ class BorrowCartController extends Controller
      */
     public function add(Request $request)
     {
+        $minBorrowDays = (int) config('library.borrow_min_days', 1);
+        $maxBorrowDays = (int) config('library.borrow_max_days', 14);
+        $maxBorrowBooks = (int) config('library.borrow_max_books', 5);
+
         $request->validate([
             'book_id' => 'required|exists:books,id',
-            'quantity' => 'nullable|integer|min:1|max:10',
-            'borrow_days' => 'nullable|integer|min:1|max:30',
+            'quantity' => 'nullable|integer|min:1|max:' . $maxBorrowBooks,
+            'borrow_days' => 'nullable|integer|min:' . $minBorrowDays . '|max:' . $maxBorrowDays,
             'distance' => 'nullable|numeric|min:0|max:10',
             'note' => 'nullable|string|max:1000',
         ]);
@@ -198,7 +202,7 @@ class BorrowCartController extends Controller
             ->count();
 
         $quantity = (int) ($request->input('quantity', 1));
-        $borrowDays = (int) ($request->input('borrow_days', 14));
+        $borrowDays = (int) ($request->input('borrow_days', $maxBorrowDays));
         // Khoảng cách luôn là 0 - không cho nhập thủ công
         $distance = 0;
         $note = $request->input('note', '');
@@ -282,9 +286,13 @@ class BorrowCartController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $minBorrowDays = (int) config('library.borrow_min_days', 1);
+        $maxBorrowDays = (int) config('library.borrow_max_days', 14);
+        $maxBorrowBooks = (int) config('library.borrow_max_books', 5);
+
         $request->validate([
-            'quantity' => 'nullable|integer|min:1|max:10',
-            'borrow_days' => 'nullable|integer|min:1|max:30',
+            'quantity' => 'nullable|integer|min:1|max:' . $maxBorrowBooks,
+            'borrow_days' => 'nullable|integer|min:' . $minBorrowDays . '|max:' . $maxBorrowDays,
             'distance' => 'nullable|numeric|min:0|max:1000', // Cho phép khoảng cách lớn hơn
             'note' => 'nullable|string|max:1000',
             'is_selected' => 'nullable|boolean',
@@ -1009,6 +1017,13 @@ class BorrowCartController extends Controller
     public function processCheckout(Request $request)
     {
         // Validate input - Các trường địa chỉ bắt buộc, thêm thông tin khách hàng chi tiết
+        $minBorrowDays = (int) config('library.borrow_min_days', 1);
+        $maxBorrowDays = (int) config('library.borrow_max_days', 14);
+        $minBorrowBooks = (int) config('library.borrow_min_books', 1);
+        $maxBorrowBooks = (int) config('library.borrow_max_books', 5);
+        $openHour = config('library.open_hour', '08:00');
+        $closeHour = config('library.close_hour', '20:00');
+
         $request->validate([
             'reader_name' => 'required|string|max:255',
             'reader_phone' => 'required|string|max:20',
@@ -1022,8 +1037,8 @@ class BorrowCartController extends Controller
             'so_nha' => 'required|string|max:200',
             'notes' => 'nullable|string|max:1000',
             'book_id' => 'nullable|integer',
-            'quantity' => 'nullable|integer|min:1',
-            'borrow_days' => 'nullable|integer|min:1',
+            'quantity' => 'nullable|integer|min:' . $minBorrowBooks . '|max:' . $maxBorrowBooks,
+            'borrow_days' => 'nullable|integer|min:' . $minBorrowDays . '|max:' . $maxBorrowDays,
             'items_json' => 'nullable|string',
             'checkout_source' => 'nullable|string',
             'manual_shipping_fee' => 'nullable|numeric|min:0',
@@ -1032,6 +1047,11 @@ class BorrowCartController extends Controller
             'agree_terms.required' => 'Vui lòng đồng ý với chính sách và điều khoản để tiếp tục.',
             'agree_terms.accepted' => 'Bạn phải đồng ý với chính sách và điều khoản để tiếp tục.',
         ]);
+
+        $nowTime = now()->format('H:i');
+        if ($nowTime < $openHour || $nowTime > $closeHour) {
+            return back()->with('error', "Chỉ được lấy sách trong giờ {$openHour} - {$closeHour}.");
+        }
 
         if (!auth()->check()) {
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập để đặt mượn sách');
@@ -1170,6 +1190,18 @@ class BorrowCartController extends Controller
         if ($items->isEmpty()) {
             return redirect()->route('borrow-cart.index')
                 ->with('error', 'Không có sách nào để mượn. Vui lòng thêm sách vào giỏ.');
+        }
+
+        $totalQuantity = (int) $items->sum(function ($item) {
+            return (int) ($item->quantity ?? 1);
+        });
+
+        if ($totalQuantity < $minBorrowBooks) {
+            return back()->with('error', "Bạn cần mượn ít nhất {$minBorrowBooks} cuốn sách.");
+        }
+
+        if ($totalQuantity > $maxBorrowBooks) {
+            return back()->with('error', "Bạn chỉ được mượn tối đa {$maxBorrowBooks} cuốn trong một đơn.");
         }
 
         try {

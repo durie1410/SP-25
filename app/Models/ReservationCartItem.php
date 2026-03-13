@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ReservationCartItem extends Model
 {
-    protected $fillable = ['cart_id', 'book_id', 'days', 'daily_fee', 'pickup_date', 'return_date', 'quantity'];
+    protected $fillable = ['cart_id', 'book_id', 'days', 'daily_fee', 'pickup_date', 'pickup_time', 'return_date', 'quantity'];
     protected $dates = ['pickup_date', 'return_date'];
 
     public function cart(): BelongsTo

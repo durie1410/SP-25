@@ -59,105 +59,127 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse($reservations as $r)
-                    <tr>
-                        <td><span class="badge badge-secondary">#{{ $r->id }}</span></td>
-                        <td>
-                            <div style="font-weight:700; color: var(--text-primary);">{{ $r->book->ten_sach ?? 'N/A' }}</div>
-                            <div style="font-size:12px; color: var(--text-muted);">BK{{ str_pad((string)($r->book_id ?? 0), 6, '0', STR_PAD_LEFT) }}</div>
-                        </td>
-                        <td>
-                            <div style="font-weight:600;">{{ $r->reader->ho_ten ?? ($r->user->name ?? 'N/A') }}</div>
-                            <div style="font-size:12px; color: var(--text-muted);">{{ $r->reader->so_the_doc_gia ?? '' }}</div>
-                        </td>
-                        <td>
-                            <div style="font-weight:700; color: #e67e22;">{{ number_format($r->total_fee ?? 0, 0, ',', '.') }}đ</div>
-                        </td>
-                        <td>
-                            @if($r->pickup_date)
-                                <div style="font-size:13px;"><strong>Lấy:</strong> {{ \Carbon\Carbon::parse($r->pickup_date)->format('d/m/Y') }}</div>
-                                <div style="font-size:13px;"><strong>Trả:</strong> {{ \Carbon\Carbon::parse($r->return_date)->format('d/m/Y') }}</div>
-                            @else
-                                <span class="text-muted">N/A</span>
-                            @endif
-                        </td>
-                        <td>
-                            @php
-                                $isOverduePickup = in_array($r->status, ['pending', 'ready'], true)
-                                    && $r->pickup_date
-                                    && $r->pickup_date->lt(now()->startOfDay());
+                @php
+                    $groupedReservations = $reservations->groupBy(function ($reservation) {
+                        return $reservation->reservation_code ?: 'single-' . $reservation->id;
+                    });
+                @endphp
 
-                                $badgeClass = $isOverduePickup ? 'badge-danger' : match($r->status) {
-                                    'pending' => 'badge-warning',
-                                    'ready' => 'badge-success',
-                                    'fulfilled' => 'badge-info',
-                                    'cancelled' => 'badge-danger',
-                                    default => 'badge-secondary',
-                                };
-
-                                $statusLabel = $isOverduePickup ? 'Quá hạn' : $r->getStatusLabel();
-                            @endphp
-                            <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
-                        </td>
-                        <td>
-                            @if($r->inventory)
-                                <span class="badge badge-success">#{{ $r->inventory->id }}</span>
-                                <div style="font-size:12px; color: var(--text-muted);">{{ $r->inventory->barcode ?? '' }}</div>
-                            @else
-                                <span class="badge badge-secondary">Chưa gán</span>
-                            @endif
-                        </td>
-                        <td style="max-width: 260px;">
-                            <div style="font-size:13px;">{{ $r->notes }}</div>
-                            @if($r->admin_note)
-                                <div style="font-size:12px; color: var(--text-muted); margin-top: 6px;">
-                                    <strong>Admin:</strong> {{ $r->admin_note }}
-                                </div>
-                            @endif
-                        </td>
-                        <td style="white-space:nowrap;">
-                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                                @if($r->status === 'pending' && !$isOverduePickup)
-                                    <form method="POST" action="{{ route('admin.inventory-reservations.ready', $r->id) }}" style="display:inline;">
-                                        @csrf
-                                        <button type="submit" class="btn btn-sm btn-success confirm-submit-btn" data-confirm-message="Xác nhận sách sẵn sàng tại quầy? Hệ thống sẽ tự gán 1 bản copy đang có sẵn và gửi thông báo cho độc giả.">
-                                            <i class="fas fa-check"></i> Ready
-                                        </button>
-                                    </form>
-                                @endif
-
-                                @if(in_array($r->status, ['pending', 'ready'], true) && !$isOverduePickup)
-                                    <form method="POST" action="{{ route('admin.inventory-reservations.fulfill', $r->id) }}" style="display:inline;">
-                                        @csrf
-                                        <button type="submit" class="btn btn-sm btn-primary confirm-submit-btn" data-confirm-message="Đánh dấu độc giả đã nhận sách tại quầy?">
-                                            <i class="fas fa-hand-holding"></i> Fulfill
-                                        </button>
-                                    </form>
-
-                                    <form method="POST" action="{{ route('admin.inventory-reservations.cancel', $r->id) }}" style="display:inline;">
-                                        @csrf
-                                        <button type="submit" class="btn btn-sm btn-danger confirm-submit-btn" data-confirm-message="Hủy yêu cầu đặt trước này?">
-                                            <i class="fas fa-times"></i> Hủy
-                                        </button>
-                                    </form>
-                                @endif
-
-                                @if(in_array($r->status, ['pending', 'ready'], true) && $isOverduePickup)
-                                    <form method="POST" action="{{ route('admin.inventory-reservations.cancel', $r->id) }}" style="display:inline;">
-                                        @csrf
-                                        <input type="hidden" name="mark_overdue" value="1">
-                                        <input type="hidden" name="admin_note" value="Quá hạn nhận sách: đã qua ngày lấy nhưng khách chưa đến nhận.">
-                                        <button type="submit" class="btn btn-sm btn-warning confirm-submit-btn" data-confirm-message="Ngày lấy đã qua nhưng khách chưa nhận. Đánh dấu quá hạn cho yêu cầu này?">
-                                            <i class="fas fa-clock"></i> Quá hạn
-                                        </button>
-                                    </form>
-                                @endif
-                            </div>
+                @forelse($groupedReservations as $groupCode => $group)
+                    @php
+                        $firstReservation = $group->first();
+                        $groupLabel = $firstReservation->reservation_code ?: 'Đơn lẻ #' . $firstReservation->id;
+                        $readerName = $firstReservation->reader->ho_ten ?? ($firstReservation->user->name ?? 'N/A');
+                        $readerCard = $firstReservation->reader->so_the_doc_gia ?? '';
+                    @endphp
+                    <tr class="table-light">
+                        <td colspan="9" style="font-weight:600; color: var(--text-primary);">
+                            <span class="badge badge-info">{{ $groupLabel }}</span>
+                            <span style="margin-left:8px;">Độc giả: {{ $readerName }} {{ $readerCard ? '(' . $readerCard . ')' : '' }}</span>
+                            <span style="margin-left:12px; color: var(--text-muted);">Số sách: {{ $group->count() }}</span>
                         </td>
                     </tr>
+
+                    @foreach($group as $r)
+                        <tr>
+                            <td><span class="badge badge-secondary">#{{ $r->id }}</span></td>
+                            <td>
+                                <div style="font-weight:700; color: var(--text-primary);">{{ $r->book->ten_sach ?? 'N/A' }}</div>
+                                <div style="font-size:12px; color: var(--text-muted);">BK{{ str_pad((string)($r->book_id ?? 0), 6, '0', STR_PAD_LEFT) }}</div>
+                            </td>
+                            <td>
+                                <div style="font-weight:600;">{{ $r->reader->ho_ten ?? ($r->user->name ?? 'N/A') }}</div>
+                                <div style="font-size:12px; color: var(--text-muted);">{{ $r->reader->so_the_doc_gia ?? '' }}</div>
+                            </td>
+                            <td>
+                                <div style="font-weight:700; color: #e67e22;">{{ number_format($r->total_fee ?? 0, 0, ',', '.') }}đ</div>
+                            </td>
+                            <td>
+                                @if($r->pickup_date)
+                                    <div style="font-size:13px;"><strong>Lấy:</strong> {{ \Carbon\Carbon::parse($r->pickup_date)->format('d/m/Y') }}</div>
+                                    <div style="font-size:13px;"><strong>Trả:</strong> {{ \Carbon\Carbon::parse($r->return_date)->format('d/m/Y') }}</div>
+                                @else
+                                    <span class="text-muted">N/A</span>
+                                @endif
+                            </td>
+                            <td>
+                                @php
+                                    $isOverduePickup = in_array($r->status, ['pending', 'ready'], true)
+                                        && $r->pickup_date
+                                        && $r->pickup_date->lt(now()->startOfDay());
+
+                                    $badgeClass = $isOverduePickup ? 'badge-danger' : match($r->status) {
+                                        'pending' => 'badge-warning',
+                                        'ready' => 'badge-success',
+                                        'fulfilled' => 'badge-info',
+                                        'cancelled' => 'badge-danger',
+                                        default => 'badge-secondary',
+                                    };
+
+                                    $statusLabel = $isOverduePickup ? 'Quá hạn' : $r->getStatusLabel();
+                                @endphp
+                                <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
+                            </td>
+                            <td>
+                                @if($r->inventory)
+                                    <span class="badge badge-success">#{{ $r->inventory->id }}</span>
+                                    <div style="font-size:12px; color: var(--text-muted);">{{ $r->inventory->barcode ?? '' }}</div>
+                                @else
+                                    <span class="badge badge-secondary">Chưa gán</span>
+                                @endif
+                            </td>
+                            <td style="max-width: 260px;">
+                                <div style="font-size:13px;">{{ $r->notes }}</div>
+                                @if($r->admin_note)
+                                    <div style="font-size:12px; color: var(--text-muted); margin-top: 6px;">
+                                        <strong>Admin:</strong> {{ $r->admin_note }}
+                                    </div>
+                                @endif
+                            </td>
+                            <td style="white-space:nowrap;">
+                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    @if($r->status === 'pending' && !$isOverduePickup)
+                                        <form method="POST" action="{{ route('admin.inventory-reservations.ready', $r->id) }}" style="display:inline;">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-success confirm-submit-btn" data-confirm-message="Xác nhận sách sẵn sàng tại quầy? Hệ thống sẽ tự gán 1 bản copy đang có sẵn và gửi thông báo cho độc giả.">
+                                                <i class="fas fa-check"></i> Ready
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    @if(in_array($r->status, ['pending', 'ready'], true) && !$isOverduePickup)
+                                        <form method="POST" action="{{ route('admin.inventory-reservations.fulfill', $r->id) }}" style="display:inline;">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-primary confirm-submit-btn" data-confirm-message="Đánh dấu độc giả đã nhận sách tại quầy?">
+                                                <i class="fas fa-hand-holding"></i> Fulfill
+                                            </button>
+                                        </form>
+
+                                        <form method="POST" action="{{ route('admin.inventory-reservations.cancel', $r->id) }}" style="display:inline;">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-danger confirm-submit-btn" data-confirm-message="Hủy yêu cầu đặt trước này?">
+                                                <i class="fas fa-times"></i> Hủy
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    @if(in_array($r->status, ['pending', 'ready'], true) && $isOverduePickup)
+                                        <form method="POST" action="{{ route('admin.inventory-reservations.cancel', $r->id) }}" style="display:inline;">
+                                            @csrf
+                                            <input type="hidden" name="mark_overdue" value="1">
+                                            <input type="hidden" name="admin_note" value="Quá hạn nhận sách: đã qua ngày lấy nhưng khách chưa đến nhận.">
+                                            <button type="submit" class="btn btn-sm btn-warning confirm-submit-btn" data-confirm-message="Ngày lấy đã qua nhưng khách chưa nhận. Đánh dấu quá hạn cho yêu cầu này?">
+                                                <i class="fas fa-clock"></i> Quá hạn
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
                 @empty
                     <tr>
-                        <td colspan="8" style="text-align:center; padding: 40px; color: var(--text-muted);">
+                        <td colspan="9" style="text-align:center; padding: 40px; color: var(--text-muted);">
                             Chưa có yêu cầu đặt trước nào.
                         </td>
                     </tr>

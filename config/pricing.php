@@ -196,10 +196,10 @@ return [
     // Các quy định khác
     'rules' => [
         // Số ngày mượn tối thiểu
-        'min_borrow_days' => env('MIN_BORROW_DAYS', 7), // 7 ngày
+        'min_borrow_days' => env('MIN_BORROW_DAYS', 1), // 1 ngày
         
         // Số ngày mượn tối đa
-        'max_borrow_days' => env('MAX_BORROW_DAYS', 30), // 30 ngày
+        'max_borrow_days' => env('MAX_BORROW_DAYS', 14), // 14 ngày
         
         // Số ngày mượn mặc định
         'default_borrow_days' => env('DEFAULT_BORROW_DAYS', 14), // 14 ngày

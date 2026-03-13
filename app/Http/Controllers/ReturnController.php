@@ -128,6 +128,25 @@ class ReturnController extends Controller
                 // 4. Cập nhật Inventory
                 if ($item->inventory) {
                     $item->inventory->update(['status' => $inventoryStatus]);
+
+                    if ($inventoryStatus === 'Co san') {
+                        
+                        $nextReservation = \App\Models\InventoryReservation::where('book_id', $item->book_id)
+                            ->where('status', 'pending')
+                            ->orderBy('created_at', 'asc')
+                            ->first();
+
+                        if ($nextReservation) {
+                            $nextReservation->update([
+                                'inventory_id' => $item->inventory->id,
+                                'status' => 'ready',
+                                'ready_at' => now(),
+                            ]);
+
+                            app(\App\Services\NotificationService::class)
+                                ->sendReservationReadyNotification($nextReservation->fresh(['book', 'reader.user', 'user']));
+                        }
+                    }
                 }
 
                 // 5. Tạo các bản ghi Fine pending

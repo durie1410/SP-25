@@ -409,7 +409,21 @@
                         <i class="fas fa-history"></i>
                         <div>
                             <strong>Thời gian mượn</strong>
-                            <span>Mượn tối thiểu 7 ngày, tối đa 30 ngày. Hỗ trợ gia hạn thêm {{ $pricing['rules']['max_extend_times'] ?? 2 }} lần linh hoạt.</span>
+                            <span>Mượn tối thiểu {{ config('library.borrow_min_days', 1) }} ngày, tối đa {{ config('library.borrow_max_days', 14) }} ngày. Hỗ trợ gia hạn thêm {{ $pricing['rules']['max_extend_times'] ?? 2 }} lần linh hoạt.</span>
+                        </div>
+                    </div>
+                    <div class="rule-item">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <strong>Giờ nhận sách</strong>
+                            <span>Nhận sách trong ngày từ {{ config('library.open_hour', '08:00') }} đến {{ config('library.close_hour', '20:00') }}.</span>
+                        </div>
+                    </div>
+                    <div class="rule-item">
+                        <i class="fas fa-book"></i>
+                        <div>
+                            <strong>Số lượng mỗi đơn</strong>
+                            <span>Mượn tối thiểu {{ config('library.borrow_min_books', 1) }} cuốn, tối đa {{ config('library.borrow_max_books', 5) }} cuốn/đơn.</span>
                         </div>
                     </div>
                     <div class="rule-item">

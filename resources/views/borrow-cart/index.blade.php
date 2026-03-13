@@ -598,6 +598,20 @@
                             </div>
                         </div>
 
+                        <div class="summary-card" style="padding: 16px; background: #f8fafc; border: 1px solid var(--cart-border);">
+                            <div style="font-weight: 700; margin-bottom: 8px;">Quy định mượn trả</div>
+                            <ul style="margin: 0 0 12px 18px; color: var(--cart-muted); font-size: 13px; line-height: 1.6;">
+                                <li>Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '20:00') }}.</li>
+                                <li>Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày.</li>
+                                <li>Số lượng: tối thiểu {{ config('library.borrow_min_books', 1) }} cuốn, tối đa {{ config('library.borrow_max_books', 5) }} cuốn/đơn.</li>
+                                <li>Trả đúng hạn, giữ sách nguyên vẹn để được hoàn cọc đầy đủ.</li>
+                            </ul>
+                            <label style="display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--cart-text);">
+                                <input type="checkbox" id="agree-borrow-rules" class="custom-checkbox">
+                                Tôi đã đọc và hiểu quy định mượn trả
+                            </label>
+                        </div>
+
                         <button type="button" class="btn-checkout-primary" id="btn-checkout-main" onclick="checkout()">
                             XÁC NHẬN MƯỢN SÁCH <i class="fas fa-arrow-right"></i>
                         </button>
@@ -817,6 +831,7 @@
     function checkout() {
         const xa = document.getElementById('shipping-xa-cart').value.trim();
         const soNha = document.getElementById('shipping-sonha-cart').value.trim();
+        const agreed = document.getElementById('agree-borrow-rules');
 
         if (!xa) {
             showToast('⚠️ Vui lòng chọn Phường/Xã!', 'warning');
@@ -825,6 +840,11 @@
 
         if (!soNha) {
             showToast('⚠️ Vui lòng nhập số nhà, tên đường!', 'warning');
+            return;
+        }
+
+        if (!agreed || !agreed.checked) {
+            showToast('⚠️ Vui lòng tick "Tôi đã đọc và hiểu quy định mượn trả" trước khi đặt mượn!', 'warning');
             return;
         }
 

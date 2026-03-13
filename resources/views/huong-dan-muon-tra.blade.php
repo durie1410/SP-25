@@ -128,6 +128,17 @@
         </div>
 
         <h2 class="guide-section-title">Quy trình mượn sách</h2>
+        <div class="guide-steps" style="margin-top: 16px;">
+            <div class="guide-card">
+                <h3>Quy định mượn sách</h3>
+                <p>- Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '20:00') }}.<br>- Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày.<br>- Số lượng: tối thiểu {{ config('library.borrow_min_books', 1) }} cuốn, tối đa {{ config('library.borrow_max_books', 5) }} cuốn/đơn.</p>
+            </div>
+            <div class="guide-card">
+                <h3>Đặt trước & hàng chờ</h3>
+                <p>- Nếu sách đã hết, hệ thống sẽ chuyển bạn vào hàng chờ.<br>- Khi có sách trống, hệ thống tự động giữ sách cho người tiếp theo.</p>
+            </div>
+        </div>
+
         <div class="guide-steps">
             <div class="guide-card">
                 <h3>1) Tìm & chọn sách</h3>
