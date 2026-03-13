@@ -83,7 +83,7 @@ class ReservationCart extends Model
         ];
     }
 
-    public function updateDates(int $itemId, string $pickupDate, string $returnDate): array
+    public function updateDates(int $itemId, string $pickupDate, string $returnDate, ?string $pickupTime = null): array
     {
         $item = $this->items()->where('id', $itemId)->first();
 
@@ -108,6 +108,7 @@ class ReservationCart extends Model
 
         $item->update([
             'pickup_date' => $pickupDate,
+            'pickup_time' => $pickupTime,
             'return_date' => $returnDate,
             'days' => $days,
         ]);
@@ -120,13 +121,13 @@ class ReservationCart extends Model
         ];
     }
 
-    public function submitReservations(string $notes = null, array $selectedItemIds = []): array
+    public function submitReservations(string $notes = null, array $selectedItemIds = [], ?string $pickupTime = null): array
     {
         $createdReservations = [];
         $submittedItems = 0;
         $submittedCopies = 0;
 
-        return DB::transaction(function () use ($notes, $selectedItemIds, &$createdReservations, &$submittedItems, &$submittedCopies) {
+        return DB::transaction(function () use ($notes, $selectedItemIds, $pickupTime, &$createdReservations, &$submittedItems, &$submittedCopies) {
             $itemIds = collect($selectedItemIds)
                 ->map(fn ($itemId) => (int) $itemId)
                 ->filter(fn ($itemId) => $itemId > 0)
@@ -152,6 +153,7 @@ class ReservationCart extends Model
                         'user_id' => $this->user_id,
                         'reader_id' => $this->reader_id,
                         'pickup_date' => $item->pickup_date,
+                        'pickup_time' => $pickupTime,
                         'return_date' => $item->return_date,
                         'total_fee' => $perCopyFee,
                         'status' => 'pending',

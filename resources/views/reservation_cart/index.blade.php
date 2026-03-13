@@ -779,6 +779,7 @@
                                                 class="form-control pickup-date"
                                                 data-item-id="{{ $item->id }}"
                                                 min="{{ now()->format('Y-m-d') }}"
+                                                max="{{ now()->addDays(config('library.borrow_max_days', 14))->format('Y-m-d') }}"
                                                 value="{{ $item->pickup_date ? \Carbon\Carbon::parse($item->pickup_date)->format('Y-m-d') : '' }}"
                                                 onchange="handleItemDateChange(this)"
                                             >
@@ -790,6 +791,7 @@
                                                 class="form-control return-date"
                                                 data-item-id="{{ $item->id }}"
                                                 min="{{ $item->pickup_date ? \Carbon\Carbon::parse($item->pickup_date)->addDay()->format('Y-m-d') : now()->addDay()->format('Y-m-d') }}"
+                                                max="{{ $item->pickup_date ? \Carbon\Carbon::parse($item->pickup_date)->addDays(config('library.borrow_max_days', 14))->format('Y-m-d') : now()->addDays(config('library.borrow_max_days', 14))->format('Y-m-d') }}"
                                                 value="{{ $item->return_date ? \Carbon\Carbon::parse($item->return_date)->format('Y-m-d') : '' }}"
                                                 onchange="handleItemDateChange(this)"
                                             >
@@ -868,6 +870,37 @@
                     <div class="reservation-summary-note">
                         <i class="fas fa-info-circle me-1"></i>
                         Chỉ các sách được tick mới được gửi đi. Vui lòng chọn <strong>ngày lấy</strong> và <strong>ngày trả</strong> cho từng sách đã chọn.
+                        <div style="margin-top: 8px;">
+                            Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '20:00') }}. Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày.
+                        </div>
+                    </div>
+
+                    <div class="reservation-summary-note" style="margin-top: 12px;">
+                        <div style="font-weight: 700; margin-bottom: 8px;">Giờ nhận sách</div>
+                        <div class="reservation-date-row" style="margin-bottom: 12px;">
+                            <div class="reservation-date-group" style="min-width: 0;">
+                                <span class="reservation-date-label">Giờ lấy</span>
+                                <input
+                                    type="time"
+                                    class="form-control pickup-time-global"
+                                    min="{{ config('library.open_hour', '08:00') }}"
+                                    max="{{ config('library.close_hour', '20:00') }}"
+                                    value="{{ $items->first()?->pickup_time ?? '' }}"
+                                    onchange="handleGlobalPickupTimeChange(this)"
+                                >
+                            </div>
+                        </div>
+                        <div style="font-weight: 700; margin-bottom: 8px;">Quy định mượn trả</div>
+                        <ul style="margin: 0 0 12px 18px; color: var(--reserve-muted); font-size: 12px; line-height: 1.6;">
+                            <li>Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '20:00') }}.</li>
+                            <li>Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày.</li>
+                            <li>Số lượng: tối thiểu {{ config('library.borrow_min_books', 1) }} cuốn, tối đa {{ config('library.borrow_max_books', 5) }} cuốn/đơn.</li>
+                            <li>Trả đúng hạn, giữ sách nguyên vẹn để được hoàn cọc đầy đủ.</li>
+                        </ul>
+                        <label style="display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--reserve-text);">
+                            <input type="checkbox" id="agree-reservation-rules" class="form-check-input" style="margin-top: 2px;">
+                            Tôi đã đọc và hiểu quy định mượn trả
+                        </label>
                     </div>
 
                     <form id="reservation-submit-form"
@@ -875,6 +908,7 @@
                           action="{{ route('reservation-cart.submit') }}"
                           onsubmit="return validateCartBeforeSubmit()">
                         @csrf
+                        <input type="hidden" name="pickup_time" id="pickup-time-hidden" value="{{ $items->first()?->pickup_time ?? '' }}">
                         <button class="btn btn-primary reservation-submit-btn" type="submit">
                             Gửi yêu cầu đặt trước <i class="fas fa-arrow-right ms-2"></i>
                         </button>
@@ -1061,6 +1095,18 @@ function validateReservationDates(pickup, ret, showAlert = true){
         return false;
     }
 
+    const diffTime = returnDate.getTime() - pickupDate.getTime();
+    const diffDays = Math.max(1, Math.round(diffTime / (1000 * 60 * 60 * 24)));
+    const minDays = Number('{{ config('library.borrow_min_days', 1) }}');
+    const maxDays = Number('{{ config('library.borrow_max_days', 14) }}');
+
+    if(diffDays < minDays || diffDays > maxDays){
+        if(showAlert){
+            alert(`Thời gian mượn phải từ ${minDays} đến ${maxDays} ngày.`);
+        }
+        return false;
+    }
+
     return true;
 }
 
@@ -1068,10 +1114,23 @@ function handleItemDateChange(input){
     const itemId = input.dataset.itemId;
     const pickupInput = document.querySelector(`.pickup-date[data-item-id="${itemId}"]`);
     const returnInput = document.querySelector(`.return-date[data-item-id="${itemId}"]`);
+    const maxDays = Number('{{ config('library.borrow_max_days', 14) }}');
 
     if(pickupInput && returnInput){
         const pickupMin = pickupInput.value || '{{ now()->format('Y-m-d') }}';
         returnInput.min = nextDateString(pickupMin);
+
+        if(pickupInput.value){
+            const pickupDate = parseDateString(pickupInput.value);
+            if(pickupDate){
+                const maxReturn = new Date(pickupDate);
+                maxReturn.setDate(maxReturn.getDate() + maxDays);
+                const year = maxReturn.getFullYear();
+                const month = String(maxReturn.getMonth() + 1).padStart(2, '0');
+                const day = String(maxReturn.getDate()).padStart(2, '0');
+                returnInput.max = `${year}-${month}-${day}`;
+            }
+        }
 
         if(returnInput.value && returnInput.value < returnInput.min){
             returnInput.value = '';
@@ -1084,9 +1143,10 @@ function handleItemDateChange(input){
 
     const pickup = pickupInput.value;
     const ret = returnInput.value;
+    const pickupTime = document.querySelector('.pickup-time-global')?.value || '';
 
-    // Chỉ gọi API khi cả hai ngày đã được chọn
-    if(!pickup || !ret){
+    // Chỉ gọi API khi đủ ngày + giờ
+    if(!pickup || !ret || !pickupTime){
         return;
     }
 
@@ -1096,6 +1156,10 @@ function handleItemDateChange(input){
         return;
     }
 
+    updateReservationItemDates(itemId, pickup, ret, pickupTime, input);
+}
+
+function updateReservationItemDates(itemId, pickup, ret, pickupTime, inputRef){
     const statusMsg = ensureDateStatusEl();
     statusMsg.style.display = 'block';
     statusMsg.style.background = '#3b82f6';
@@ -1110,6 +1174,7 @@ function handleItemDateChange(input){
         },
         body:JSON.stringify({
             pickup_date: pickup,
+            pickup_time: pickupTime,
             return_date: ret
         })
     })
@@ -1143,6 +1208,7 @@ function handleItemDateChange(input){
             const feeTotal = feeBox.querySelector(`.fee-breakdown-total[data-item-id="${itemId}"]`);
 
             if(feeText){
+                const itemCard = inputRef ? inputRef.closest('.reservation-item') : null;
                 const quantityEl = itemCard ? itemCard.querySelector('.reservation-quantity-value') : null;
                 const quantity = quantityEl ? Number(quantityEl.textContent || 1) : 1;
                 feeText.textContent = `${d.days} ngày × ${formatCurrency(dailyFee)}/ngày × ${quantity} cuốn`;
@@ -1272,12 +1338,61 @@ function updateReservationQuantityInput(itemId, previousValue = null){
     });
 }
 
+function handleGlobalPickupTimeChange(input){
+    const pickupTime = input.value;
+    const hiddenInput = document.getElementById('pickup-time-hidden');
+    if(hiddenInput){
+        hiddenInput.value = pickupTime;
+    }
+
+    if(!pickupTime){
+        return;
+    }
+
+    const pickupInputs = document.querySelectorAll('.pickup-date');
+    pickupInputs.forEach(pickupInput => {
+        const itemId = pickupInput.dataset.itemId;
+        const returnInput = document.querySelector(`.return-date[data-item-id="${itemId}"]`);
+        const pickup = pickupInput.value;
+        const ret = returnInput ? returnInput.value : '';
+
+        if(!pickup || !ret){
+            return;
+        }
+
+        if(!validateReservationDates(pickup, ret, false)){
+            return;
+        }
+
+        updateReservationItemDates(itemId, pickup, ret, pickupTime, pickupInput);
+    });
+}
+
 function validateCartBeforeSubmit(){
     const selectedCheckboxes = getSelectedReservationCheckboxes();
 
     if(selectedCheckboxes.length === 0){
         alert('Vui lòng chọn ít nhất 1 cuốn sách để đặt trước.');
         return false;
+    }
+
+    const pickupTimeInput = document.querySelector('.pickup-time-global');
+    const agreed = document.getElementById('agree-reservation-rules');
+
+    if(!agreed || !agreed.checked){
+        alert('Vui lòng tick "Tôi đã đọc và hiểu quy định mượn trả" trước khi gửi yêu cầu.');
+        return false;
+    }
+
+    const pickupTime = pickupTimeInput ? pickupTimeInput.value : '';
+    if(!pickupTime){
+        alert('Vui lòng chọn giờ lấy cho đơn đặt trước.');
+        return false;
+    }
+
+    const hiddenInput = document.getElementById('pickup-time-hidden');
+    if(hiddenInput){
+        hiddenInput.value = pickupTime;
     }
 
     for(let i = 0; i < selectedCheckboxes.length; i++){

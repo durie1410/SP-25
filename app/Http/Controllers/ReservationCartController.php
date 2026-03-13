@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Book;
 use App\Models\BorrowItem;
+use App\Models\Inventory;
 use App\Models\InventoryReservation;
 use App\Models\ReservationCart;
+use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -49,10 +51,12 @@ class ReservationCartController extends Controller
             ], 422);
         }
 
+        $maxBorrowBooks = (int) config('library.borrow_max_books', 5);
+
         $data = $request->validate([
             'book_id' => 'required|exists:books,id',
             'borrow_item_id' => 'nullable|exists:borrow_items,id',
-            'quantity' => 'nullable|integer|min:1|max:100',
+            'quantity' => 'nullable|integer|min:1|max:' . $maxBorrowBooks,
             'split_items' => 'nullable|boolean',
         ]);
 
@@ -73,6 +77,14 @@ class ReservationCartController extends Controller
         $existingQuantity = (int) $cart->items()
             ->where('book_id', (int) $data['book_id'])
             ->sum('quantity');
+
+        $currentTotalQuantity = (int) $cart->items()->sum('quantity');
+        if (($currentTotalQuantity + $requestedQuantity) > $maxBorrowBooks) {
+            return response()->json([
+                'success' => false,
+                'message' => "Bạn chỉ được đặt tối đa {$maxBorrowBooks} cuốn trong một đơn.",
+            ], 422);
+        }
 
         if ($availableStock > 0 && ($existingQuantity + $requestedQuantity) > $availableStock) {
             return response()->json([
@@ -237,7 +249,11 @@ class ReservationCartController extends Controller
             'notes' => 'nullable|string|max:1000',
             'selected_item_ids' => 'required|array|min:1',
             'selected_item_ids.*' => 'integer',
+            'pickup_time' => 'nullable|date_format:H:i',
         ]);
+
+        $openHour = config('library.open_hour', '08:00');
+        $closeHour = config('library.close_hour', '20:00');
 
         $cart = ReservationCart::with(['items.book'])->where('user_id', $user->id)->first();
 
@@ -261,18 +277,50 @@ class ReservationCartController extends Controller
             return back()->with('error', 'Vui lòng chọn ít nhất 1 cuốn sách hợp lệ để đặt trước.');
         }
 
-        $invalidDateItem = $selectedItems->first(function ($item) {
-            return empty($item->pickup_date) || empty($item->return_date);
-        });
+        $minBorrowDays = (int) config('library.borrow_min_days', 1);
+        $maxBorrowDays = (int) config('library.borrow_max_days', 14);
+        $minBorrowBooks = (int) config('library.borrow_min_books', 1);
+        $maxBorrowBooks = (int) config('library.borrow_max_books', 5);
 
-        if ($invalidDateItem) {
-            return back()->with('error', 'Vui lòng chọn đầy đủ ngày lấy và ngày trả cho các sách đã chọn.');
+        $totalQuantity = (int) $selectedItems->sum('quantity');
+        if ($totalQuantity < $minBorrowBooks) {
+            return back()->with('error', "Bạn cần đặt tối thiểu {$minBorrowBooks} cuốn.");
+        }
+
+        if ($totalQuantity > $maxBorrowBooks) {
+            return back()->with('error', "Bạn chỉ được đặt tối đa {$maxBorrowBooks} cuốn trong một đơn.");
+        }
+
+        $pickupTime = $request->input('pickup_time') ?: ($cart->items->first()?->pickup_time);
+        if (empty($pickupTime)) {
+            return back()->with('error', 'Vui lòng chọn giờ lấy cho đơn đặt trước.');
+        }
+
+        if ($pickupTime < $openHour || $pickupTime > $closeHour) {
+            return back()->with('error', "Giờ lấy sách phải trong khoảng {$openHour} - {$closeHour}.");
+        }
+
+        $cart->items()->update(['pickup_time' => $pickupTime]);
+
+        foreach ($selectedItems as $item) {
+            if (empty($item->pickup_date) || empty($item->return_date)) {
+                return back()->with('error', 'Vui lòng chọn đầy đủ ngày lấy và ngày trả cho các sách đã chọn.');
+            }
+
+            $pickup = Carbon::parse($item->pickup_date)->startOfDay();
+            $return = Carbon::parse($item->return_date)->startOfDay();
+            $days = max(1, $pickup->diffInDays($return));
+
+            if ($days < $minBorrowDays || $days > $maxBorrowDays) {
+                return back()->with('error', "Thời gian mượn phải từ {$minBorrowDays} đến {$maxBorrowDays} ngày.");
+            }
         }
 
         try {
             $result = $cart->submitReservations(
                 $request->input('notes'),
-                $selectedItemIds->all()
+                $selectedItemIds->all(),
+                $pickupTime
             );
 
             $submittedCopies = (int) ($result['submitted_copies'] ?? 0);
@@ -313,8 +361,10 @@ class ReservationCartController extends Controller
             ], 422);
         }
 
+        $maxBorrowBooks = (int) config('library.borrow_max_books', 5);
+
         $request->validate([
-            'quantity' => 'required|integer|min:1|max:100',
+            'quantity' => 'required|integer|min:1|max:' . $maxBorrowBooks,
         ]);
 
         $cart = ReservationCart::where('user_id', $user->id)->first();
@@ -363,10 +413,25 @@ class ReservationCartController extends Controller
             ], 422);
         }
 
+        $minBorrowDays = (int) config('library.borrow_min_days', 1);
+        $maxBorrowDays = (int) config('library.borrow_max_days', 14);
+
         $request->validate([
             'pickup_date' => 'required|date|date_format:Y-m-d|after_or_equal:today',
+            'pickup_time' => 'nullable|date_format:H:i',
             'return_date' => 'required|date|date_format:Y-m-d|after:pickup_date',
         ]);
+
+        $openHour = config('library.open_hour', '08:00');
+        $closeHour = config('library.close_hour', '20:00');
+        if ($request->filled('pickup_time')) {
+            if ($request->pickup_time < $openHour || $request->pickup_time > $closeHour) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Giờ lấy sách phải trong khoảng {$openHour} - {$closeHour}.",
+                ], 422);
+            }
+        }
 
         $cart = ReservationCart::where('user_id', $user->id)->first();
         if (!$cart) {
@@ -376,7 +441,31 @@ class ReservationCartController extends Controller
             ], 404);
         }
 
-        $result = $cart->updateDates((int) $itemId, $request->pickup_date, $request->return_date);
+        $item = $cart->items()->where('id', $itemId)->first();
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sách không có trong giỏ.',
+            ], 404);
+        }
+
+        $pickup = Carbon::parse($request->pickup_date)->startOfDay();
+        $return = Carbon::parse($request->return_date)->startOfDay();
+        $days = max(1, $pickup->diffInDays($return));
+
+        if ($days < $minBorrowDays || $days > $maxBorrowDays) {
+            return response()->json([
+                'success' => false,
+                'message' => "Thời gian mượn phải từ {$minBorrowDays} đến {$maxBorrowDays} ngày.",
+            ], 422);
+        }
+
+        $result = $cart->updateDates(
+            (int) $itemId,
+            $request->pickup_date,
+            $request->return_date,
+            $request->pickup_time
+        );
 
         return response()->json($result, $result['success'] ? 200 : 422);
     }

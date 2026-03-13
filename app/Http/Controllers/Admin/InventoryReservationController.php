@@ -92,6 +92,21 @@ class InventoryReservationController extends Controller
             return back()->with('error', 'Yêu cầu đã quá hạn ngày lấy. Vui lòng xử lý ở thao tác "Quá hạn".');
         }
 
+        if ($reservation->pickup_date && $reservation->pickup_date->isSameDay(now())) {
+            $openHour = config('library.open_hour', '08:00');
+            $closeHour = config('library.close_hour', '20:00');
+            $nowTime = now()->format('H:i');
+            $targetTime = $reservation->pickup_time ?: $openHour;
+
+            if ($nowTime < $openHour || $nowTime > $closeHour) {
+                return back()->with('error', "Chỉ được phát sách trong giờ {$openHour} - {$closeHour}.");
+            }
+
+            if ($nowTime < $targetTime) {
+                return back()->with('error', "Chưa đến giờ lấy sách đã hẹn ({$targetTime}).");
+            }
+        }
+
         // Chuyển hướng sang trang tạo phiếu mượn kèm dữ liệu pre-fill
         return redirect()->route('admin.borrows.create', [
             'reader_id' => $reservation->reader_id,
@@ -122,12 +137,7 @@ class InventoryReservationController extends Controller
             $adminNote = 'Quá hạn nhận sách: đã qua ngày lấy nhưng khách chưa đến nhận.';
         }
 
-        $reservation->update([
-            'status' => 'cancelled',
-            'admin_note' => $adminNote,
-            'processed_by' => Auth::id(),
-            'cancelled_at' => now(),
-        ]);
+        $reservation->cancel($adminNote, Auth::id());
 
         if ($isMarkOverdue) {
             // Gửi thông báo cho khách khi yêu cầu bị quá hạn nhận sách
