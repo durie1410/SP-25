@@ -33,6 +33,7 @@ class Borrow extends Model
     const CONDITION_MAT_SACH = 'mat_sach';
 
     protected $fillable = [
+        'borrow_code',
         'ten_nguoi_muon',
         'tinh_thanh',
         'huyen',

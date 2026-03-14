@@ -131,7 +131,36 @@ tạo phiếu mượn    </a>
                 </tr>
             </thead>
          <tbody>
-@foreach($borrows as $borrow)
+@php
+    $groupedBorrows = $borrows->groupBy(function ($borrow) {
+        if (!empty($borrow->borrow_code)) {
+            return $borrow->borrow_code;
+        }
+
+        $readerKey = $borrow->reader_id ?? ($borrow->ten_nguoi_muon ?: 'guest');
+        $borrowDate = $borrow->ngay_muon ? $borrow->ngay_muon->format('Ymd') : 'none';
+        $createdKey = $borrow->created_at ? $borrow->created_at->format('YmdHi') : 'none';
+
+        return "reader-{$readerKey}-{$borrowDate}-{$createdKey}";
+    });
+@endphp
+
+@foreach($groupedBorrows as $group)
+    @php
+        $firstBorrow = $group->first();
+        $readerName = $firstBorrow->reader->ho_ten ?? ($firstBorrow->ten_nguoi_muon ?? 'N/A');
+        $readerCard = $firstBorrow->reader->so_the_doc_gia ?? '';
+        $groupLabel = $firstBorrow->borrow_code ?: ('BRW' . str_pad((string) $firstBorrow->id, 6, '0', STR_PAD_LEFT));
+    @endphp
+    <tr class="table-light">
+        <td colspan="9" style="font-weight:600; color: var(--text-primary);">
+            <span class="badge badge-info">{{ $groupLabel }}</span>
+            <span style="margin-left:8px;">Độc giả: {{ $readerName }} {{ $readerCard ? '(' . $readerCard . ')' : '' }}</span>
+            <span style="margin-left:12px; color: var(--text-muted);">Số phiếu: {{ $group->count() }}</span>
+        </td>
+    </tr>
+
+    @foreach($group as $borrow)
 <tr style="{{ $borrow->isOverdue() && $borrow->trang_thai != 'Da tra' ? 'border-left: 3px solid #ff6b6b;' : '' }}">
     <td>
         <span class="badge badge-info">{{ $borrow->id }}</span>
@@ -539,6 +568,7 @@ if ($borrow->items && $borrow->items->count() > 0) {
     </td>
 </tr>
 
+    @endforeach
 @endforeach
 </tbody>
 

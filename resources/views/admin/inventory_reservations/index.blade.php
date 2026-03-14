@@ -28,6 +28,27 @@
                 <option value="cancelled" {{ request('status') === 'cancelled' ? 'selected' : '' }}>Đã hủy</option>
             </select>
         </div>
+        <div style="min-width: 200px; flex: 1;">
+            <select name="inventory_status" class="form-control">
+                <option value="">-- Bản sao --</option>
+                <option value="assigned" {{ request('inventory_status') === 'assigned' ? 'selected' : '' }}>Đã gán bản sao</option>
+                <option value="unassigned" {{ request('inventory_status') === 'unassigned' ? 'selected' : '' }}>Chưa gán bản sao</option>
+            </select>
+        </div>
+        <div style="min-width: 200px; flex: 1;">
+            <select name="pickup_window" class="form-control">
+                <option value="">-- Ngày lấy --</option>
+                <option value="today" {{ request('pickup_window') === 'today' ? 'selected' : '' }}>Lấy hôm nay</option>
+                <option value="upcoming" {{ request('pickup_window') === 'upcoming' ? 'selected' : '' }}>Sắp tới</option>
+                <option value="past" {{ request('pickup_window') === 'past' ? 'selected' : '' }}>Đã qua</option>
+            </select>
+        </div>
+        <div style="min-width: 220px; flex: 1;">
+            <input type="text" name="reader_keyword" class="form-control" placeholder="Độc giả: tên / thẻ / email" value="{{ request('reader_keyword') }}">
+        </div>
+        <div style="min-width: 200px; flex: 1;">
+            <input type="text" name="reservation_code" class="form-control" placeholder="Mã đơn (RSV...)" value="{{ request('reservation_code') }}">
+        </div>
         <button type="submit" class="btn btn-primary">
             <i class="fas fa-filter"></i> Lọc
         </button>
@@ -47,6 +68,7 @@
         <table class="table">
             <thead>
                 <tr>
+                    <th style="width: 48px;"></th>
                     <th>ID</th>
                     <th>Sách</th>
                     <th>Độc giả</th>
@@ -61,27 +83,51 @@
             <tbody>
                 @php
                     $groupedReservations = $reservations->groupBy(function ($reservation) {
-                        return $reservation->reservation_code ?: 'single-' . $reservation->id;
+                        if (!empty($reservation->reservation_code)) {
+                            return $reservation->reservation_code;
+                        }
+
+                        $pickup = $reservation->pickup_date ? $reservation->pickup_date->format('Ymd') : 'none';
+                        $return = $reservation->return_date ? $reservation->return_date->format('Ymd') : 'none';
+                        $time = $reservation->pickup_time ?: 'none';
+                        $readerKey = $reservation->reader_id ?? $reservation->user_id ?? 'guest';
+
+                        return "reader-{$readerKey}-{$pickup}-{$return}-{$time}";
                     });
                 @endphp
 
                 @forelse($groupedReservations as $groupCode => $group)
                     @php
                         $firstReservation = $group->first();
-                        $groupLabel = $firstReservation->reservation_code ?: 'Đơn lẻ #' . $firstReservation->id;
+                        $groupLabel = $firstReservation->reservation_code ?: 'Đơn lẻ';
                         $readerName = $firstReservation->reader->ho_ten ?? ($firstReservation->user->name ?? 'N/A');
                         $readerCard = $firstReservation->reader->so_the_doc_gia ?? '';
+                        $groupTotal = $group->sum(fn($item) => (float) ($item->total_fee ?? 0));
                     @endphp
                     <tr class="table-light">
-                        <td colspan="9" style="font-weight:600; color: var(--text-primary);">
-                            <span class="badge badge-info">{{ $groupLabel }}</span>
-                            <span style="margin-left:8px;">Độc giả: {{ $readerName }} {{ $readerCard ? '(' . $readerCard . ')' : '' }}</span>
-                            <span style="margin-left:12px; color: var(--text-muted);">Số sách: {{ $group->count() }}</span>
+                        <td colspan="10" style="font-weight:600; color: var(--text-primary);">
+                            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px;">
+                                <span class="badge badge-info">{{ $groupLabel }}</span>
+                                <span>Độc giả: {{ $readerName }} {{ $readerCard ? '(' . $readerCard . ')' : '' }}</span>
+                                <span style="color: var(--text-muted);">Số sách: {{ $group->count() }}</span>
+                                <span style="color: #e67e22; font-weight:700;">Tổng: <span class="group-total" data-group="{{ $groupCode }}">{{ number_format($groupTotal, 0, ',', '.') }}đ</span></span>
+                                <form method="POST" action="{{ route('admin.inventory-reservations.fulfill-group') }}" class="group-fulfill-form confirm-submit-btn" data-group="{{ $groupCode }}" style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+                                    @csrf
+                                    <input type="hidden" name="reservation_ids" value="" class="group-selected-ids">
+                                    <input type="hidden" name="all_ids" value="{{ $group->pluck('id')->implode(',') }}" class="group-all-ids">
+                                    <button type="submit" class="btn btn-sm btn-primary group-fulfill-btn" data-confirm-message="Fulfill toàn bộ đơn đã chọn?" data-requires-selection="1">
+                                        <i class="fas fa-check"></i> Fulfill đơn
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
 
                     @foreach($group as $r)
                         <tr>
+                            <td>
+                                <input type="checkbox" class="group-item-checkbox" data-group="{{ $groupCode }}" value="{{ $r->id }}" data-fee="{{ (float) ($r->total_fee ?? 0) }}" {{ $r->status === 'ready' ? 'checked' : '' }} {{ $r->status !== 'ready' ? 'disabled' : '' }}>
+                            </td>
                             <td><span class="badge badge-secondary">#{{ $r->id }}</span></td>
                             <td>
                                 <div style="font-weight:700; color: var(--text-primary);">{{ $r->book->ten_sach ?? 'N/A' }}</div>
@@ -179,7 +225,7 @@
                     @endforeach
                 @empty
                     <tr>
-                        <td colspan="9" style="text-align:center; padding: 40px; color: var(--text-muted);">
+                        <td colspan="10" style="text-align:center; padding: 40px; color: var(--text-muted);">
                             Chưa có yêu cầu đặt trước nào.
                         </td>
                     </tr>
@@ -205,12 +251,65 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const button = event.currentTarget;
             const message = button.getAttribute('data-confirm-message') || "Bạn có chắc chắn muốn thực hiện hành động này?";
+            const form = button.closest('form');
+
+            if (button.dataset.requiresSelection === '1' && form) {
+                const selected = form.querySelector('.group-selected-ids');
+                if (!selected || !selected.value) {
+                    alert('Vui lòng chọn ít nhất 1 cuốn để Fulfill.');
+                    return;
+                }
+            }
 
             if (confirm(message)) {
-                const form = button.closest('form');
                 if (form) form.submit();
             }
         });
+    });
+
+    const formatCurrency = (value) => new Intl.NumberFormat('vi-VN').format(value) + 'đ';
+
+    const groups = new Map();
+    document.querySelectorAll('.group-item-checkbox').forEach((checkbox) => {
+        const group = checkbox.dataset.group;
+        if (!groups.has(group)) {
+            groups.set(group, []);
+        }
+        groups.get(group).push(checkbox);
+    });
+
+    groups.forEach((checkboxes, group) => {
+        const totalEl = document.querySelector(`.group-total[data-group="${group}"]`);
+        const hiddenInput = document.querySelector(`.group-fulfill-form[data-group="${group}"] .group-selected-ids`);
+        const allInput = document.querySelector(`.group-fulfill-form[data-group="${group}"] .group-all-ids`);
+        const fulfillBtn = document.querySelector(`.group-fulfill-form[data-group="${group}"] .group-fulfill-btn`);
+
+        const recalc = () => {
+            let total = 0;
+            const selectedIds = [];
+            checkboxes.forEach((cb) => {
+                if (cb.checked) {
+                    total += Number(cb.dataset.fee || 0);
+                    selectedIds.push(cb.value);
+                }
+            });
+
+            if (totalEl) {
+                totalEl.textContent = formatCurrency(total);
+            }
+            if (hiddenInput) {
+                hiddenInput.value = selectedIds.join(',');
+            }
+            if (allInput && !allInput.value) {
+                allInput.value = checkboxes.map((cb) => cb.value).join(',');
+            }
+            if (fulfillBtn) {
+                fulfillBtn.disabled = selectedIds.length === 0;
+            }
+        };
+
+        checkboxes.forEach((cb) => cb.addEventListener('change', recalc));
+        recalc();
     });
 });
 </script>

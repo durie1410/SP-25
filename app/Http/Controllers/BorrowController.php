@@ -145,6 +145,17 @@ class BorrowController extends Controller
         ]);
 
         $data = $request->all();
+
+        $reservation = null;
+        if ($request->filled('reservation_id')) {
+            $reservation = \App\Models\InventoryReservation::with('book')->find($request->reservation_id);
+        }
+
+        $borrowCode = $reservation?->reservation_code;
+        if (empty($borrowCode)) {
+            $borrowCode = 'BRW' . now()->format('ymdHis') . strtoupper(substr(md5(($data['reader_id'] ?? $data['ten_nguoi_muon'] ?? '') . microtime(true)), 0, 4));
+        }
+        $data['borrow_code'] = $borrowCode;
         
         // Tránh trùng lặp địa chỉ: Nếu đã gộp vào dia_chi thì xóa các trường lẻ để view không cộng dồn
         if ($request->filled('dia_chi') && empty($data['so_nha'])) {
@@ -161,8 +172,8 @@ class BorrowController extends Controller
             $borrow = Borrow::create($data);
 
             // Nếu có reservation_id, tạo BorrowItem tương ứng
-            if ($request->filled('reservation_id')) {
-                $reservation = \App\Models\InventoryReservation::with('book')->find($request->reservation_id);
+            if ($reservation) {
+                $reservation = $reservation->fresh(['book']);
                 if ($reservation) {
                     $rentalFee = (float) ($reservation->total_fee ?? 0);
                     if ($rentalFee <= 0) {

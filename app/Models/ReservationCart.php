@@ -121,13 +121,13 @@ class ReservationCart extends Model
         ];
     }
 
-    public function submitReservations(string $notes = null, array $selectedItemIds = [], ?string $pickupTime = null): array
+    public function submitReservations(string $notes = null, array $selectedItemIds = [], ?string $pickupTime = null, ?string $reservationCode = null): array
     {
         $createdReservations = [];
         $submittedItems = 0;
         $submittedCopies = 0;
 
-        return DB::transaction(function () use ($notes, $selectedItemIds, $pickupTime, &$createdReservations, &$submittedItems, &$submittedCopies) {
+        return DB::transaction(function () use ($notes, $selectedItemIds, $pickupTime, $reservationCode, &$createdReservations, &$submittedItems, &$submittedCopies) {
             $itemIds = collect($selectedItemIds)
                 ->map(fn ($itemId) => (int) $itemId)
                 ->filter(fn ($itemId) => $itemId > 0)
@@ -152,6 +152,7 @@ class ReservationCart extends Model
                         'book_id' => $item->book_id,
                         'user_id' => $this->user_id,
                         'reader_id' => $this->reader_id,
+                        'reservation_code' => $reservationCode,
                         'pickup_date' => $item->pickup_date,
                         'pickup_time' => $pickupTime,
                         'return_date' => $item->return_date,

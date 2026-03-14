@@ -388,7 +388,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::prefix('inventory-reservations')->name('inventory-reservations.')->middleware('permission:view-borrows')->group(function () {
         Route::get('/', [InventoryReservationController::class, 'index'])->name('index');
         Route::post('{id}/ready', [InventoryReservationController::class, 'markAsReady'])->name('ready')->middleware('permission:edit-borrows');
+        Route::get('{id}/proof', [InventoryReservationController::class, 'showProofForm'])->name('proof')->middleware('permission:edit-borrows');
+        Route::post('{id}/proof', [InventoryReservationController::class, 'storeProofImages'])->name('proof.store')->middleware('permission:edit-borrows');
         Route::post('{id}/fulfill', [InventoryReservationController::class, 'markAsFulfilled'])->name('fulfill')->middleware('permission:edit-borrows');
+        Route::post('fulfill-group', [InventoryReservationController::class, 'fulfillGroup'])->name('fulfill-group')->middleware('permission:edit-borrows');
         Route::post('{id}/cancel', [InventoryReservationController::class, 'cancel'])->name('cancel')->middleware('permission:edit-borrows');
     });
 

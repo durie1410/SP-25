@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Borrow;
+use App\Models\BorrowItem;
 use App\Models\Inventory;
 use App\Models\InventoryReservation;
+use App\Services\FileUploadService;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,6 +28,44 @@ class InventoryReservationController extends Controller
             } else {
                 $query->where('status', $request->status);
             }
+        }
+
+        if ($request->filled('inventory_status')) {
+            if ($request->inventory_status === 'assigned') {
+                $query->whereNotNull('inventory_id');
+            } elseif ($request->inventory_status === 'unassigned') {
+                $query->whereNull('inventory_id');
+            }
+        }
+
+        if ($request->filled('pickup_window')) {
+            $today = now()->toDateString();
+            if ($request->pickup_window === 'today') {
+                $query->whereDate('pickup_date', $today);
+            } elseif ($request->pickup_window === 'upcoming') {
+                $query->whereDate('pickup_date', '>=', $today);
+            } elseif ($request->pickup_window === 'past') {
+                $query->whereDate('pickup_date', '<', $today);
+            }
+        }
+
+        if ($request->filled('reader_keyword')) {
+            $keyword = trim((string) $request->reader_keyword);
+            $query->where(function ($sub) use ($keyword) {
+                $sub->whereHas('reader', function ($readerQuery) use ($keyword) {
+                    $readerQuery->where('ho_ten', 'like', "%{$keyword}%")
+                        ->orWhere('so_the_doc_gia', 'like', "%{$keyword}%");
+                })
+                ->orWhereHas('user', function ($userQuery) use ($keyword) {
+                    $userQuery->where('name', 'like', "%{$keyword}%")
+                        ->orWhere('email', 'like', "%{$keyword}%");
+                });
+            });
+        }
+
+        if ($request->filled('reservation_code')) {
+            $code = trim((string) $request->reservation_code);
+            $query->where('reservation_code', 'like', "%{$code}%");
         }
 
         $reservations = $query->paginate(20);
@@ -73,11 +114,62 @@ class InventoryReservationController extends Controller
             app(NotificationService::class)->sendReservationReadyNotification($reservation->fresh(['book', 'reader.user', 'user']));
 
             DB::commit();
-            return back()->with('success', 'Đã xác nhận: sách sẵn sàng tại quầy.');
+            return redirect()->route('admin.inventory-reservations.proof', $reservation->id)
+                ->with('success', 'Đã xác nhận: sách sẵn sàng tại quầy. Vui lòng chụp ảnh chứng minh.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Có lỗi khi xử lý: ' . $e->getMessage());
         }
+    }
+
+    public function showProofForm($id)
+    {
+        $reservation = InventoryReservation::with(['book', 'inventory', 'reader', 'user'])->findOrFail($id);
+
+        return view('admin.inventory_reservations.proof', compact('reservation'));
+    }
+
+    public function storeProofImages(Request $request, $id)
+    {
+        $reservation = InventoryReservation::with(['book', 'inventory', 'reader', 'user'])->findOrFail($id);
+
+        $request->validate([
+            'proof_images' => 'required|array|min:1',
+            'proof_images.*' => 'file|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
+        ]);
+
+        $uploadedPaths = [];
+        foreach ($request->file('proof_images', []) as $file) {
+            if (!$file) {
+                continue;
+            }
+
+            $result = FileUploadService::uploadImage(
+                $file,
+                'reservation_proofs',
+                [
+                    'max_size' => 4096,
+                    'resize' => true,
+                    'width' => 1200,
+                    'height' => 1200,
+                    'disk' => 'public',
+                ]
+            );
+            $uploadedPaths[] = $result['path'] ?? null;
+        }
+
+        $uploadedPaths = array_values(array_filter($uploadedPaths));
+        if (empty($uploadedPaths)) {
+            return back()->with('error', 'Không có ảnh hợp lệ để lưu.');
+        }
+
+        $existing = is_array($reservation->proof_images) ? $reservation->proof_images : [];
+        $reservation->update([
+            'proof_images' => array_values(array_unique(array_merge($existing, $uploadedPaths))),
+        ]);
+
+        return redirect()->route('admin.inventory-reservations.index')
+            ->with('success', 'Đã lưu ảnh chứng minh cho yêu cầu đặt trước.');
     }
 
     public function markAsFulfilled(Request $request, $id)
@@ -115,6 +207,119 @@ class InventoryReservationController extends Controller
             'ngay_muon' => $reservation->pickup_date ? $reservation->pickup_date->format('Y-m-d') : now()->format('Y-m-d'),
             'ngay_hen_tra' => $reservation->return_date ? $reservation->return_date->format('Y-m-d') : now()->addDays(14)->format('Y-m-d'),
         ]);
+    }
+
+    public function fulfillGroup(Request $request)
+    {
+        $reservationIds = collect(explode(',', (string) $request->input('reservation_ids', '')))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        $allIds = collect(explode(',', (string) $request->input('all_ids', '')))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($reservationIds->isEmpty()) {
+            return back()->with('error', 'Vui lòng chọn ít nhất 1 cuốn để Fulfill.');
+        }
+
+        $reservations = InventoryReservation::with(['book', 'inventory', 'reader', 'reader.user'])
+            ->whereIn('id', $reservationIds->all())
+            ->get();
+
+        if ($reservations->isEmpty()) {
+            return back()->with('error', 'Không tìm thấy yêu cầu đặt trước hợp lệ.');
+        }
+
+        $first = $reservations->first();
+        $reader = $first->reader;
+        if (!$reader) {
+            return back()->with('error', 'Không tìm thấy độc giả cho đơn đặt trước.');
+        }
+
+        $pickupDate = $first->pickup_date ? $first->pickup_date->format('Y-m-d') : now()->format('Y-m-d');
+        $returnDate = $first->return_date ? $first->return_date->format('Y-m-d') : now()->addDays(14)->format('Y-m-d');
+        $borrowCode = $first->reservation_code ?: ('RSV' . now()->format('ymdHis'));
+
+        DB::beginTransaction();
+        try {
+            $borrow = Borrow::create([
+                'reader_id' => $reader->id,
+                'librarian_id' => auth()->id(),
+                'ten_nguoi_muon' => $reader->ho_ten,
+                'so_dien_thoai' => $reader->so_dien_thoai,
+                'tinh_thanh' => $reader->tinh_thanh,
+                'huyen' => $reader->huyen,
+                'xa' => $reader->xa,
+                'so_nha' => $reader->so_nha,
+                'ngay_muon' => $pickupDate,
+                'trang_thai' => 'Cho duyet',
+                'trang_thai_chi_tiet' => Borrow::STATUS_DON_HANG_MOI,
+                'borrow_code' => $borrowCode,
+            ]);
+
+            $totalFee = 0;
+            foreach ($reservations as $reservation) {
+                if ($reservation->status !== 'ready') {
+                    throw new \Exception('Có sách chưa ở trạng thái sẵn sàng.');
+                }
+
+                $days = 1;
+                if ($reservation->pickup_date && $reservation->return_date && $reservation->return_date->greaterThan($reservation->pickup_date)) {
+                    $days = max(1, $reservation->pickup_date->diffInDays($reservation->return_date));
+                }
+                $dailyFee = (float) ($reservation->book?->daily_fee ?? 5000);
+                $rentalFee = (float) ($reservation->total_fee ?? ($dailyFee * $days));
+                $totalFee += $rentalFee;
+
+                BorrowItem::create([
+                    'borrow_id' => $borrow->id,
+                    'book_id' => $reservation->book_id,
+                    'inventorie_id' => $reservation->inventory_id,
+                    'tien_coc' => 0,
+                    'tien_thue' => $rentalFee,
+                    'tien_ship' => 0,
+                    'ngay_muon' => $pickupDate,
+                    'ngay_hen_tra' => $returnDate,
+                    'trang_thai' => 'Cho duyet',
+                    'borrow_type' => 'take_home',
+                ]);
+
+                $reservation->update([
+                    'status' => 'fulfilled',
+                    'borrow_id' => $borrow->id,
+                    'processed_by' => auth()->id(),
+                    'fulfilled_at' => now(),
+                ]);
+            }
+
+            $borrow->update([
+                'tien_coc' => 0,
+                'tien_ship' => 0,
+                'tien_thue' => $totalFee,
+                'tong_tien' => $totalFee,
+            ]);
+
+            if ($allIds->isNotEmpty()) {
+                $toCancel = InventoryReservation::whereIn('id', $allIds->all())
+                    ->whereNotIn('id', $reservationIds->all())
+                    ->get();
+
+                foreach ($toCancel as $reservation) {
+                    $reservation->cancel('Hủy theo yêu cầu loại khỏi đơn.', auth()->id());
+                }
+            }
+
+            DB::commit();
+            return redirect()->route('admin.borrows.index')->with('success', 'Đã Fulfill đơn đặt trước thành 1 phiếu mượn.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->with('error', 'Fulfill thất bại: ' . $e->getMessage());
+        }
     }
 
     public function cancel(Request $request, $id)

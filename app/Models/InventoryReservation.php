@@ -36,6 +36,7 @@ class InventoryReservation extends Model
         'pickup_date' => 'date',
         'return_date' => 'date',
         'total_fee' => 'decimal:2',
+        'proof_images' => 'array',
         'ready_at' => 'datetime',
         'fulfilled_at' => 'datetime',
         'cancelled_at' => 'datetime',

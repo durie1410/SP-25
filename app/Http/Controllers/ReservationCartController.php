@@ -317,10 +317,13 @@ class ReservationCartController extends Controller
         }
 
         try {
+            $reservationCode = 'RSV' . now()->format('ymdHis') . strtoupper(substr(md5($user->id . microtime(true)), 0, 4));
+
             $result = $cart->submitReservations(
                 $request->input('notes'),
                 $selectedItemIds->all(),
-                $pickupTime
+                $pickupTime,
+                $reservationCode
             );
 
             $submittedCopies = (int) ($result['submitted_copies'] ?? 0);

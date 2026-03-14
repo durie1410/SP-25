@@ -16,6 +16,7 @@ class CreateBorrowsTable extends Migration
         Schema::create('borrows', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('reader_id');
+            $table->string('borrow_code')->nullable()->index();
             $table->unsignedBigInteger('book_id');
             $table->unsignedBigInteger('librarian_id')->nullable(); // Thủ thư cho mượn
             $table->date('ngay_muon');
