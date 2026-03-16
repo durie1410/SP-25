@@ -62,7 +62,10 @@
         </div>
 
         @php
-            $proofImages = is_array($reservation->proof_images) ? $reservation->proof_images : [];
+            $proofImages = is_array($reservation->proof_images)
+                ? $reservation->proof_images
+                : (is_string($reservation->proof_images) ? json_decode($reservation->proof_images, true) : []);
+            $proofImages = is_array($proofImages) ? $proofImages : [];
         @endphp
 
         @if(!empty($proofImages))
@@ -78,20 +81,22 @@
             </div>
         @endif
 
-        <form action="{{ route('admin.inventory-reservations.proof.store', $reservation->id) }}" method="POST" enctype="multipart/form-data">
-            @csrf
-            <div class="mb-3">
-                <label class="form-label">Tải ảnh chứng minh (có thể chọn nhiều ảnh) <span class="text-danger">*</span></label>
-                <input type="file" name="proof_images[]" class="form-control" accept="image/*" multiple required>
-                <small class="text-muted">Hỗ trợ JPG/PNG/GIF/WebP, tối đa 4MB mỗi ảnh.</small>
-            </div>
+        @if(empty($proofImages))
+            <form action="{{ route('admin.inventory-reservations.proof.store', $reservation->id) }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="mb-3">
+                    <label class="form-label">Tải ảnh chứng minh (có thể chọn nhiều ảnh) <span class="text-danger">*</span></label>
+                    <input type="file" name="proof_images[]" class="form-control" accept="image/*" multiple required>
+                    <small class="text-muted">Hỗ trợ JPG/PNG/GIF/WebP, tối đa 4MB mỗi ảnh.</small>
+                </div>
 
-            <div id="proof-preview" class="d-flex flex-wrap gap-3 mb-3"></div>
+                <div id="proof-preview" class="d-flex flex-wrap gap-3 mb-3"></div>
 
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save"></i> Lưu ảnh chứng minh
-            </button>
-        </form>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Lưu ảnh chứng minh
+                </button>
+            </form>
+        @endif
     </div>
 </div>
 @endsection

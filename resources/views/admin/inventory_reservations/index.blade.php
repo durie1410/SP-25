@@ -3,22 +3,22 @@
 @section('title', 'Quản lý đặt trước - Admin')
 
 @section('content')
-<div class="page-header">
+<div class="page-header reservation-header">
     <div>
         <h1 class="page-title">
             <i class="fas fa-bookmark"></i>
             Quản lý đặt trước
         </h1>
-        <p class="page-subtitle">Duyệt yêu cầu đặt trước và thông báo khách đến quầy nhận sách</p>
+        <p class="page-subtitle">Duyệt yêu cầu đặt trước, chuẩn bị sách và xác nhận khách đến nhận</p>
     </div>
 </div>
 
-<div class="card" style="margin-bottom: 20px;">
+<div class="card filter-card" style="margin-bottom: 20px;">
     <div class="card-header">
         <h3 class="card-title"><i class="fas fa-filter"></i> Lọc</h3>
     </div>
-    <form method="GET" style="padding: 16px 20px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-        <div style="min-width: 220px; flex: 1;">
+    <form method="GET" class="filter-form">
+        <div class="filter-field">
             <select name="status" class="form-control">
                 <option value="">-- Tất cả trạng thái --</option>
                 <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Đang chờ</option>
@@ -28,14 +28,14 @@
                 <option value="cancelled" {{ request('status') === 'cancelled' ? 'selected' : '' }}>Đã hủy</option>
             </select>
         </div>
-        <div style="min-width: 200px; flex: 1;">
+        <div class="filter-field">
             <select name="inventory_status" class="form-control">
                 <option value="">-- Bản sao --</option>
                 <option value="assigned" {{ request('inventory_status') === 'assigned' ? 'selected' : '' }}>Đã gán bản sao</option>
                 <option value="unassigned" {{ request('inventory_status') === 'unassigned' ? 'selected' : '' }}>Chưa gán bản sao</option>
             </select>
         </div>
-        <div style="min-width: 200px; flex: 1;">
+        <div class="filter-field">
             <select name="pickup_window" class="form-control">
                 <option value="">-- Ngày lấy --</option>
                 <option value="today" {{ request('pickup_window') === 'today' ? 'selected' : '' }}>Lấy hôm nay</option>
@@ -43,41 +43,45 @@
                 <option value="past" {{ request('pickup_window') === 'past' ? 'selected' : '' }}>Đã qua</option>
             </select>
         </div>
-        <div style="min-width: 220px; flex: 1;">
+        <div class="filter-field">
             <input type="text" name="reader_keyword" class="form-control" placeholder="Độc giả: tên / thẻ / email" value="{{ request('reader_keyword') }}">
         </div>
-        <div style="min-width: 200px; flex: 1;">
+        <div class="filter-field">
             <input type="text" name="reservation_code" class="form-control" placeholder="Mã đơn (RSV...)" value="{{ request('reservation_code') }}">
         </div>
-        <button type="submit" class="btn btn-primary">
-            <i class="fas fa-filter"></i> Lọc
-        </button>
-        <a href="{{ route('admin.inventory-reservations.index') }}" class="btn btn-secondary">
-            <i class="fas fa-redo"></i> Reset
-        </a>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter"></i> Lọc
+            </button>
+            <a href="{{ route('admin.inventory-reservations.index') }}" class="btn btn-secondary">
+                <i class="fas fa-redo"></i> Reset
+            </a>
+        </div>
     </form>
 </div>
 
-<div class="card">
-    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-        <h3 class="card-title"><i class="fas fa-list"></i> Danh sách yêu cầu</h3>
+<div class="card reservation-card">
+    <div class="card-header reservation-card-header">
+        <div>
+            <h3 class="card-title"><i class="fas fa-list"></i> Danh sách yêu cầu</h3>
+            <div class="text-muted" style="font-size: 13px;">Theo dõi trạng thái từng cuốn sách đặt trước</div>
+        </div>
         <span class="badge badge-info">Tổng: {{ $reservations->total() }}</span>
     </div>
 
     <div class="table-responsive">
-        <table class="table">
+        <table class="table reservation-table">
             <thead>
                 <tr>
-                    <th style="width: 48px;"></th>
-                    <th>ID</th>
+                    <th style="width: 70px;">ID</th>
                     <th>Sách</th>
                     <th>Độc giả</th>
-                    <th>Giá thuê</th>
-                    <th>Ngày lấy/trả</th>
+                    <th>Lịch hẹn</th>
                     <th>Trạng thái</th>
                     <th>Bản sao</th>
-                    <th>Ghi chú</th>
-                    <th>Thao tác</th>
+                    <th>Phí</th>
+                    <th>Ảnh</th>
+                    <th style="width: 210px;">Thao tác</th>
                 </tr>
             </thead>
             <tbody>
@@ -104,18 +108,27 @@
                         $readerCard = $firstReservation->reader->so_the_doc_gia ?? '';
                         $groupTotal = $group->sum(fn($item) => (float) ($item->total_fee ?? 0));
                     @endphp
-                    <tr class="table-light">
-                        <td colspan="10" style="font-weight:600; color: var(--text-primary);">
-                            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px;">
-                                <span class="badge badge-info">{{ $groupLabel }}</span>
-                                <span>Độc giả: {{ $readerName }} {{ $readerCard ? '(' . $readerCard . ')' : '' }}</span>
-                                <span style="color: var(--text-muted);">Số sách: {{ $group->count() }}</span>
-                                <span style="color: #e67e22; font-weight:700;">Tổng: <span class="group-total" data-group="{{ $groupCode }}">{{ number_format($groupTotal, 0, ',', '.') }}đ</span></span>
-                                <form method="POST" action="{{ route('admin.inventory-reservations.fulfill-group') }}" class="group-fulfill-form confirm-submit-btn" data-group="{{ $groupCode }}" style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+                    <tr class="table-light reservation-group-row">
+                        <td colspan="10">
+                            <div class="group-row-content">
+                                <div class="group-main">
+                                    <span class="badge badge-info">{{ $groupLabel }}</span>
+                                    <div class="group-reader">
+                                        <div class="group-reader-name">{{ $readerName }}</div>
+                                        @if($readerCard)
+                                            <div class="group-reader-card">Thẻ {{ $readerCard }}</div>
+                                        @endif
+                                    </div>
+                                    <div class="group-meta">{{ $group->count() }} cuốn</div>
+                                </div>
+                                <div class="group-summary">
+                                    <span class="group-total-label">Tổng phí:</span>
+                                    <span class="group-total" data-group="{{ $groupCode }}">{{ number_format($groupTotal, 0, ',', '.') }}đ</span>
+                                </div>
+                                <form method="POST" action="{{ route('admin.inventory-reservations.fulfill-group') }}" class="group-fulfill-form confirm-submit-btn" data-group="{{ $groupCode }}">
                                     @csrf
-                                    <input type="hidden" name="reservation_ids" value="" class="group-selected-ids">
-                                    <input type="hidden" name="all_ids" value="{{ $group->pluck('id')->implode(',') }}" class="group-all-ids">
-                                    <button type="submit" class="btn btn-sm btn-primary group-fulfill-btn" data-confirm-message="Fulfill toàn bộ đơn đã chọn?" data-requires-selection="1">
+                                    <input type="hidden" name="reservation_ids" value="{{ $group->pluck('id')->implode(',') }}" class="group-selected-ids">
+                                    <button type="submit" class="btn btn-sm btn-primary group-fulfill-btn" data-confirm-message="Fulfill toàn bộ đơn?">
                                         <i class="fas fa-check"></i> Fulfill đơn
                                     </button>
                                 </form>
@@ -124,26 +137,39 @@
                     </tr>
 
                     @foreach($group as $r)
-                        <tr>
-                            <td>
-                                <input type="checkbox" class="group-item-checkbox" data-group="{{ $groupCode }}" value="{{ $r->id }}" data-fee="{{ (float) ($r->total_fee ?? 0) }}" {{ $r->status === 'ready' ? 'checked' : '' }} {{ $r->status !== 'ready' ? 'disabled' : '' }}>
-                            </td>
+                        @php
+                            $proofImages = is_array($r->proof_images)
+                                ? $r->proof_images
+                                : (is_string($r->proof_images) ? json_decode($r->proof_images, true) : []);
+                            $proofImages = is_array($proofImages) ? $proofImages : [];
+                            $proofCount = count($proofImages);
+                        @endphp
+                        <tr class="reservation-row">
                             <td><span class="badge badge-secondary">#{{ $r->id }}</span></td>
                             <td>
-                                <div style="font-weight:700; color: var(--text-primary);">{{ $r->book->ten_sach ?? 'N/A' }}</div>
-                                <div style="font-size:12px; color: var(--text-muted);">BK{{ str_pad((string)($r->book_id ?? 0), 6, '0', STR_PAD_LEFT) }}</div>
+                                <div class="book-info">
+                                    <div class="book-title">{{ $r->book->ten_sach ?? 'N/A' }}</div>
+                                    <div class="book-meta">
+                                        <span>BK{{ str_pad((string)($r->book_id ?? 0), 6, '0', STR_PAD_LEFT) }}</span>
+                                        <span>{{ $r->book->tac_gia ?? 'Không rõ' }}</span>
+                                    </div>
+                                </div>
                             </td>
                             <td>
-                                <div style="font-weight:600;">{{ $r->reader->ho_ten ?? ($r->user->name ?? 'N/A') }}</div>
-                                <div style="font-size:12px; color: var(--text-muted);">{{ $r->reader->so_the_doc_gia ?? '' }}</div>
-                            </td>
-                            <td>
-                                <div style="font-weight:700; color: #e67e22;">{{ number_format($r->total_fee ?? 0, 0, ',', '.') }}đ</div>
+                                <div class="reader-info">
+                                    <div class="reader-name">{{ $r->reader->ho_ten ?? ($r->user->name ?? 'N/A') }}</div>
+                                    <div class="reader-meta">{{ $r->reader->so_the_doc_gia ?? 'Khách online' }}</div>
+                                </div>
                             </td>
                             <td>
                                 @if($r->pickup_date)
-                                    <div style="font-size:13px;"><strong>Lấy:</strong> {{ \Carbon\Carbon::parse($r->pickup_date)->format('d/m/Y') }}</div>
-                                    <div style="font-size:13px;"><strong>Trả:</strong> {{ \Carbon\Carbon::parse($r->return_date)->format('d/m/Y') }}</div>
+                                    <div class="schedule-info">
+                                        <div><strong>Lấy:</strong> {{ \Carbon\Carbon::parse($r->pickup_date)->format('d/m/Y') }}</div>
+                                        <div><strong>Trả:</strong> {{ \Carbon\Carbon::parse($r->return_date)->format('d/m/Y') }}</div>
+                                        @if($r->pickup_time)
+                                            <div class="schedule-time">Giờ: {{ $r->pickup_time }}</div>
+                                        @endif
+                                    </div>
                                 @else
                                     <span class="text-muted">N/A</span>
                                 @endif
@@ -168,22 +194,30 @@
                             </td>
                             <td>
                                 @if($r->inventory)
-                                    <span class="badge badge-success">#{{ $r->inventory->id }}</span>
-                                    <div style="font-size:12px; color: var(--text-muted);">{{ $r->inventory->barcode ?? '' }}</div>
+                                    <div class="inventory-info">
+                                        <span class="badge badge-success">#{{ $r->inventory->id }}</span>
+                                        <div class="inventory-meta">{{ $r->inventory->barcode ?? '' }}</div>
+                                        <div class="inventory-meta">{{ $r->inventory->status ?? 'N/A' }}</div>
+                                    </div>
                                 @else
                                     <span class="badge badge-secondary">Chưa gán</span>
                                 @endif
                             </td>
-                            <td style="max-width: 260px;">
-                                <div style="font-size:13px;">{{ $r->notes }}</div>
-                                @if($r->admin_note)
-                                    <div style="font-size:12px; color: var(--text-muted); margin-top: 6px;">
-                                        <strong>Admin:</strong> {{ $r->admin_note }}
-                                    </div>
-                                @endif
+                            <td>
+                                <div class="fee-amount">{{ number_format($r->total_fee ?? 0, 0, ',', '.') }}đ</div>
                             </td>
-                            <td style="white-space:nowrap;">
-                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <td>
+                                <div class="proof-info {{ $proofCount ? 'has-proof' : '' }}">
+                                    <span>{{ $proofCount }} ảnh</span>
+                                    <small>{{ $proofCount ? 'Đã có' : 'Chưa có' }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="action-group">
+                                    <a href="{{ route('admin.inventory-reservations.proof', $r->id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> Chi tiết
+                                    </a>
+
                                     @if($r->status === 'pending' && !$isOverduePickup)
                                         <form method="POST" action="{{ route('admin.inventory-reservations.ready', $r->id) }}" style="display:inline;">
                                             @csrf
@@ -193,29 +227,24 @@
                                         </form>
                                     @endif
 
-                                    @if(in_array($r->status, ['pending', 'ready'], true) && !$isOverduePickup)
+                                    @if($r->status === 'ready' && !$isOverduePickup)
                                         <form method="POST" action="{{ route('admin.inventory-reservations.fulfill', $r->id) }}" style="display:inline;">
                                             @csrf
                                             <button type="submit" class="btn btn-sm btn-primary confirm-submit-btn" data-confirm-message="Đánh dấu độc giả đã nhận sách tại quầy?">
                                                 <i class="fas fa-hand-holding"></i> Fulfill
                                             </button>
                                         </form>
-
-                                        <form method="POST" action="{{ route('admin.inventory-reservations.cancel', $r->id) }}" style="display:inline;">
-                                            @csrf
-                                            <button type="submit" class="btn btn-sm btn-danger confirm-submit-btn" data-confirm-message="Hủy yêu cầu đặt trước này?">
-                                                <i class="fas fa-times"></i> Hủy
-                                            </button>
-                                        </form>
                                     @endif
 
-                                    @if(in_array($r->status, ['pending', 'ready'], true) && $isOverduePickup)
+                                    @if(in_array($r->status, ['pending', 'ready'], true))
                                         <form method="POST" action="{{ route('admin.inventory-reservations.cancel', $r->id) }}" style="display:inline;">
                                             @csrf
-                                            <input type="hidden" name="mark_overdue" value="1">
-                                            <input type="hidden" name="admin_note" value="Quá hạn nhận sách: đã qua ngày lấy nhưng khách chưa đến nhận.">
-                                            <button type="submit" class="btn btn-sm btn-warning confirm-submit-btn" data-confirm-message="Ngày lấy đã qua nhưng khách chưa nhận. Đánh dấu quá hạn cho yêu cầu này?">
-                                                <i class="fas fa-clock"></i> Quá hạn
+                                            @if($isOverduePickup)
+                                                <input type="hidden" name="mark_overdue" value="1">
+                                                <input type="hidden" name="admin_note" value="Quá hạn nhận sách: đã qua ngày lấy nhưng khách chưa đến nhận.">
+                                            @endif
+                                            <button type="submit" class="btn btn-sm btn-warning confirm-submit-btn" data-confirm-message="{{ $isOverduePickup ? 'Ngày lấy đã qua nhưng khách chưa nhận. Đánh dấu quá hạn cho yêu cầu này?' : 'Hủy yêu cầu đặt trước này?' }}">
+                                                <i class="fas fa-{{ $isOverduePickup ? 'clock' : 'times' }}"></i> {{ $isOverduePickup ? 'Quá hạn' : 'Hủy' }}
                                             </button>
                                         </form>
                                     @endif
@@ -239,6 +268,228 @@
     </div>
 </div>
 @endsection
+
+@push('styles')
+<style>
+.reservation-header {
+    margin-bottom: 16px;
+}
+
+.filter-card {
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.06);
+    overflow: visible;
+    position: relative;
+    z-index: 999;
+}
+
+.filter-card:hover {
+    transform: none;
+}
+
+.main-content {
+    position: relative;
+    z-index: 0;
+}
+
+.filter-form {
+    padding: 18px 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    align-items: center;
+    position: relative;
+    z-index: 1000;
+}
+
+.filter-field,
+.filter-actions {
+    position: relative;
+    z-index: 1001;
+}
+
+.filter-card .form-control,
+.filter-card .form-select {
+    position: relative;
+    z-index: 1002;
+    pointer-events: auto;
+}
+
+.filter-form select.form-control {
+    cursor: pointer;
+}
+
+.filter-form select.form-control:focus,
+.filter-form select.form-control:active {
+    z-index: 1003;
+}
+
+.card.reservation-card {
+    position: relative;
+    z-index: 1;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.reservation-card {
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+}
+
+.reservation-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.reservation-table thead th {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    background: #f8fafc;
+}
+
+.reservation-row {
+    background: #fff;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.reservation-row td {
+    vertical-align: top;
+}
+
+.reservation-group-row td {
+    padding: 14px 18px;
+}
+
+.group-row-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.group-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.group-reader-name {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.group-reader-card {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.group-meta {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.group-summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: #0f766e;
+}
+
+.book-title {
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 4px;
+}
+
+.book-meta {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.reader-name {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.reader-meta {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.schedule-info {
+    font-size: 13px;
+    color: #334155;
+    display: grid;
+    gap: 3px;
+}
+
+.schedule-time {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.inventory-info {
+    display: grid;
+    gap: 4px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.inventory-meta {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.fee-amount {
+    font-weight: 700;
+    color: #f97316;
+}
+
+.proof-info {
+    font-size: 12px;
+    color: #94a3b8;
+    display: grid;
+    gap: 2px;
+}
+
+.proof-info.has-proof {
+    color: #0f766e;
+    font-weight: 600;
+}
+
+.action-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.action-group .btn {
+    white-space: nowrap;
+}
+
+
+@media (max-width: 992px) {
+    .reservation-table {
+        min-width: 980px;
+    }
+}
+</style>
+@endpush
 
 @push('scripts')
 <script>
@@ -267,50 +518,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    const formatCurrency = (value) => new Intl.NumberFormat('vi-VN').format(value) + 'đ';
-
-    const groups = new Map();
-    document.querySelectorAll('.group-item-checkbox').forEach((checkbox) => {
-        const group = checkbox.dataset.group;
-        if (!groups.has(group)) {
-            groups.set(group, []);
-        }
-        groups.get(group).push(checkbox);
-    });
-
-    groups.forEach((checkboxes, group) => {
-        const totalEl = document.querySelector(`.group-total[data-group="${group}"]`);
-        const hiddenInput = document.querySelector(`.group-fulfill-form[data-group="${group}"] .group-selected-ids`);
-        const allInput = document.querySelector(`.group-fulfill-form[data-group="${group}"] .group-all-ids`);
-        const fulfillBtn = document.querySelector(`.group-fulfill-form[data-group="${group}"] .group-fulfill-btn`);
-
-        const recalc = () => {
-            let total = 0;
-            const selectedIds = [];
-            checkboxes.forEach((cb) => {
-                if (cb.checked) {
-                    total += Number(cb.dataset.fee || 0);
-                    selectedIds.push(cb.value);
-                }
-            });
-
-            if (totalEl) {
-                totalEl.textContent = formatCurrency(total);
-            }
-            if (hiddenInput) {
-                hiddenInput.value = selectedIds.join(',');
-            }
-            if (allInput && !allInput.value) {
-                allInput.value = checkboxes.map((cb) => cb.value).join(',');
-            }
-            if (fulfillBtn) {
-                fulfillBtn.disabled = selectedIds.length === 0;
-            }
-        };
-
-        checkboxes.forEach((cb) => cb.addEventListener('change', recalc));
-        recalc();
-    });
 });
 </script>
 @endpush
