@@ -296,6 +296,7 @@
                         <th>Tài chính</th>
                         <th>Hẹn trả</th>
                         <th>Trạng thái</th>
+                        <th>Ảnh chứng minh</th>
                         <th>Xác nhận nhận sách</th>
                     </tr>
                 </thead>
@@ -348,6 +349,25 @@
                             <span class="status-badge status-{{ $statusClass }}">
                                 {{ $itemStatusText }}
                             </span>
+                        </td>
+                        <td>
+                            @php
+                                $proofImages = is_array($item->reservation?->proof_images) ? $item->reservation->proof_images : [];
+                            @endphp
+                            @if(!empty($proofImages))
+                                <div class="d-flex flex-wrap gap-1 mb-2">
+                                    @foreach(array_slice($proofImages, 0, 3) as $img)
+                                        <a href="{{ asset('storage/' . $img) }}" target="_blank">
+                                            <img src="{{ asset('storage/' . $img) }}" alt="Ảnh chứng minh" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;">
+                                        </a>
+                                    @endforeach
+                                </div>
+                                @if(count($proofImages) > 3)
+                                    <div class="small text-muted">+{{ count($proofImages) - 3 }} ảnh</div>
+                                @endif
+                            @else
+                                <span class="text-muted small">Chưa có</span>
+                            @endif
                         </td>
                         <td>
                             @if($item->anh_bia_truoc || $item->anh_bia_sau || $item->anh_gay_sach || $item->ghi_chu_nhan_sach)

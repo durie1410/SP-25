@@ -120,6 +120,11 @@ class Borrow extends Model
         return $this->hasMany(BorrowItem::class, 'borrow_id', 'id');
     }
 
+    public function reservations()
+    {
+        return $this->hasMany(InventoryReservation::class, 'borrow_id', 'id');
+    }
+
     // 🔹 Lấy quyển sách đầu tiên (nếu cần hiển thị nhanh)
     public function getBookAttribute()
     {
