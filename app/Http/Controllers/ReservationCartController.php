@@ -352,6 +352,25 @@ class ReservationCartController extends Controller
         return response()->json(['count' => $count]);
     }
 
+    public function history(Request $request)
+    {
+        $user = $request->user();
+        $reader = $user?->reader;
+
+        if (!$reader) {
+            return redirect()->route('account')
+                ->with('error', 'Bạn cần đăng ký thông tin độc giả để xem lịch sử đặt trước.');
+        }
+
+        // Lấy danh sách đơn đặt trước của user
+        $reservations = \App\Models\InventoryReservation::with(['book', 'inventory'])
+            ->where('user_id', $user->id)
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return view('reservation_cart.history', compact('reservations'));
+    }
+
     public function updateQuantity(Request $request, $itemId)
     {
         $user = $request->user();
@@ -406,6 +425,11 @@ class ReservationCartController extends Controller
 
     public function updateDates(Request $request, $itemId)
     {
+        \Log::info('DEBUG updateDates called', [
+            'itemId' => $itemId,
+            'request' => $request->all()
+        ]);
+
         $user = $request->user();
         $reader = $user?->reader;
 

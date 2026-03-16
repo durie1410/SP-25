@@ -113,11 +113,27 @@ class ReservationCart extends Model
             'days' => $days,
         ]);
 
+        // Tính trực tiếp không dùng accessor
+        $itemPrice = $days * ($item->daily_fee ?? 5000) * ($item->quantity ?? 1);
+        $cartTotal = $this->items->sum(function($i) use ($days) {
+            $iDays = $i->calculateDaysFromDates();
+            return $iDays * ($i->daily_fee ?? 5000) * ($i->quantity ?? 1);
+        });
+
+        \Log::info('DEBUG updateDates response', [
+            'item_id' => $item->id,
+            'days' => $days,
+            'item_price' => $itemPrice,
+            'total_price' => $cartTotal,
+            'pickup_date' => $pickupDate,
+            'return_date' => $returnDate,
+        ]);
+
         return [
             'success' => true,
             'days' => $days,
-            'item_price' => $item->fresh()->total_price,
-            'total_price' => $this->fresh()->total_price,
+            'item_price' => $itemPrice,
+            'total_price' => $cartTotal,
         ];
     }
 

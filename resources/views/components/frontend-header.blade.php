@@ -89,6 +89,9 @@
                             <a href="{{ route('account.borrowed-books') }}" class="dropdown-item">
                                 <i class="fas fa-book-reader"></i> Sách đang mượn
                             </a>
+                            <a href="{{ route('reservation-cart.history') }}" class="dropdown-item">
+                                <i class="fas fa-calendar-check"></i> Lịch sử đặt trước
+                            </a>
                         @endif
                         <a href="{{ route('account.favorite-books') }}" class="dropdown-item">
                             <i class="fas fa-heart"></i> Sách yêu thích

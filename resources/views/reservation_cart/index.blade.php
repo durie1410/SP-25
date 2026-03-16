@@ -704,13 +704,33 @@
                                 $sameBookIndex = $sameBookItems->search(fn($cartItem) => $cartItem->id === $item->id);
                                 $dailyFee = (int) ($item->daily_fee ?? 5000);
                                 $quantity = max(1, (int) ($item->quantity ?? 1));
-                                $hasFullDates = !empty($item->pickup_date) && !empty($item->return_date);
-                                $computedDays = $hasFullDates
-                                    ? max(1, (int) ($item->days ?? 1))
-                                    : 0;
-                                $computedTotal = $hasFullDates
-                                    ? ((int) $item->total_price)
-                                    : 0;
+
+                                // Lấy ngày từ DB (có thể là string hoặc object)
+                                $pickupDateStr = null;
+                                $returnDateStr = null;
+
+                                if(!empty($item->pickup_date)) {
+                                    $pickupDateStr = is_object($item->pickup_date)
+                                        ? $item->pickup_date->format('Y-m-d')
+                                        : $item->pickup_date;
+                                }
+                                if(!empty($item->return_date)) {
+                                    $returnDateStr = is_object($item->return_date)
+                                        ? $item->return_date->format('Y-m-d')
+                                        : $item->return_date;
+                                }
+
+                                // Tính số ngày: mượn và trả cùng ngày = 1 ngày
+                                // mượn hôm nay, trả ngày mai = 2 ngày
+                                $computedDays = 0;
+                                $computedTotal = 0;
+                                if($pickupDateStr && $returnDateStr) {
+                                    $pickup = new \DateTime($pickupDateStr);
+                                    $return = new \DateTime($returnDateStr);
+                                    // Cộng 1 để tính cả ngày mượn
+                                    $computedDays = (int)$pickup->diff($return)->days + 1;
+                                    $computedTotal = $computedDays * $dailyFee * $quantity;
+                                }
                             @endphp
                             <div class="reservation-item" data-item-id="{{ $item->id }}" data-item-total="{{ $computedTotal }}" data-quantity="{{ $quantity }}">
                                 <div class="reservation-item-select">
@@ -863,7 +883,35 @@
                     <div class="reservation-summary-row total">
                         <span>Tổng tạm tính đã chọn</span>
                         <span class="reservation-total-price" id="total-price">
-                            {{ number_format($cart->total_price,0,',','.') }}₫
+                            @php
+                                $total = 0;
+                                foreach($items as $item) {
+                                    $pickupDateStr = null;
+                                    $returnDateStr = null;
+
+                                    if(!empty($item->pickup_date)) {
+                                        $pickupDateStr = is_object($item->pickup_date)
+                                            ? $item->pickup_date->format('Y-m-d')
+                                            : $item->pickup_date;
+                                    }
+                                    if(!empty($item->return_date)) {
+                                        $returnDateStr = is_object($item->return_date)
+                                            ? $item->return_date->format('Y-m-d')
+                                            : $item->return_date;
+                                    }
+
+                                    if(!empty($pickupDateStr) && !empty($returnDateStr)) {
+                                        $pickup = new \DateTime($pickupDateStr);
+                                        $return = new \DateTime($returnDateStr);
+                                        // Cùng ngày = 1 ngày, mượn hôm nay trả ngày mai = 2 ngày
+                                        $days = (int)$pickup->diff($return)->days + 1;
+                                        $quantity = max(1, (int)($item->quantity ?? 1));
+                                        $dailyFee = (int)($item->daily_fee ?? 5000);
+                                        $total += $days * $dailyFee * $quantity;
+                                    }
+                                }
+                            @endphp
+                            {{ number_format($total,0,',','.') }}₫
                         </span>
 </div>
 
@@ -880,14 +928,20 @@
                         <div class="reservation-date-row" style="margin-bottom: 12px;">
                             <div class="reservation-date-group" style="min-width: 0;">
                                 <span class="reservation-date-label">Giờ lấy</span>
-                                <input
-                                    type="time"
-                                    class="form-control pickup-time-global"
-                                    min="{{ config('library.open_hour', '08:00') }}"
-                                    max="{{ config('library.close_hour', '20:00') }}"
-                                    value="{{ $items->first()?->pickup_time ?? '' }}"
-                                    onchange="handleGlobalPickupTimeChange(this)"
-                                >
+                                <div style="display: flex; gap: 8px;">
+                                    <select class="form-control" id="pickup-time-hour" onchange="handlePickupTimeChange()">
+                                        @for($h = 8; $h <= 20; $h++)
+                                            <option value="{{ str_pad($h, 2, '0', STR_PAD_LEFT) }}" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, str_pad($h, 2, '0', STR_PAD_LEFT) . ':') === 0) ? 'selected' : '' }}>{{ $h }}h</option>
+                                        @endfor
+                                    </select>
+                                    <select class="form-control" id="pickup-time-minute" onchange="handlePickupTimeChange()">
+                                        <option value="00" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, ':00') !== false) ? 'selected' : '' }}>00p</option>
+                                        <option value="15" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, ':15') !== false) ? 'selected' : '' }}>15p</option>
+                                        <option value="30" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, ':30') !== false) ? 'selected' : '' }}>30p</option>
+                                        <option value="45" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, ':45') !== false) ? 'selected' : '' }}>45p</option>
+                                    </select>
+                                </div>
+                                <input type="hidden" id="pickup-time-hidden" value="{{ $items->first()?->pickup_time ?? '' }}">
                             </div>
                         </div>
                         <div style="font-weight: 700; margin-bottom: 8px;">Quy định mượn trả</div>
@@ -974,6 +1028,7 @@ function syncReservationSelectAllState(){
 function recalculateReservationSummary(){
     let totalPrice = 0;
     let totalBooks = 0;
+    const dailyFee = 5000; // Đơn giá mặc định
 
     getSelectedReservationCheckboxes().forEach((checkbox) => {
         const itemCard = checkbox.closest('.reservation-item');
@@ -981,8 +1036,27 @@ function recalculateReservationSummary(){
             return;
         }
 
-        totalPrice += Number(itemCard.dataset.itemTotal || 0);
-        totalBooks += Number(itemCard.dataset.quantity || 0);
+        const itemId = itemCard.dataset.itemId;
+        const quantity = Number(itemCard.dataset.quantity || 1);
+
+        // Lấy ngày từ input
+        const pickupInput = document.querySelector(`.pickup-date[data-item-id="${itemId}"]`);
+        const returnInput = document.querySelector(`.return-date[data-item-id="${itemId}"]`);
+
+        let days = 0;
+        if(pickupInput && returnInput && pickupInput.value && returnInput.value){
+            const pickup = parseDateString(pickupInput.value);
+            const ret = parseDateString(returnInput.value);
+            if(pickup && ret){
+                // Mượn và trả cùng ngày = 1 ngày, mượn hôm nay trả ngày mai = 2 ngày
+                const diffTime = ret.getTime() - pickup.getTime();
+                days = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            }
+        }
+
+        const itemTotal = days * dailyFee * quantity;
+        totalPrice += itemTotal;
+        totalBooks += quantity;
     });
 
     const totalPriceEl = document.getElementById('total-price');
@@ -1143,93 +1217,77 @@ function handleItemDateChange(input){
 
     const pickup = pickupInput.value;
     const ret = returnInput.value;
-    const pickupTime = document.querySelector('.pickup-time-global')?.value || '';
 
-    // Chỉ gọi API khi đủ ngày + giờ
-    if(!pickup || !ret || !pickupTime){
+    // Chỉ tính toán FE, không gọi API
+    if(!pickup || !ret){
         return;
     }
 
     if(!validateReservationDates(pickup, ret, true)){
-        // Nếu không hợp lệ thì reset input vừa sửa
         input.value = '';
         return;
     }
 
-    updateReservationItemDates(itemId, pickup, ret, pickupTime, input);
+    // Tính toán tại FE và cập nhật UI
+    updateItemPriceDisplay(itemId);
 }
 
-function updateReservationItemDates(itemId, pickup, ret, pickupTime, inputRef){
-    const statusMsg = ensureDateStatusEl();
-    statusMsg.style.display = 'block';
-    statusMsg.style.background = '#3b82f6';
-    statusMsg.textContent = 'Đang cập nhật ngày cho sách...';
+// Tính toán và cập nhật giá tiền tại FE
+function updateItemPriceDisplay(itemId){
+    const itemCard = document.querySelector(`.reservation-item[data-item-id="${itemId}"]`);
+    if(!itemCard) return;
 
-    fetch('{{ route("reservation-cart.update-dates",":id") }}'
-        .replace(':id', itemId),{
-        method:'POST',
-        headers:{
-            'Content-Type':'application/json',
-            'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content
-        },
-        body:JSON.stringify({
-            pickup_date: pickup,
-            pickup_time: pickupTime,
-            return_date: ret
-        })
-    })
-    .then(async (r)=>{
-        const data = await r.json().catch(() => ({}));
-        if(!r.ok || data.success === false){
-            throw new Error(data.message || 'Cập nhật thất bại');
+    const pickupInput = document.querySelector(`.pickup-date[data-item-id="${itemId}"]`);
+    const returnInput = document.querySelector(`.return-date[data-item-id="${itemId}"]`);
+    const quantityEl = itemCard.querySelector('.reservation-quantity-value');
+
+    const dailyFee = 5000;
+    const quantity = quantityEl ? Number(quantityEl.textContent || 1) : 1;
+
+    let days = 0;
+    if(pickupInput && returnInput && pickupInput.value && returnInput.value){
+        const pickup = parseDateString(pickupInput.value);
+        const ret = parseDateString(returnInput.value);
+        if(pickup && ret){
+            // Mượn + trả cùng ngày = 1 ngày, mượn hôm nay trả ngày mai = 2 ngày
+            const diffTime = ret.getTime() - pickup.getTime();
+            days = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
         }
-        return data;
-    })
-    .then(d=>{
-        const daysEl = document.querySelector(`.days-display[data-item-id="${itemId}"]`);
-        if(daysEl){
-            daysEl.textContent = d.days;
+    }
+
+    const itemTotal = days * dailyFee * quantity;
+
+    // Cập nhật số ngày
+    const daysEl = document.querySelector(`.days-display[data-item-id="${itemId}"]`);
+    if(daysEl){
+        daysEl.textContent = days;
+    }
+
+    // Cập nhật tiền
+    const itemPriceEl = document.querySelector(`.item-price[data-item-id="${itemId}"]`);
+    if(itemPriceEl){
+        itemPriceEl.textContent = formatCurrency(itemTotal);
+    }
+
+    // Cập nhật dataset
+    itemCard.dataset.itemTotal = itemTotal;
+
+    // Cập nhật công thức
+    const feeBox = document.querySelector(`.reservation-fee-breakdown[data-item-id="${itemId}"]`);
+    if(feeBox){
+        const feeText = feeBox.querySelector(`.fee-breakdown-text[data-item-id="${itemId}"]`);
+        const feeTotal = feeBox.querySelector(`.fee-breakdown-total[data-item-id="${itemId}"]`);
+
+        if(feeText){
+            feeText.textContent = `${days} ngày × ${formatCurrency(dailyFee)}/ngày × ${quantity} cuốn`;
         }
-
-        const itemPriceEl = document.querySelector(`.item-price[data-item-id="${itemId}"]`);
-        if(itemPriceEl){
-            itemPriceEl.textContent = formatCurrency(Number(d.item_price || 0));
+        if(feeTotal){
+            feeTotal.innerHTML = `= <strong>${formatCurrency(itemTotal)}</strong>`;
         }
+    }
 
-        const itemCard = getReservationItemCard(itemId);
-        if(itemCard){
-            itemCard.dataset.itemTotal = Number(d.item_price || 0);
-        }
-
-        const feeBox = document.querySelector(`.reservation-fee-breakdown[data-item-id="${itemId}"]`);
-        if(feeBox){
-            const dailyFee = Number(feeBox.dataset.dailyFee || 0);
-            const feeText = feeBox.querySelector(`.fee-breakdown-text[data-item-id="${itemId}"]`);
-            const feeTotal = feeBox.querySelector(`.fee-breakdown-total[data-item-id="${itemId}"]`);
-
-            if(feeText){
-                const itemCard = inputRef ? inputRef.closest('.reservation-item') : null;
-                const quantityEl = itemCard ? itemCard.querySelector('.reservation-quantity-value') : null;
-                const quantity = quantityEl ? Number(quantityEl.textContent || 1) : 1;
-                feeText.textContent = `${d.days} ngày × ${formatCurrency(dailyFee)}/ngày × ${quantity} cuốn`;
-            }
-
-            if(feeTotal){
-                feeTotal.innerHTML = `= <strong>${formatCurrency(Number(d.item_price || 0))}</strong>`;
-            }
-        }
-
-        recalculateReservationSummary();
-
-        statusMsg.style.background = '#22c55e';
-        statusMsg.textContent = 'Đã cập nhật ngày cho sách này!';
-        setTimeout(() => { statusMsg.style.display = 'none'; }, 2000);
-    })
-    .catch(err => {
-        statusMsg.style.background = '#ef4444';
-        statusMsg.textContent = err.message || 'Cập nhật ngày thất bại. Vui lòng thử lại.';
-        setTimeout(() => { statusMsg.style.display = 'none'; }, 4000);
-    });
+    // Cập nhật tổng tiền
+    recalculateReservationSummary();
 }
 
 function changeReservationQuantity(itemId, delta){
@@ -1241,10 +1299,10 @@ function changeReservationQuantity(itemId, delta){
     const previousValue = Math.max(1, parseInt(input.value || '1', 10));
     const nextValue = Math.max(1, previousValue + delta);
     input.value = nextValue;
-    updateReservationQuantityInput(itemId, previousValue);
+    updateReservationQuantityDisplay(itemId, nextValue);
 }
 
-function updateReservationQuantityInput(itemId, previousValue = null){
+function updateReservationQuantityDisplay(itemId, quantity){
     const input = document.getElementById(`reservation-quantity-${itemId}`);
     const itemCard = getReservationItemCard(itemId);
 
@@ -1252,95 +1310,57 @@ function updateReservationQuantityInput(itemId, previousValue = null){
         return;
     }
 
-    const fallbackValue = previousValue ?? Math.max(1, Number(itemCard.dataset.quantity || 1));
-    const quantity = Math.max(1, parseInt(input.value || '1', 10));
-    input.value = quantity;
+    const qty = Math.max(1, parseInt(input.value || '1', 10));
+    input.value = qty;
+    itemCard.dataset.quantity = qty;
 
-    const statusMsg = ensureDateStatusEl();
-    statusMsg.style.display = 'block';
-    statusMsg.style.background = '#3b82f6';
-    statusMsg.textContent = 'Đang cập nhật số lượng...';
+    // Cập nhật label
+    const quantityLabel = itemCard.querySelector('.reservation-quantity-value');
+    if(quantityLabel){
+        quantityLabel.textContent = qty;
+    }
 
-    fetch('{{ route("reservation-cart.update-quantity",":id") }}'.replace(':id', itemId), {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        },
-        body: JSON.stringify({ quantity })
-    })
-    .then(async (response) => {
-        const data = await response.json().catch(() => ({}));
-        if(!response.ok || data.success === false){
-            throw new Error(data.message || 'Cập nhật số lượng thất bại');
-        }
-        return data;
-    })
-    .then((data) => {
-        const nextQuantity = Number(data.quantity || quantity || 1);
-        const quantityLabel = itemCard.querySelector('.reservation-quantity-value');
-        const itemPriceEl = document.querySelector(`.item-price[data-item-id="${itemId}"]`);
-        const feeBox = document.querySelector(`.reservation-fee-breakdown[data-item-id="${itemId}"]`);
-        const daysEl = document.querySelector(`.days-display[data-item-id="${itemId}"]`);
-
-        input.value = nextQuantity;
-        itemCard.dataset.quantity = nextQuantity;
-
-        if(quantityLabel){
-            quantityLabel.textContent = nextQuantity;
-        }
-
-        syncSplitButtonVisibility(itemId, nextQuantity);
-
-        if(itemPriceEl){
-            itemPriceEl.textContent = formatCurrency(Number(data.item_price || 0));
-        }
-
-        itemCard.dataset.itemTotal = Number(data.item_price || 0);
-
-        if(feeBox){
-            const feeText = feeBox.querySelector(`.fee-breakdown-text[data-item-id="${itemId}"]`);
-            const feeTotal = feeBox.querySelector(`.fee-breakdown-total[data-item-id="${itemId}"]`);
-            const days = Number(daysEl ? daysEl.textContent || 0 : 0);
-            const dailyFee = Number(feeBox.dataset.dailyFee || 0);
-
-            if(feeText){
-                feeText.textContent = `${days} ngày × ${formatCurrency(dailyFee)}/ngày × ${nextQuantity} cuốn`;
-            }
-
-            if(feeTotal){
-                feeTotal.innerHTML = `= <strong>${formatCurrency(Number(data.item_price || 0))}</strong>`;
-            }
-        }
-
-        recalculateReservationSummary();
-
-        statusMsg.style.background = '#22c55e';
-        statusMsg.textContent = 'Đã cập nhật số lượng.';
-        setTimeout(() => { statusMsg.style.display = 'none'; }, 2000);
-    })
-    .catch((error) => {
-        input.value = fallbackValue;
-        itemCard.dataset.quantity = fallbackValue;
-
-        const quantityLabel = itemCard.querySelector('.reservation-quantity-value');
-        if(quantityLabel){
-            quantityLabel.textContent = fallbackValue;
-        }
-
-        syncSplitButtonVisibility(itemId, fallbackValue);
-
-        recalculateReservationSummary();
-
-        statusMsg.style.background = '#ef4444';
-        statusMsg.textContent = error.message || 'Cập nhật số lượng thất bại.';
-        setTimeout(() => { statusMsg.style.display = 'none'; }, 4000);
-    });
+    // Cập nhật lại giá tiền
+    updateItemPriceDisplay(itemId);
 }
+
+function updateReservationQuantityInput(itemId, previousValue = null){
+    updateReservationQuantityDisplay(itemId);
+}
+
+function handlePickupTimeChange(){
+    const hourSelect = document.getElementById('pickup-time-hour');
+    const minuteSelect = document.getElementById('pickup-time-minute');
+    const hiddenInput = document.getElementById('pickup-time-hidden');
+
+    const hour = hourSelect.value;
+    const minute = minuteSelect.value;
+    const timeStr = hour + ':' + minute;
+
+    if(hiddenInput){
+        hiddenInput.value = timeStr;
+    }
+    // Chỉ cập nhật hidden input, không gọi API
+}
+
+// Không cần hàm này nữa - không gọi API khi nhập
 
 function handleGlobalPickupTimeChange(input){
     const pickupTime = input.value;
     const hiddenInput = document.getElementById('pickup-time-hidden');
+
+    // Validate giờ trong khoảng cho phép (8h - 20h)
+    if(pickupTime){
+        const openHour = "{{ config('library.open_hour', '08:00') }}";
+        const closeHour = "{{ config('library.close_hour', '20:00') }}";
+        if(pickupTime < openHour || pickupTime > closeHour){
+            alert(`Giờ nhận sách phải trong khoảng ${openHour} - ${closeHour}`);
+            input.value = '';
+            if(hiddenInput) hiddenInput.value = '';
+            return;
+        }
+    }
+
     if(hiddenInput){
         hiddenInput.value = pickupTime;
     }
@@ -1376,7 +1396,9 @@ function validateCartBeforeSubmit(){
         return false;
     }
 
-    const pickupTimeInput = document.querySelector('.pickup-time-global');
+    // Lấy giờ từ dropdown
+    const hourSelect = document.getElementById('pickup-time-hour');
+    const minuteSelect = document.getElementById('pickup-time-minute');
     const agreed = document.getElementById('agree-reservation-rules');
 
     if(!agreed || !agreed.checked){
@@ -1384,12 +1406,21 @@ function validateCartBeforeSubmit(){
         return false;
     }
 
-    const pickupTime = pickupTimeInput ? pickupTimeInput.value : '';
-    if(!pickupTime){
+    if(!hourSelect || !minuteSelect){
         alert('Vui lòng chọn giờ lấy cho đơn đặt trước.');
         return false;
     }
 
+    const pickupTime = hourSelect.value + ':' + minuteSelect.value;
+
+    // Validate giờ trong khoảng cho phép (8h - 20h)
+    const hour = parseInt(hourSelect.value);
+    if(hour < 8 || hour > 20){
+        alert('Giờ nhận sách phải trong khoảng 8h - 20h');
+        return false;
+    }
+
+    // Cập nhật hidden input
     const hiddenInput = document.getElementById('pickup-time-hidden');
     if(hiddenInput){
         hiddenInput.value = pickupTime;
@@ -1413,6 +1444,7 @@ function validateCartBeforeSubmit(){
         }
     }
 
+    // Submit form - sẽ gọi API
     return true;
 }
 

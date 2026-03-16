@@ -219,6 +219,7 @@ Route::prefix('reservation-cart')->name('reservation-cart.')->middleware('auth')
     Route::post('/update-days/{itemId}', [ReservationCartController::class, 'updateDays'])->name('update-days');
     Route::post('/update-dates/{itemId}', [ReservationCartController::class, 'updateDates'])->name('update-dates');
     Route::post('/update-quantity/{itemId}', [ReservationCartController::class, 'updateQuantity'])->name('update-quantity');
+    Route::get('/history', [ReservationCartController::class, 'history'])->name('history');
 });
 
 // Notification bell (user)
