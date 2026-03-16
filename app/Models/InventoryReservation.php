@@ -30,6 +30,7 @@ class InventoryReservation extends Model
         'ready_at',
         'fulfilled_at',
         'cancelled_at',
+        'proof_images',
     ];
 
     protected $casts = [

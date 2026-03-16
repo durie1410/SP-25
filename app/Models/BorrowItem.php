@@ -62,6 +62,12 @@ class BorrowItem extends Model
     {
         return $this->belongsTo(Inventory::class, 'inventorie_id');
     }
+
+    public function reservation()
+    {
+        return $this->hasOne(InventoryReservation::class, 'borrow_id', 'borrow_id')
+            ->where('book_id', $this->book_id);
+    }
     public function voucher()
     {
         return $this->belongsTo(Voucher::class, 'voucher_id');
