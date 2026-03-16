@@ -4,7 +4,7 @@
 
 @section('content')
 <!-- Page Header -->
-<div class="page-header">
+<div class="page-header borrows-header">
     <div>
         <h1 class="page-title">
             <i class="fas fa-exchange-alt"></i>
@@ -18,7 +18,7 @@ tạo phiếu mượn    </a>
 </div>
 
 <!-- Quick Stats -->
-<div class="stats-grid" style="margin-bottom: 25px;">
+<div class="stats-grid borrows-stats" style="margin-bottom: 22px;">
     <div class="stat-card">
         <div class="stat-header">
             <div class="stat-title">Đang mượn</div>
@@ -65,14 +65,14 @@ tạo phiếu mượn    </a>
 </div>
 
 <!-- Search and Filter -->
-<div class="card" style="margin-bottom: 25px;">
+<div class="card borrows-filter-card" style="margin-bottom: 22px;">
     <div class="card-header">
         <h3 class="card-title">
             <i class="fas fa-filter"></i>
             Tìm kiếm & Lọc
         </h3>
     </div>
-    <form action="{{ route('admin.borrows.index') }}" method="GET" style="padding: 25px; display: flex; gap: 15px; flex-wrap: wrap;">
+    <form action="{{ route('admin.borrows.index') }}" method="GET" class="borrows-filter-form">
         <div style="flex: 2; min-width: 250px;">
             <input type="text" 
                    name="keyword" 
@@ -105,7 +105,7 @@ tạo phiếu mượn    </a>
 </div>
 
 <!-- Borrows List -->
-<div class="card">
+<div class="card borrows-table-card">
     <div class="card-header">
         <h3 class="card-title">
             <i class="fas fa-list"></i>
@@ -116,18 +116,18 @@ tạo phiếu mượn    </a>
     
     @if($borrows->count() > 0)
     <div class="table-responsive">
-            <table class="table">
+            <table class="table borrows-table">
             <thead>
                 <tr>
-                    <th style="width: 80px;">Mã phiếu</th>
+                    <th style="width: 90px;">Mã phiếu</th>
                     <th>Độc giả</th>
                     <th>Tên khách hàng</th>
                     <th style="min-width: 200px;">Trạng thái Items</th>
-                    <th style="width: 100px;">Chi tiết</th>
-                    <th style="width: 120px;">Gia hạn</th>
+                    <th style="width: 110px;">Chi tiết</th>
+                    <th style="width: 130px;">Gia hạn</th>
                     <th style="width: 120px;">Tổng tiền</th>
-                    <th style="width: 150px;">Trạng thái thanh toán</th>
-                    <th style="width: 180px;">Hành động</th>
+                    <th style="width: 150px;">Thanh toán</th>
+                    <th style="width: 200px;">Hành động</th>
                 </tr>
             </thead>
          <tbody>
@@ -446,7 +446,7 @@ if ($borrow->items && $borrow->items->count() > 0) {
 
 {{-- Row ẩn chứa danh sách sách chi tiết --}}
 <tr class="items-detail-row" id="items-row-{{ $borrow->id }}" style="display: none;">
-    <td colspan="10" style="padding: 0; background-color: #f8f9fa;">
+    <td colspan="11" style="padding: 0; background-color: #f8f9fa;">
         <div style="padding: 20px; margin: 0;">
             <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <h5 style="color: var(--primary-color); margin-bottom: 15px; font-weight: 600;">
@@ -462,6 +462,7 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                 <th style="width: 100px;">Tiền thuê</th>
                                 <th style="width: 120px;">Ngày hẹn trả</th>
                                 <th style="width: 130px;">Trạng thái</th>
+                                <th style="width: 150px;">Ảnh chứng minh</th>
                                 <th style="width: 150px;">Hành động</th>
                             </tr>
                         </thead>
@@ -534,22 +535,26 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                     </span>
                                 </td>
                                 <td>
-                                    <div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
-                                        @if($item->trang_thai == 'Cho duyet')
-                                            {{-- Nút duyệt cho sách chờ duyệt --}}
-                                            {{-- <form action="{{ route('admin.borrowitems.approve', $item->id) }}" 
-                                                  method="POST" 
-                                                  style="display: inline;"
-                                                  onsubmit="return confirm('Xác nhận duyệt sách: {{ $item->book->ten_sach ?? 'N/A' }}?')">
-                                                @csrf
-                                                <button type="submit" 
-                                                        class="btn btn-sm btn-success"
-                                                        title="Duyệt sách này">
-                                                    <i class="fas fa-check"></i> Duyệt
-                                                </button>
-                                            </form> --}}
+                                    @php
+                                        $proofImages = is_array($item->reservation?->proof_images) ? $item->reservation->proof_images : [];
+                                    @endphp
+                                    @if(!empty($proofImages))
+                                        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
+                                            @foreach(array_slice($proofImages, 0, 2) as $img)
+                                                <a href="{{ asset('storage/' . $img) }}" target="_blank">
+                                                    <img src="{{ asset('storage/' . $img) }}" alt="Proof" class="img-thumbnail" style="height: 38px; width: 38px; object-fit: cover;">
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                        @if(count($proofImages) > 2)
+                                            <div class="text-muted" style="font-size: 11px;">+{{ count($proofImages) - 2 }} ảnh</div>
                                         @endif
-                                        
+                                    @else
+                                        <span class="text-muted" style="font-size: 12px;">Chưa có</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
                                         {{-- 4. Xem chi tiết (luôn hiển thị) --}}
                                         <a href="{{ route('admin.borrowitems.show', $item->id) }}" 
                                            class="btn btn-sm btn-info"
@@ -662,27 +667,56 @@ if ($borrow->items && $borrow->items->count() > 0) {
 
 @push('styles')
 <style>
-    .modal.fade {
-        background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(5px);
-    }
-    
-    .modal-dialog {
-        animation: slideDown 0.3s ease-out;
-    }
-    
-    @keyframes slideDown {
-        from {
-            opacity: 0;
-            transform: translateY(-50px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .borrows-header {
+        margin-bottom: 18px;
     }
 
-    /* Styles for toggle button */
+    .borrows-stats {
+        gap: 18px;
+    }
+
+    .borrows-filter-card {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+    }
+
+    .borrows-filter-form {
+        padding: 18px 22px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+        align-items: center;
+    }
+
+    .borrows-filter-form .btn {
+        height: 42px;
+    }
+
+    .borrows-table-card {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+    }
+
+    .borrows-table thead th {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+        background: #f8fafc;
+    }
+
+    .borrows-table tbody tr {
+        transition: background 0.2s ease;
+    }
+
+    .borrows-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .table-light td {
+        background: #f1f5f9 !important;
+    }
+
     .toggle-items {
         transition: all 0.3s ease;
         position: relative;
@@ -693,15 +727,14 @@ if ($borrow->items && $borrow->items->count() > 0) {
     }
     
     .toggle-items.active {
-        background-color: #0056b3 !important;
-        border-color: #0056b3 !important;
+        background-color: #0ea5e9 !important;
+        border-color: #0ea5e9 !important;
     }
     
     .toggle-items.active i {
         transform: rotate(180deg);
     }
 
-    /* Animation for items detail row */
     .items-detail-row {
         transition: all 0.3s ease;
     }
@@ -721,12 +754,10 @@ if ($borrow->items && $borrow->items->count() > 0) {
         }
     }
 
-    /* Table hover effect */
     .items-detail-row .table-hover tbody tr:hover {
         background-color: #f0f8ff;
     }
 
-    /* Action buttons styling */
     .items-detail-row .btn-sm {
         padding: 0.25rem 0.5rem;
         font-size: 0.875rem;
@@ -738,14 +769,13 @@ if ($borrow->items && $borrow->items->count() > 0) {
         margin: 0;
     }
 
-    /* Tooltip effect for action buttons */
     .items-detail-row [title]:hover::after {
         content: attr(title);
         position: absolute;
-        background: rgba(0, 0, 0, 0.8);
+        background: rgba(15, 23, 42, 0.9);
         color: white;
-        padding: 5px 10px;
-        border-radius: 4px;
+        padding: 6px 10px;
+        border-radius: 6px;
         font-size: 12px;
         white-space: nowrap;
         z-index: 1000;
