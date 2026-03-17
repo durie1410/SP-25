@@ -237,6 +237,13 @@ class ReservationCartController extends Controller
 
     public function submit(Request $request)
     {
+        // DEBUG
+        \Log::info('DEBUG submit request', [
+            'all_input' => $request->all(),
+            'pickup_time' => $request->input('pickup_time'),
+            'selected_item_ids' => $request->input('selected_item_ids'),
+        ]);
+
         $user = $request->user();
         $reader = $user?->reader;
 
@@ -300,16 +307,33 @@ class ReservationCartController extends Controller
             return back()->with('error', "Giờ lấy sách phải trong khoảng {$openHour} - {$closeHour}.");
         }
 
+        // Cập nhật pickup_time cho tất cả items
         $cart->items()->update(['pickup_time' => $pickupTime]);
 
+        // Lấy dữ liệu ngày từ request và kiểm tra
+        $itemsData = $request->input('items', []);
         foreach ($selectedItems as $item) {
-            if (empty($item->pickup_date) || empty($item->return_date)) {
+            $itemId = $item->id;
+            $pickupDate = $itemsData[$itemId]['pickup_date'] ?? null;
+            $returnDate = $itemsData[$itemId]['return_date'] ?? null;
+
+            // Cập nhật ngày vào database
+            if ($pickupDate && $returnDate) {
+                $item->update([
+                    'pickup_date' => $pickupDate,
+                    'return_date' => $returnDate,
+                ]);
+            }
+
+            // Kiểm tra ngày
+            if (empty($pickupDate) || empty($returnDate)) {
                 return back()->with('error', 'Vui lòng chọn đầy đủ ngày lấy và ngày trả cho các sách đã chọn.');
             }
 
-            $pickup = Carbon::parse($item->pickup_date)->startOfDay();
-            $return = Carbon::parse($item->return_date)->startOfDay();
-            $days = max(1, $pickup->diffInDays($return));
+            $pickup = Carbon::parse($pickupDate)->startOfDay();
+            $return = Carbon::parse($returnDate)->startOfDay();
+            // Mượn + trả cùng ngày = 1 ngày
+            $days = max(1, $pickup->diffInDays($return) + 1);
 
             if ($days < $minBorrowDays || $days > $maxBorrowDays) {
                 return back()->with('error', "Thời gian mượn phải từ {$minBorrowDays} đến {$maxBorrowDays} ngày.");
