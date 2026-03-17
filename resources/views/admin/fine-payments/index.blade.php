@@ -3,146 +3,98 @@
 @section('title', 'Thanh toán phạt')
 
 @section('content')
-<div class="container-fluid py-3">
+<div class="fine-payment-page">
     @php
         $totalPending = $fines->sum('amount');
+        $firstBorrowId = optional($fines->first())->borrow_id;
     @endphp
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="mb-0 fw-bold">
-            <i class="fas fa-money-check-alt me-2 text-primary"></i>Thanh toán phạt
-        </h3>
-        <a href="{{ route('admin.returns.index') }}" class="btn btn-outline-secondary rounded-3">
-            <i class="fas fa-undo me-1"></i> Trả sách
-        </a>
+    <div class="fine-payment-header">
+        <div>
+            <h2 class="fine-payment-title"><i class="fas fa-money-check-alt"></i> Thanh toán phạt</h2>
+            <p class="fine-payment-subtitle">Tổng hợp khoản phạt pending và xác nhận phương thức thanh toán</p>
+        </div>
+        <div class="fine-payment-actions">
+            <a href="{{ route('admin.returns.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-undo"></i> Trả sách
+            </a>
+        </div>
     </div>
 
     @if(!$reader)
-        <div class="card border-0 shadow-sm rounded-3 mb-4">
-            <div class="card-body p-4">
-                <form method="GET" action="{{ route('admin.fine-payments.index') }}" class="row g-3 align-items-end">
-                    <div class="col-md-9">
-                        <label class="form-label fw-semibold">Reader ID</label>
+        <div class="card fine-payment-card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-search"></i> Tìm độc giả</h3>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="{{ route('admin.fine-payments.index') }}" class="fine-payment-filter-form">
+                    <div>
+                        <label class="form-label">Reader ID</label>
                         <input name="reader_id"
                                value="{{ request('reader_id') }}"
-                               class="form-control form-control-lg rounded-3"
+                               class="form-control"
                                placeholder="Ví dụ: 27" />
                     </div>
-                    <div class="col-md-3">
-                        <button class="btn btn-primary btn-lg w-100 rounded-3" type="submit">
-                            <i class="fas fa-search me-1"></i> Tìm khách
-                        </button>
-                    </div>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-search"></i> Tìm
+                    </button>
                 </form>
             </div>
         </div>
     @endif
 
     @if($fines->count() === 0)
-        <div class="alert alert-info rounded-3 shadow-sm border-0">
+        <div class="alert alert-info border-0">
             <i class="fas fa-info-circle me-2"></i>Không có khoản phạt pending.
         </div>
     @else
-        <div class="row g-4 align-items-start">
-            <div class="col-xl-4 col-lg-5">
-                <div class="card border-0 shadow-sm rounded-3 mb-4">
-                    <div class="card-body p-4">
-                        <h5 class="fw-semibold mb-3">
-                            <i class="fas fa-user me-2 text-primary"></i>Thông tin thanh toán
-                        </h5>
-
-                        <div style="display:flex; gap:12px; align-items:stretch;">
-                            <div style="width:50%;">
-                                <div class="rounded-3 p-3 h-100" style="background:#f8fafc; border:1px solid #eef2f7;">
-                                    <div class="text-muted small text-uppercase mb-2">Thông tin độc giả</div>
-                                    <div class="mb-2">
-                                        <span class="text-muted">Tên:</span>
-                                        <span class="fw-semibold">{{ $reader ? $reader->ho_ten : 'N/A' }} @if($reader)<span class="text-muted">(#{{ $reader->id }})</span>@endif</span>
-                                    </div>
-                                    <div>
-                                        <span class="text-muted">Phiếu mượn:</span>
-                                        <span class="fw-semibold">#{{ optional($fines->first())->borrow_id ?? '---' }}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style="width:50%;">
-                                <div class="rounded-3 p-3 h-100" style="background:#fff5f5; border:1px solid #ffe3e3;">
-                                    <div class="text-muted small text-uppercase mb-1">Tổng tiền</div>
-                                    <div class="fw-bold text-danger mb-2" style="font-size:2rem; line-height:1;">
-                                        {{ number_format($totalPending) }}₫
-                                    </div>
-
-                                    @if($reader)
-                                        <form id="paymentForm" action="{{ route('admin.fine-payments.pay-cash', $reader->id) }}" method="POST">
-                                            @csrf
-                                            <div class="mb-2">
-                                                <label class="form-label fw-semibold mb-1">Phương thức</label>
-                                                <select name="payment_method" id="paymentMethod" class="form-select rounded-3" required>
-                                                    <option value="offline">Tiền mặt</option>
-                                                    @if(!empty($momoEnabled))
-                                                        <option value="online">Quét mã MoMo</option>
-                                                    @endif
-                                                </select>
-                                            </div>
-
-                                            <button type="submit" class="btn btn-primary w-100 rounded-3 py-2 fw-semibold" id="submitPaymentBtn">
-                                                <i class="fas fa-money-check-dollar me-1"></i> Thanh toán
-                                            </button>
-                                        </form>
-                                    @endif
-                                </div>
-                            </div>
+        <div class="fine-payment-grid">
+            <div class="fine-payment-main">
+                <div class="card fine-payment-card">
+                    <div class="card-header fine-payment-card-header">
+                        <div>
+                            <h3 class="card-title"><i class="fas fa-list"></i> Danh sách khoản phạt</h3>
+                            @if(!empty($onlyRecent))
+                                <div class="small text-muted mt-1">Chỉ hiển thị khoản phạt của lần trả vừa rồi</div>
+                            @endif
                         </div>
-                    </div>
-                </div>
-
-                @if(session('momo_qr_url') && session('momo_pay_url'))
-                    <div class="card border-0 shadow-sm rounded-3">
-                        <div class="card-body p-4 text-center">
-                            <h6 class="fw-semibold mb-3">
-                                <i class="fas fa-qrcode me-2 text-danger"></i>QR thanh toán MoMo
-                            </h6>
-                            <img src="{{ session('momo_qr_url') }}"
-                                 alt="MoMo QR"
-                                 class="img-fluid border rounded-3 p-2 mb-2"
-                                 style="max-width: 220px; background:#fff;">
-                            <div class="small text-muted mb-2">Mã đơn: <strong>{{ session('momo_order_id') }}</strong></div>
-                            <a href="{{ session('momo_pay_url') }}" target="_blank" class="btn btn-danger rounded-3 btn-sm">
-                                <i class="fas fa-external-link-alt me-1"></i> Mở MoMo
-                            </a>
-                        </div>
-                    </div>
-                @endif
-            </div>
-
-            <div class="col-xl-8 col-lg-7">
-                <div class="card border-0 shadow-sm rounded-3">
-                    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center py-3">
-                        <h5 class="mb-0 fw-semibold">
-                            <i class="fas fa-list me-2 text-primary"></i>Danh sách khoản phạt
-                        </h5>
                         @if(!empty($onlyRecent))
-                            <span class="badge bg-info rounded-pill">Lần trả vừa rồi</span>
+                            <span class="badge bg-info">Lần trả vừa rồi</span>
                         @endif
                     </div>
+                    <div class="card-body">
+                        <div class="fine-info-row">
+                            <div>
+                                <div class="fine-info-label">Độc giả</div>
+                                <div class="fine-info-value">
+                                    {{ $reader ? $reader->ho_ten : 'N/A' }}
+                                    @if($reader)<span class="text-muted">(#{{ $reader->id }})</span>@endif
+                                </div>
+                            </div>
+                            <div>
+                                <div class="fine-info-label">Phiếu mượn</div>
+                                <div class="fine-info-value">#{{ $firstBorrowId ?? '---' }}</div>
+                            </div>
+                        </div>
 
-                    <div class="card-body pt-0">
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light">
+                            <table class="table fine-table">
+                                <thead>
                                     <tr>
                                         <th>Tên sách</th>
-                                        <th>Phiếu mượn</th>
-                                        <th>Loại phạt</th>
-                                        <th>Ngày</th>
-                                        <th class="text-end">Số tiền</th>
+                                        <th style="width:110px;">Phiếu</th>
+                                        <th style="width:160px;">Loại phạt</th>
+                                        <th style="width:160px;">Ngày</th>
+                                        <th class="text-end" style="width:140px;">Số tiền</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($fines as $fine)
                                         <tr>
-                                            <td class="fw-semibold">{{ optional(optional($fine->borrowItem)->book)->ten_sach ?? '---' }}</td>
+                                            <td>
+                                                <div class="fw-semibold">{{ optional(optional($fine->borrowItem)->book)->ten_sach ?? '---' }}</div>
+                                                <div class="small text-muted">Fine #{{ $fine->id }}</div>
+                                            </td>
                                             <td>#{{ $fine->borrow_id }}</td>
                                             <td><span class="badge bg-warning text-dark">{{ $fine->type }}</span></td>
                                             <td>{{ $fine->created_at ? $fine->created_at->format('d/m/Y H:i') : '---' }}</td>
@@ -160,57 +112,293 @@
                         @endif
                     </div>
                 </div>
+
+                @if(session('momo_qr_url') && session('momo_pay_url'))
+                    <div class="card fine-payment-card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fas fa-qrcode"></i> QR thanh toán MoMo</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="momo-box">
+                                <div class="momo-content">
+                                    <img src="{{ session('momo_qr_url') }}" alt="MoMo QR">
+                                    <div class="momo-meta">Mã đơn: <strong>{{ session('momo_order_id') }}</strong></div>
+                                    <a href="{{ session('momo_pay_url') }}" target="_blank" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-external-link-alt"></i> Mở MoMo
+                                    </a>
+                                </div>
+                                <div class="small text-muted mt-2 text-center">Sau khi thanh toán xong, hệ thống sẽ tự cập nhật khi nhận IPN từ MoMo.</div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            </div>
+
+            <div class="fine-payment-sidebar">
+                <div class="card fine-payment-summary">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-receipt"></i> Tổng kết thanh toán</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="summary-total">
+                            <div class="summary-label">Tổng tiền cần thu</div>
+                            <div class="summary-value">{{ number_format($totalPending) }}₫</div>
+                        </div>
+
+                        @if($reader)
+                            <div class="summary-block">
+                                <div class="summary-section-title">Phương thức thanh toán</div>
+                                <div class="payment-methods">
+                                    <label class="payment-method">
+                                        <input type="radio" name="payment_method_choice" value="offline" checked>
+                                        <span class="method-icon"><i class="fas fa-money-bill-wave"></i></span>
+                                        <span class="method-text">Tiền mặt</span>
+                                    </label>
+                                    @if(!empty($momoEnabled))
+                                        <label class="payment-method">
+                                            <input type="radio" name="payment_method_choice" value="online">
+                                            <span class="method-icon"><i class="fas fa-qrcode"></i></span>
+                                            <span class="method-text">MoMo</span>
+                                        </label>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <form id="paymentForm" action="{{ route('admin.fine-payments.pay-cash', $reader->id) }}" method="POST" class="mt-3">
+                                @csrf
+                                <input type="hidden" id="paymentMethod" name="payment_method" value="offline">
+                                <button type="submit" class="btn btn-primary w-100"
+                                        onclick="const chosen=document.querySelector('input[name=payment_method_choice]:checked')?.value||'offline';document.getElementById('paymentMethod').value=chosen;const total={{ $totalPending ?? 0 }};const name='{{ $reader?->ho_ten ?? '' }}';if(chosen==='offline'){return confirm('Xác nhận đã thanh toán ' + total.toLocaleString('vi-VN') + '₫' + (name ? ' cho ' + name : '') + '?');}return confirm('Tạo thanh toán MoMo cho khoản phạt này?');">
+                                    <i class="fas fa-check-circle"></i> Xác nhận thanh toán
+                                </button>
+                                <div class="summary-note">Hệ thống sẽ ghi nhận giao dịch theo phương thức bạn chọn.</div>
+                            </form>
+                        @endif
+                    </div>
+                </div>
             </div>
         </div>
     @endif
 </div>
-
-<!-- MODAL MOMO QR (PHẠT THEO ĐỘC GIẢ) -->
-<div class="modal fade" id="readerFineMomoModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content rounded-3 border-0 shadow-sm">
-            <div class="modal-header bg-danger text-white rounded-top-3">
-                <h5 class="modal-title">Thanh toán phạt qua MoMo</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <p class="fw-bold">Quét mã QR MoMo để thanh toán</p>
-                <img id="readerFineMomoQr" class="img-fluid mb-3" style="max-width:240px" />
-                <div>
-                    <a id="readerFineMomoPayUrl" href="#" target="_blank" class="btn btn-danger rounded-3">
-                        Mở MoMo
-                    </a>
-                </div>
-                <p class="text-muted small mt-2">Sau khi thanh toán xong, hệ thống sẽ tự cập nhật khi nhận IPN từ MoMo.</p>
-            </div>
-        </div>
-    </div>
-</div>
 @endsection
 
-@push('scripts')
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const paymentForm = document.getElementById('paymentForm');
-        const paymentMethod = document.getElementById('paymentMethod');
+@push('styles')
+<style>
+.fine-payment-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
 
-        if (paymentForm && paymentMethod) {
-            paymentForm.addEventListener('submit', function(e) {
-                const method = paymentMethod.value;
-                const totalAmount = {{ $totalPending ?? 0 }};
-                const readerName = "{{ $reader?->ho_ten ?? '' }}";
+.fine-payment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
 
-                // Giống luồng thanh toán mượn:
-                // - online: submit form để backend tạo QR + trả về cùng trang
-                // - offline: chỉ confirm rồi submit
-                if (method === 'offline') {
-                    if (!confirm('Xác nhận đã thanh toán ' + totalAmount.toLocaleString('vi-VN') + '₫' + (readerName ? ' cho ' + readerName : '') + '?')) {
-                        e.preventDefault();
-                        return false;
-                    }
-                }
-            });
-        }
-    });
-</script>
+.fine-payment-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.fine-payment-subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.fine-payment-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.fine-payment-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.7fr);
+    gap: 22px;
+    align-items: start;
+}
+
+.fine-payment-card {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+}
+
+.fine-payment-filter-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 160px;
+    gap: 12px;
+    align-items: end;
+}
+
+.fine-payment-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.fine-info-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.fine-info-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    margin-bottom: 4px;
+}
+
+.fine-info-value {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.fine-table thead th {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+    background: #f8fafc;
+}
+
+.fine-payment-summary {
+    position: sticky;
+    top: 92px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.1);
+}
+
+.summary-total {
+    padding: 12px 0 16px;
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.summary-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    margin-bottom: 6px;
+}
+
+.summary-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: #0f766e;
+}
+
+.summary-block {
+    margin-top: 18px;
+}
+
+.summary-section-title {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.payment-methods {
+    display: grid;
+    gap: 10px;
+}
+
+.payment-method {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.payment-method input {
+    accent-color: #0f766e;
+}
+
+.payment-method:hover {
+    border-color: rgba(15, 118, 110, 0.4);
+    background: #f0fdfa;
+}
+
+.method-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 118, 110, 0.1);
+    color: #0f766e;
+}
+
+.method-text {
+    font-weight: 600;
+}
+
+.summary-note {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 10px;
+    text-align: center;
+}
+
+.momo-box {
+    border: 1px dashed rgba(239, 68, 68, 0.4);
+    background: #fff5f5;
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.momo-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.momo-content img {
+    width: 200px;
+    height: 200px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    padding: 6px;
+}
+
+.momo-meta {
+    font-size: 12px;
+    color: #475569;
+}
+
+@media (max-width: 1100px) {
+    .fine-payment-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .fine-payment-summary {
+        position: static;
+    }
+}
+
+@media (max-width: 640px) {
+    .fine-payment-filter-form {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
 @endpush
