@@ -743,6 +743,9 @@
                                         checked
                                         onchange="handleReservationSelectionChange()"
                                     >
+                                    <!-- Hidden inputs for dates -->
+                                    <input type="hidden" name="items[{{ $item->id }}][pickup_date]" value="{{ $item->pickup_date ? (is_object($item->pickup_date) ? $item->pickup_date->format('Y-m-d') : $item->pickup_date) : '' }}" form="reservation-submit-form">
+                                    <input type="hidden" name="items[{{ $item->id }}][return_date]" value="{{ $item->return_date ? (is_object($item->return_date) ? $item->return_date->format('Y-m-d') : $item->return_date) : '' }}" form="reservation-submit-form">
                                 </div>
 
                                 <div class="reservation-item-img-box">
@@ -962,7 +965,9 @@
                           action="{{ route('reservation-cart.submit') }}"
                           onsubmit="return validateCartBeforeSubmit()">
                         @csrf
-                        <input type="hidden" name="pickup_time" id="pickup-time-hidden" value="{{ $items->first()?->pickup_time ?? '' }}">
+                        <!-- DEBUG -->
+                        <input type="hidden" name="pickup_time" id="pickup-time-form" value="{{ $items->first()?->pickup_time ?? '' }}">
+                        <input type="hidden" name="debug_pickup_time" value="{{ $items->first()?->pickup_time ?? '' }}">
                         <button class="btn btn-primary reservation-submit-btn" type="submit">
                             Gửi yêu cầu đặt trước <i class="fas fa-arrow-right ms-2"></i>
                         </button>
@@ -1228,6 +1233,12 @@ function handleItemDateChange(input){
         return;
     }
 
+    // Cập nhật hidden inputs cho form submit
+    const pickupHidden = document.querySelector(`input[name="items[${itemId}][pickup_date]"]`);
+    const returnHidden = document.querySelector(`input[name="items[${itemId}][return_date]"]`);
+    if(pickupHidden) pickupHidden.value = pickup;
+    if(returnHidden) returnHidden.value = ret;
+
     // Tính toán tại FE và cập nhật UI
     updateItemPriceDisplay(itemId);
 }
@@ -1332,13 +1343,18 @@ function handlePickupTimeChange(){
     const hourSelect = document.getElementById('pickup-time-hour');
     const minuteSelect = document.getElementById('pickup-time-minute');
     const hiddenInput = document.getElementById('pickup-time-hidden');
+    const formInput = document.getElementById('pickup-time-form');
 
     const hour = hourSelect.value;
     const minute = minuteSelect.value;
     const timeStr = hour + ':' + minute;
 
+    // Cập nhật cả 2 hidden inputs
     if(hiddenInput){
         hiddenInput.value = timeStr;
+    }
+    if(formInput){
+        formInput.value = timeStr;
     }
     // Chỉ cập nhật hidden input, không gọi API
 }
@@ -1399,19 +1415,11 @@ function validateCartBeforeSubmit(){
     // Lấy giờ từ dropdown
     const hourSelect = document.getElementById('pickup-time-hour');
     const minuteSelect = document.getElementById('pickup-time-minute');
-    const agreed = document.getElementById('agree-reservation-rules');
 
-    if(!agreed || !agreed.checked){
-        alert('Vui lòng tick "Tôi đã đọc và hiểu quy định mượn trả" trước khi gửi yêu cầu.');
-        return false;
-    }
-
-    if(!hourSelect || !minuteSelect){
+    if(!hourSelect || !minuteSelect || !hourSelect.value || !minuteSelect.value){
         alert('Vui lòng chọn giờ lấy cho đơn đặt trước.');
         return false;
     }
-
-    const pickupTime = hourSelect.value + ':' + minuteSelect.value;
 
     // Validate giờ trong khoảng cho phép (8h - 20h)
     const hour = parseInt(hourSelect.value);
@@ -1420,12 +1428,15 @@ function validateCartBeforeSubmit(){
         return false;
     }
 
-    // Cập nhật hidden input
-    const hiddenInput = document.getElementById('pickup-time-hidden');
+    const pickupTime = hourSelect.value + ':' + minuteSelect.value;
+
+    // Cập nhật hidden input trong form
+    const hiddenInput = document.getElementById('pickup-time-form');
     if(hiddenInput){
         hiddenInput.value = pickupTime;
     }
 
+    // Kiểm tra ngày
     for(let i = 0; i < selectedCheckboxes.length; i++){
         const itemId = selectedCheckboxes[i].value;
         const pickupInput = document.querySelector(`.pickup-date[data-item-id="${itemId}"]`);
@@ -1437,11 +1448,13 @@ function validateCartBeforeSubmit(){
             alert('Vui lòng chọn đầy đủ ngày lấy và ngày trả cho các sách đã chọn.');
             return false;
         }
+    }
 
-        if(!validateReservationDates(pickup, ret, false)){
-            alert('Ngày lấy / ngày trả của một số sách đã chọn không hợp lệ. Vui lòng kiểm tra lại.');
-            return false;
-        }
+    // Check agreement
+    const agreed = document.getElementById('agree-reservation-rules');
+    if(!agreed || !agreed.checked){
+        alert('Vui lòng tick "Tôi đã đọc và hiểu quy định mượn trả" trước khi gửi yêu cầu.');
+        return false;
     }
 
     // Submit form - sẽ gọi API
