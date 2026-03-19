@@ -352,7 +352,7 @@
                         </td>
                         <td>
                             @php
-                                $proofImages = is_array($item->reservation?->proof_images) ? $item->reservation->proof_images : [];
+                                $proofImages = $item->reservation ? $item->reservation->getProofImages() : [];
                             @endphp
                             @if(!empty($proofImages))
                                 <div class="d-flex flex-wrap gap-1 mb-2">

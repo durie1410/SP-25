@@ -393,6 +393,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         Route::post('{id}/proof', [InventoryReservationController::class, 'storeProofImages'])->name('proof.store')->middleware('permission:edit-borrows');
         Route::post('{id}/fulfill', [InventoryReservationController::class, 'markAsFulfilled'])->name('fulfill')->middleware('permission:edit-borrows');
         Route::post('fulfill-group', [InventoryReservationController::class, 'fulfillGroup'])->name('fulfill-group')->middleware('permission:edit-borrows');
+        Route::post('cancel-multiple', [InventoryReservationController::class, 'cancelMultiple'])->name('cancel-multiple')->middleware('permission:edit-borrows');
         Route::post('{id}/cancel', [InventoryReservationController::class, 'cancel'])->name('cancel')->middleware('permission:edit-borrows');
     });
 
@@ -783,12 +784,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
 
     // danh sách user
     Route::get('users', [AuthController::class, 'index'])->name('users.index');
-
-    // user chờ duyệt
-    Route::get('users/pending', [AuthController::class, 'pendingUsers'])->name('users.pending');
-
-    // duyệt user
-    Route::get('users/approve/{id}', [AuthController::class, 'approveUser'])->name('users.approve');
 
     // khóa user
     Route::get('users/lock/{id}', [AuthController::class, 'lockUser'])->name('users.lock');

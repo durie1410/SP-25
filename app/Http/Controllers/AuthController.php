@@ -271,23 +271,6 @@ class AuthController extends Controller
         return view('admin.users.index', compact('users'));
     }
 
-    public function pendingUsers()
-    {
-        $users = User::where('status', 'pending')->get();
-
-        return view('admin.users.pending', compact('users'));
-    }
-
-    public function approveUser($id)
-    {
-        $user = User::findOrFail($id);
-
-        $user->status = 'active';
-        $user->save();
-
-        return back()->with('success', 'Đã duyệt tài khoản');
-    }
-
     public function lockUser($id)
     {
         $user = User::findOrFail($id);

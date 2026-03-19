@@ -43,6 +43,40 @@ class InventoryReservation extends Model
         'cancelled_at' => 'datetime',
     ];
 
+    /**
+     * Decode proof_images từ database, xử lý trường hợp bị json_encode sai (forward slash bị escape)
+     */
+    public function getProofImages(): array
+    {
+        $raw = $this->proof_images;
+
+        if (is_array($raw)) {
+            return $raw;
+        }
+
+        if (is_string($raw)) {
+            // Xử lý dữ liệu bị lưu sai: forward slash bị escape thành \/
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+
+            // Thử unescape \/ rồi decode lại
+            $decoded = json_decode(str_replace('\\/', '/', $raw), true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+
+            // Thử stripslashes rồi decode
+            $decoded = json_decode(stripslashes($raw), true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return [];
+    }
+
     public function book(): BelongsTo
     {
         return $this->belongsTo(Book::class);
@@ -141,7 +175,8 @@ class InventoryReservation extends Model
         }
 
         if ($updated) {
-            $this->assignNextWaitingReservation();
+            // Không gọi assignNextWaitingReservation để tránh gửi thông báo trùng
+            // Admin sẽ tự xử lý ready thủ công nếu cần
         }
 
         return $updated;

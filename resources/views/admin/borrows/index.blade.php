@@ -152,13 +152,7 @@ tạo phiếu mượn    </a>
         $readerCard = $firstBorrow->reader->so_the_doc_gia ?? '';
         $groupLabel = $firstBorrow->borrow_code ?: ('BRW' . str_pad((string) $firstBorrow->id, 6, '0', STR_PAD_LEFT));
     @endphp
-    <tr class="table-light">
-        <td colspan="9" style="font-weight:600; color: var(--text-primary);">
-            <span class="badge badge-info">{{ $groupLabel }}</span>
-            <span style="margin-left:8px;">Độc giả: {{ $readerName }} {{ $readerCard ? '(' . $readerCard . ')' : '' }}</span>
-            <span style="margin-left:12px; color: var(--text-muted);">Số phiếu: {{ $group->count() }}</span>
-        </td>
-    </tr>
+
 
     @foreach($group as $borrow)
 <tr style="{{ $borrow->isOverdue() && $borrow->trang_thai != 'Da tra' ? 'border-left: 3px solid #ff6b6b;' : '' }}">
@@ -536,7 +530,7 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                 </td>
                                 <td>
                                     @php
-                                        $proofImages = is_array($item->reservation?->proof_images) ? $item->reservation->proof_images : [];
+                                        $proofImages = $item->reservation ? $item->reservation->getProofImages() : [];
                                     @endphp
                                     @if(!empty($proofImages))
                                         <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
