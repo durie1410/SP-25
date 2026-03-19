@@ -397,6 +397,12 @@ class ReservationCartController extends Controller
 
     public function updateQuantity(Request $request, $itemId)
     {
+        \Log::info('DEBUG updateQuantity called', [
+            'itemId' => $itemId,
+            'quantity' => $request->quantity,
+            'all_input' => $request->all()
+        ]);
+
         $user = $request->user();
         $reader = $user?->reader;
 

@@ -40,9 +40,11 @@ class ReservationCart extends Model
 
     public function addBook(int $bookId, int $quantity = 1): ?ReservationCartItem
     {
+        $book = Book::find($bookId);
         return $this->items()->create([
             'book_id' => $bookId,
             'quantity' => max(1, $quantity),
+            'daily_fee' => $book?->daily_fee ?? 5000,
         ]);
     }
 
@@ -113,11 +115,13 @@ class ReservationCart extends Model
             'days' => $days,
         ]);
 
-        // Tính trực tiếp không dùng accessor
-        $itemPrice = $days * ($item->daily_fee ?? 5000) * ($item->quantity ?? 1);
+        // Tính trực tiếp không dùng accessor - lấy daily_fee từ cart item hoặc từ sách
+        $dailyFeeFromBook = $item->book?->daily_fee ?? 5000;
+        $itemPrice = $days * ($item->daily_fee ?? $dailyFeeFromBook) * ($item->quantity ?? 1);
         $cartTotal = $this->items->sum(function($i) use ($days) {
             $iDays = $i->calculateDaysFromDates();
-            return $iDays * ($i->daily_fee ?? 5000) * ($i->quantity ?? 1);
+            $iDailyFeeFromBook = $i->book?->daily_fee ?? 5000;
+            return $iDays * ($i->daily_fee ?? $iDailyFeeFromBook) * ($i->quantity ?? 1);
         });
 
         \Log::info('DEBUG updateDates response', [
@@ -159,9 +163,21 @@ class ReservationCart extends Model
 
             foreach ($items as $item) {
                 $quantity = max(1, (int) ($item->quantity ?? 1));
-                $days = max(1, (int) ($item->days ?? $item->calculateDaysFromDates()));
-                $dailyFee = (float) ($item->daily_fee ?? 5000);
+                // Luôn tính số ngày từ pickup_date và return_date thực tế
+                $days = $item->calculateDaysFromDates();
+                // Lấy daily_fee từ cart item, nếu null thì lấy từ sách
+                $dailyFee = (float) ($item->daily_fee ?? $item->book?->daily_fee ?? 5000);
                 $perCopyFee = $days * $dailyFee;
+
+                \Log::info('DEBUG submitReservations fee calculation', [
+                    'item_id' => $item->id,
+                    'quantity' => $quantity,
+                    'days' => $days,
+                    'daily_fee' => $dailyFee,
+                    'per_copy_fee' => $perCopyFee,
+                    'pickup_date' => $item->pickup_date,
+                    'return_date' => $item->return_date,
+                ]);
 
                 for ($copy = 0; $copy < $quantity; $copy++) {
                     $reservation = InventoryReservation::create([

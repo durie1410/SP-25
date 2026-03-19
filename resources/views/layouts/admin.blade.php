@@ -1165,11 +1165,6 @@
                 </a>
                 @endif
             
-
-                <a href="{{ route('admin.users.pending') }}" class="menu-item">
-                    <i class="fas fa-user-clock"></i>
-                    <span>Duyệt đăng ký</span>
-                </a>
                 <div class="menu-section-title">ĐẶT TRƯỚC</div>
                 @if(Route::has('admin.inventory-reservations.index'))
                 <a href="{{ route('admin.inventory-reservations.index') }}"

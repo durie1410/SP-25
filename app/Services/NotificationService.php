@@ -81,6 +81,14 @@ class NotificationService
                     'type' => 'book_overdue',
                     'channel' => 'database',
                 ];
+            } elseif ($type === 'reservation_cancelled') {
+                Log::info("Using fallback template for type: {$type}");
+                $template = (object) [
+                    'subject' => 'Yêu cầu đặt trước đã bị hủy',
+                    'content' => 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" của bạn đã bị hủy. Lý do: {{reason}}. Vui lòng tạo yêu cầu đặt trước mới nếu vẫn còn nhu cầu.',
+                    'type' => 'reservation_cancelled',
+                    'channel' => 'database',
+                ];
             } else {
                 return false; // Keep original behavior for other types
             }

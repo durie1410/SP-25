@@ -79,11 +79,7 @@
                             <div class="proof-table-body">
                                 @forelse($borrow->items as $item)
                                     @php
-                                        $reservation = $item->reservation;
-                                        $proofImages = is_array($reservation?->proof_images)
-                                            ? $reservation->proof_images
-                                            : (is_string($reservation?->proof_images) ? json_decode($reservation->proof_images, true) : []);
-                                        $proofImages = is_array($proofImages) ? $proofImages : [];
+                                        $proofImages = $item->reservation ? $item->reservation->getProofImages() : [];
                                     @endphp
                                     <div class="proof-row">
                                         <div class="book-thumb">

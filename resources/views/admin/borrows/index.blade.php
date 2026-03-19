@@ -152,13 +152,7 @@ tạo phiếu mượn    </a>
         $readerCard = $firstBorrow->reader->so_the_doc_gia ?? '';
         $groupLabel = $firstBorrow->borrow_code ?: ('BRW' . str_pad((string) $firstBorrow->id, 6, '0', STR_PAD_LEFT));
     @endphp
-    <tr class="table-light">
-        <td colspan="9" style="font-weight:600; color: var(--text-primary);">
-            <span class="badge badge-info">{{ $groupLabel }}</span>
-            <span style="margin-left:8px;">Độc giả: {{ $readerName }} {{ $readerCard ? '(' . $readerCard . ')' : '' }}</span>
-            <span style="margin-left:12px; color: var(--text-muted);">Số phiếu: {{ $group->count() }}</span>
-        </td>
-    </tr>
+
 
     @foreach($group as $borrow)
 <tr style="{{ $borrow->isOverdue() && $borrow->trang_thai != 'Da tra' ? 'border-left: 3px solid #ff6b6b;' : '' }}">
@@ -536,28 +530,7 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                 </td>
                                 <td>
                                     @php
-                                        // Lay anh tu reservation (mang)
-                                        $proofImages = is_array($item->reservation?->proof_images) ? $item->reservation->proof_images : [];
 
-                                        // Lay anh tu borrow_items (field don)
-                                        $itemImages = [];
-                                        if ($item->anh_bia_truoc) {
-                                            $itemImages[] = (strpos($item->anh_bia_truoc, 'http') === 0) ? $item->anh_bia_truoc : asset('storage/' . $item->anh_bia_truoc);
-                                        }
-                                        if ($item->anh_bia_sau) {
-                                            $itemImages[] = (strpos($item->anh_bia_sau, 'http') === 0) ? $item->anh_bia_sau : asset('storage/' . $item->anh_bia_sau);
-                                        }
-                                        if ($item->anh_gay_sach) {
-                                            $itemImages[] = (strpos($item->anh_gay_sach, 'http') === 0) ? $item->anh_gay_sach : asset('storage/' . $item->anh_gay_sach);
-                                        }
-
-                                        // Gop mang anh
-                                        $allImages = array_merge(
-                                            array_map(function($img) {
-                                                return (strpos($img, 'http') === 0) ? $img : asset('storage/' . $img);
-                                            }, $proofImages),
-                                            $itemImages
-                                        );
                                     @endphp
                                     @if(!empty($allImages))
                                         <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
