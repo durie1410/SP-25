@@ -33,7 +33,7 @@ class BorrowController extends Controller
         Borrow::syncOverdueStatuses();
 
         // Sử dụng fresh() để đảm bảo load dữ liệu mới nhất từ database
-        $query = Borrow::with(['reader', 'librarian', 'items.book', 'voucher', 'payments']);
+        $query = Borrow::with(['reader', 'librarian', 'items.book', 'items.inventory', 'voucher', 'payments']);
 
         if ($request->filled('keyword')) {
             $keyword = $request->keyword;
@@ -82,7 +82,34 @@ class BorrowController extends Controller
         // Đảm bảo refresh lại items cho mỗi borrow để có dữ liệu mới nhất từ database
         $borrows->getCollection()->transform(function ($borrow) {
             // Reload hoàn toàn từ database để tránh cache
-            $borrow = Borrow::with(['reader', 'librarian', 'items.book', 'voucher'])->find($borrow->id);
+            $borrow = Borrow::with(['reader', 'librarian', 'items.book', 'items.inventory', 'voucher'])->find($borrow->id);
+
+            // Tính lại tiền nếu chưa có
+            foreach ($borrow->items as $item) {
+                if ($item->tien_thue == 0 && $item->book) {
+                    $inventory = $item->inventory;
+                    if (!$inventory) {
+                        $inventory = new \App\Models\Inventory([
+                            'condition' => 'Trung binh',
+                            'status' => 'San sang',
+                            'gia' => $item->book->gia ?? 0,
+                        ]);
+                    }
+                    $hasCard = $borrow->reader ? true : false;
+                    $fees = \App\Services\PricingService::calculateFees(
+                        $item->book,
+                        $inventory,
+                        $item->ngay_muon,
+                        $item->ngay_hen_tra,
+                        $hasCard
+                    );
+                    $item->tien_thue = $fees['tien_thue'];
+                    $item->save();
+                }
+            }
+
+            // Cập nhật tổng tiền
+            $borrow->recalculateTotals();
 
             return $borrow;
         });
@@ -173,20 +200,40 @@ class BorrowController extends Controller
 
             // Nếu có reservation_id, tạo BorrowItem tương ứng
             if ($reservation) {
-                $reservation = $reservation->fresh(['book']);
+                $reservation = $reservation->fresh(['book', 'inventory']);
                 if ($reservation) {
-                    $rentalFee = (float) ($reservation->total_fee ?? 0);
-                    if ($rentalFee <= 0) {
-                        // Fallback: tính lại theo số ngày đặt trước nếu total_fee chưa có
-                        $pickup = $reservation->pickup_date ? \Carbon\Carbon::parse($reservation->pickup_date) : null;
-                        $ret = $reservation->return_date ? \Carbon\Carbon::parse($reservation->return_date) : null;
-                        $days = 1;
-                        if ($pickup && $ret && $ret->greaterThan($pickup)) {
-                            $days = max(1, $pickup->diffInDays($ret));
-                        }
-                        $dailyFee = (float) ($reservation->book?->daily_fee ?? 5000);
-                        $rentalFee = $dailyFee * $days;
+                    // Luôn tính lại tiền thuê dựa trên số ngày mượn
+                    $pickup = $reservation->pickup_date ? \Carbon\Carbon::parse($reservation->pickup_date) : null;
+                    $ret = $reservation->return_date ? \Carbon\Carbon::parse($reservation->return_date) : null;
+                    $days = 1;
+                    if ($pickup && $ret && $ret->greaterThan($pickup)) {
+                        $days = max(1, $pickup->diffInDays($ret));
                     }
+
+                    // Lấy giá sách và tính phí thuê bằng PricingService
+                    $book = $reservation->book;
+                    $inventory = $reservation->inventory;
+
+                    // Nếu không có inventory, tạo tạm để tính phí
+                    if (!$inventory) {
+                        $inventory = new \App\Models\Inventory([
+                            'condition' => 'Trung binh',
+                            'status' => 'San sang',
+                            'gia' => $book?->gia ?? 0,
+                        ]);
+                    }
+
+                    // Dùng PricingService để tính phí thuê
+                    $hasCard = $reader ? true : false;
+                    $fees = \App\Services\PricingService::calculateFees(
+                        $book,
+                        $inventory,
+                        $borrow->ngay_muon,
+                        $reservation->return_date ?? \Carbon\Carbon::parse($borrow->ngay_muon)->addDays(14),
+                        $hasCard
+                    );
+
+                    $rentalFee = $fees['tien_thue'];
 
                     // Tạo dòng sách mượn (không tiền cọc, không tiền ship)
                     \App\Models\BorrowItem::create([

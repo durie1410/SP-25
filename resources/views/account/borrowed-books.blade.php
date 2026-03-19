@@ -817,9 +817,8 @@
             customer_confirmed_delivery: {{ $borrow->customer_confirmed_delivery ? 'true' : 'false' }},
             needs_confirmation: {{ ($borrow->trang_thai_chi_tiet === 'giao_hang_thanh_cong' && !$borrow->customer_confirmed_delivery) ? 'true' : 'false' }},
             @php
-                // Phía bạn đọc chỉ hiển thị tiền thuê giống hệt admin:
-                // dùng đúng trường borrow->tien_thue (đã được controller/biz logic tính sẵn)
-                $tienThue = (float) ($borrow->tien_thue ?? 0);
+                // Phía bạn đọc chỉ hiển thị tiền thuê = tổng tiền thuê từ borrowItems
+                $tienThue = (float) ($borrow->borrowItems->sum('tien_thue') ?? 0);
             @endphp
             tong_tien: {{ $tienThue }},
             tien_coc: 0,
@@ -1565,11 +1564,11 @@
                             ` : ''}
                             ${(item.anh_bia_truoc || item.anh_bia_sau || item.anh_gay_sach) ? `
                             <div class="detail-row" style="margin-top: 12px; align-items: flex-start;">
-                                <span class="detail-label">Ảnh xác nhận:</span>
+                                <span class="detail-label">Ảnh minh chứng:</span>
                                 <div class="detail-value" style="display:flex; gap:8px; flex-wrap:wrap;">
-                                    ${item.anh_bia_truoc ? `<a href="${item.anh_bia_truoc}" target="_blank"><img src="${item.anh_bia_truoc}" alt="Bìa trước" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;"></a>` : ''}
-                                    ${item.anh_bia_sau ? `<a href="${item.anh_bia_sau}" target="_blank"><img src="${item.anh_bia_sau}" alt="Bìa sau" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;"></a>` : ''}
-                                    ${item.anh_gay_sach ? `<a href="${item.anh_gay_sach}" target="_blank"><img src="${item.anh_gay_sach}" alt="Gáy sách" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;"></a>` : ''}
+                                    ${item.anh_bia_truoc ? `<a href="${item.anh_bia_truoc}" target="_blank"><img src="${item.anh_bia_truoc}" alt="Bìa trước" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;" onerror="this.src='/images/no-image.png'; this.onerror=null;"></a>` : ''}
+                                    ${item.anh_bia_sau ? `<a href="${item.anh_bia_sau}" target="_blank"><img src="${item.anh_bia_sau}" alt="Bìa sau" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;" onerror="this.src='/images/no-image.png'; this.onerror=null;"></a>` : ''}
+                                    ${item.anh_gay_sach ? `<a href="${item.anh_gay_sach}" target="_blank"><img src="${item.anh_gay_sach}" alt="Gáy sách" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;" onerror="this.src='/images/no-image.png'; this.onerror=null;"></a>` : ''}
                                 </div>
                             </div>
                             ` : ''}

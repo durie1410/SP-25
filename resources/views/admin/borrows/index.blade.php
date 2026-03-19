@@ -536,18 +536,39 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                 </td>
                                 <td>
                                     @php
+                                        // Lay anh tu reservation (mang)
                                         $proofImages = is_array($item->reservation?->proof_images) ? $item->reservation->proof_images : [];
+
+                                        // Lay anh tu borrow_items (field don)
+                                        $itemImages = [];
+                                        if ($item->anh_bia_truoc) {
+                                            $itemImages[] = (strpos($item->anh_bia_truoc, 'http') === 0) ? $item->anh_bia_truoc : asset('storage/' . $item->anh_bia_truoc);
+                                        }
+                                        if ($item->anh_bia_sau) {
+                                            $itemImages[] = (strpos($item->anh_bia_sau, 'http') === 0) ? $item->anh_bia_sau : asset('storage/' . $item->anh_bia_sau);
+                                        }
+                                        if ($item->anh_gay_sach) {
+                                            $itemImages[] = (strpos($item->anh_gay_sach, 'http') === 0) ? $item->anh_gay_sach : asset('storage/' . $item->anh_gay_sach);
+                                        }
+
+                                        // Gop mang anh
+                                        $allImages = array_merge(
+                                            array_map(function($img) {
+                                                return (strpos($img, 'http') === 0) ? $img : asset('storage/' . $img);
+                                            }, $proofImages),
+                                            $itemImages
+                                        );
                                     @endphp
-                                    @if(!empty($proofImages))
+                                    @if(!empty($allImages))
                                         <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
-                                            @foreach(array_slice($proofImages, 0, 2) as $img)
-                                                <a href="{{ asset('storage/' . $img) }}" target="_blank">
-                                                    <img src="{{ asset('storage/' . $img) }}" alt="Proof" class="img-thumbnail" style="height: 38px; width: 38px; object-fit: cover;">
+                                            @foreach(array_slice($allImages, 0, 2) as $img)
+                                                <a href="{{ $img }}" target="_blank">
+                                                    <img src="{{ $img }}" alt="Proof" class="img-thumbnail" style="height: 38px; width: 38px; object-fit: cover;" onerror="this.style.display='none'">
                                                 </a>
                                             @endforeach
                                         </div>
-                                        @if(count($proofImages) > 2)
-                                            <div class="text-muted" style="font-size: 11px;">+{{ count($proofImages) - 2 }} ảnh</div>
+                                        @if(count($allImages) > 2)
+                                            <div class="text-muted" style="font-size: 11px;">+{{ count($allImages) - 2 }} ảnh</div>
                                         @endif
                                     @else
                                         <span class="text-muted" style="font-size: 12px;">Chưa có</span>
