@@ -530,18 +530,18 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                 </td>
                                 <td>
                                     @php
-                                        $proofImages = $item->reservation ? $item->reservation->getProofImages() : [];
+
                                     @endphp
-                                    @if(!empty($proofImages))
+                                    @if(!empty($allImages))
                                         <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
-                                            @foreach(array_slice($proofImages, 0, 2) as $img)
-                                                <a href="{{ asset('storage/' . $img) }}" target="_blank">
-                                                    <img src="{{ asset('storage/' . $img) }}" alt="Proof" class="img-thumbnail" style="height: 38px; width: 38px; object-fit: cover;">
+                                            @foreach(array_slice($allImages, 0, 2) as $img)
+                                                <a href="{{ $img }}" target="_blank">
+                                                    <img src="{{ $img }}" alt="Proof" class="img-thumbnail" style="height: 38px; width: 38px; object-fit: cover;" onerror="this.style.display='none'">
                                                 </a>
                                             @endforeach
                                         </div>
-                                        @if(count($proofImages) > 2)
-                                            <div class="text-muted" style="font-size: 11px;">+{{ count($proofImages) - 2 }} ảnh</div>
+                                        @if(count($allImages) > 2)
+                                            <div class="text-muted" style="font-size: 11px;">+{{ count($allImages) - 2 }} ảnh</div>
                                         @endif
                                     @else
                                         <span class="text-muted" style="font-size: 12px;">Chưa có</span>

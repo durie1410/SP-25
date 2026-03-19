@@ -242,49 +242,9 @@ class UserAccountController extends Controller
                 ->orderBy('ngay_muon', 'desc')
                 ->paginate(12);
 
-            // Tính toán lại tien_coc, tien_thue và tien_ship nếu chưa có (từ thông tin sách/inventory)
-            foreach ($borrows as $borrow) {
-                $needsRecalculate = false;
-                
-                foreach ($borrow->borrowItems as $item) {
-                    // Nếu tien_coc hoặc tien_thue = 0, tính toán lại từ thông tin sách
-                    if (($item->tien_coc == 0 || $item->tien_thue == 0) && $item->book && $item->inventory) {
-                        $book = $item->book;
-                        $inventory = $item->inventory;
-                        $hasCard = $reader ? true : false; // Có thẻ độc giả
-
-                        // Sử dụng PricingService để tính phí
-                        $fees = \App\Services\PricingService::calculateFees(
-                            $book,
-                            $inventory,
-                            $item->ngay_muon,
-                            $item->ngay_hen_tra,
-                            $hasCard
-                        );
-
-                        $item->tien_coc = $fees['tien_coc'];
-                        $item->tien_thue = $fees['tien_thue'];
-
-                        // Lưu lại vào database nếu giá trị đã thay đổi
-                        if ($item->isDirty(['tien_coc', 'tien_thue'])) {
-                            $item->save();
-                            $needsRecalculate = true;
-                        }
-                    }
-                }
-                
-                // Đảm bảo tien_ship được đồng bộ từ items
-                $tienShipFromItems = $borrow->borrowItems()->sum('tien_ship');
-                if (($borrow->tien_ship ?? 0) == 0 && $tienShipFromItems > 0) {
-                    $borrow->tien_ship = $tienShipFromItems;
-                    $needsRecalculate = true;
-                }
-                
-                // Tính lại tổng tiền của borrow nếu cần
-                if ($needsRecalculate) {
-                    $borrow->recalculateTotals();
-                }
-            }
+            // KHÔNG tính lại tiền thuê - chỉ đọc trực tiếp từ database
+            // Tiền thuê đã được tính và lưu khi tạo phiếu mượn (BorrowController storeItem/store)
+            // Các trường tien_coc, tien_thue, tien_ship trong borrow lấy từ sum của borrowItems
 
             // Reservation model đã bị xóa
             $pendingReservations = collect();
