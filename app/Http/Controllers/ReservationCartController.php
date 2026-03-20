@@ -386,13 +386,65 @@ class ReservationCartController extends Controller
                 ->with('error', 'Bạn cần đăng ký thông tin độc giả để xem lịch sử đặt trước.');
         }
 
-        // Lấy danh sách đơn đặt trước của user
+        // Lấy danh sách đặt trước của user (group theo mã đơn để hiển thị theo cụm)
         $reservations = \App\Models\InventoryReservation::with(['book', 'inventory'])
             ->where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
-            ->paginate(10);
+            ->paginate(20);
 
         return view('reservation_cart.history', compact('reservations'));
+    }
+
+    public function confirmReadyGroup(Request $request, string $reservationCode)
+    {
+        $user = $request->user();
+        $reader = $user?->reader;
+
+        if (!$reader) {
+            return back()->with('error', 'Bạn cần đăng ký thông tin độc giả.');
+        }
+
+        $reservations = InventoryReservation::where('user_id', $user->id)
+            ->where('reservation_code', $reservationCode)
+            ->where('status', 'ready')
+            ->get();
+
+        if ($reservations->isEmpty()) {
+            return back()->with('error', 'Không tìm thấy đơn sẵn sàng để xác nhận.');
+        }
+
+        foreach ($reservations as $reservation) {
+            $reservation->update([
+                'customer_confirmed_at' => now(),
+            ]);
+        }
+
+        return back()->with('success', 'Bạn đã xác nhận sẽ đến nhận sách.');
+    }
+
+    public function cancelReadyGroup(Request $request, string $reservationCode)
+    {
+        $user = $request->user();
+        $reader = $user?->reader;
+
+        if (!$reader) {
+            return back()->with('error', 'Bạn cần đăng ký thông tin độc giả.');
+        }
+
+        $reservations = InventoryReservation::where('user_id', $user->id)
+            ->where('reservation_code', $reservationCode)
+            ->where('status', 'ready')
+            ->get();
+
+        if ($reservations->isEmpty()) {
+            return back()->with('error', 'Không tìm thấy đơn sẵn sàng để hủy.');
+        }
+
+        foreach ($reservations as $reservation) {
+            $reservation->cancel('Khách xác nhận không đến nhận sách.', auth()->id());
+        }
+
+        return back()->with('success', 'Đã hủy đơn sẵn sàng theo yêu cầu của bạn.');
     }
 
     public function updateQuantity(Request $request, $itemId)

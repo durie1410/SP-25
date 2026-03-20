@@ -220,6 +220,8 @@ Route::prefix('reservation-cart')->name('reservation-cart.')->middleware('auth')
     Route::post('/update-dates/{itemId}', [ReservationCartController::class, 'updateDates'])->name('update-dates');
     Route::post('/update-quantity/{itemId}', [ReservationCartController::class, 'updateQuantity'])->name('update-quantity');
     Route::get('/history', [ReservationCartController::class, 'history'])->name('history');
+    Route::post('/history/{reservationCode}/confirm-ready', [ReservationCartController::class, 'confirmReadyGroup'])->name('history.confirm-ready');
+    Route::post('/history/{reservationCode}/cancel-ready', [ReservationCartController::class, 'cancelReadyGroup'])->name('history.cancel-ready');
 });
 
 // Notification bell (user)
@@ -351,9 +353,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('categories/{id}/move-books', [CategoryController::class, 'moveBooks'])->name('categories.move-books')->middleware('permission:edit-categories');
     Route::resource('authors', App\Http\Controllers\Admin\AuthorController::class)->middleware('permission:view-readers');
     // Vô hiệu hóa create và store - sách mới chỉ được tạo từ quản lý kho
-    Route::resource('books', BookController::class)->middleware('permission:view-books')->except(['create', 'store', 'edit', 'update', 'destroy']);
     Route::get('books/create', [BookController::class, 'create'])->name('books.create')->middleware('admin-only');
     Route::post('books', [BookController::class, 'store'])->name('books.store')->middleware('admin-only');
+    Route::resource('books', BookController::class)->middleware('permission:view-books')->except(['create', 'store', 'edit', 'update', 'destroy']);
     Route::get('books/{book}/edit', [BookController::class, 'edit'])->name('books.edit')->middleware('permission:edit-books');
     Route::put('books/{book}', [BookController::class, 'update'])->name('books.update')->middleware('permission:edit-books');
     Route::delete('books/{book}', [BookController::class, 'destroy'])->name('books.destroy')->middleware('permission:delete-books');

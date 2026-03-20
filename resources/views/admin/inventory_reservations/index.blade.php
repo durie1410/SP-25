@@ -209,6 +209,15 @@ use Illuminate\Support\Str;
                             <div>
                                 <div style="font-size: 11px; color: #64748b;">Trạng thái</div>
                                 <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
+                                @if($r->status === 'ready')
+                                    <div style="margin-top: 6px;">
+                                        @if($r->customer_confirmed_at)
+                                            <span class="badge badge-success" style="font-size: 10px;">Khách đã xác nhận</span>
+                                        @else
+                                            <span class="badge badge-warning" style="font-size: 10px;">Chờ khách xác nhận</span>
+                                        @endif
+                                    </div>
+                                @endif
                             </div>
                             <div>
                                 <div style="font-size: 11px; color: #64748b;">Bản sao</div>
