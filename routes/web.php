@@ -778,20 +778,19 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/export-csv', [ReportController::class, 'exportCSV'])->name('reports.export.csv');
     Route::get('reports/export-pdf', [ReportController::class, 'exportPDF'])->name('reports.export.pdf');
-
+    Route::get('reports/export-excel', [ReportController::class, 'exportExcel'])->name('reports.export.excel');
     //duyet dki
-   Route::prefix('admin')->middleware(['auth','admin'])->group(function () {
+    Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
 
-    // danh sách user
-    Route::get('users', [AuthController::class, 'index'])->name('users.index');
+        // danh sách user
+        Route::get('users', [AuthController::class, 'index'])->name('users.index');
 
-    // khóa user
-    Route::get('users/lock/{id}', [AuthController::class, 'lockUser'])->name('users.lock');
+        // khóa user
+        Route::get('users/lock/{id}', [AuthController::class, 'lockUser'])->name('users.lock');
 
-    // mở khóa
-    Route::get('users/unlock/{id}', [AuthController::class, 'unlockUser'])->name('users.unlock');
-
-});
+        // mở khóa
+        Route::get('users/unlock/{id}', [AuthController::class, 'unlockUser'])->name('users.unlock');
+    });
     // Route::get('users/pending', [AuthController::class, 'pendingUsers'])->name('users.pending');
 
     // Route::get('users/approve/{id}', [AuthController::class, 'approveUser'])->name('users.approve');

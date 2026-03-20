@@ -326,4 +326,17 @@ class DashboardController extends Controller
         // Chỉ lấy 4 hoạt động gần nhất
         return array_slice($activities, 0, 4);
     }
+    public function getStats()
+{
+    return [
+        'totalBooks' => 0,
+        'remaining' => 0,
+        'borrowed' => 0,
+        'totalImported' => 0,
+        'borrowToday' => 0,
+        'borrowMonth' => 0,
+        'returnToday' => 0,
+        'returnMonth' => 0,
+    ];
+}
 }

@@ -12,17 +12,19 @@
         </h1>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
 
-    <a href="/admin/reports/export-csv"
-       style="background:#22c55e;color:white;padding:8px 14px;border-radius:6px;text-decoration:none;">
-       Xuất CSV
-    </a>
+            <!-- <a href="/admin/reports/export-excel"
+                style="background:#22c55e;color:white;padding:8px 14px;border-radius:6px;text-decoration:none;">
+                Xuất excel
+            </a> -->
+            <a href="{{ route('admin.reports.export.excel') }}" class="btn btn-success">
+                Xuất Excel
+            </a>
+            <a href="/admin/reports/export-pdf"
+                style="background:#ef4444;color:white;padding:8px 14px;border-radius:6px;text-decoration:none;">
+                Xuất PDF
+            </a>
 
-    <a href="/admin/reports/export-pdf"
-       style="background:#ef4444;color:white;padding:8px 14px;border-radius:6px;text-decoration:none;">
-       Xuất PDF
-    </a>
-
-</div>
+        </div>
         <p class="page-subtitle">Thống kê và báo cáo tổng hợp về kho sách</p>
     </div>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -37,17 +39,17 @@
 </div>
 
 @if(session('success'))
-    <div class="alert alert-success" style="white-space: pre-line; margin-top: 20px;">
-        <i class="fas fa-check-circle"></i>
-        {{ session('success') }}
-    </div>
+<div class="alert alert-success" style="white-space: pre-line; margin-top: 20px;">
+    <i class="fas fa-check-circle"></i>
+    {{ session('success') }}
+</div>
 @endif
 
 @if(session('error'))
-    <div class="alert alert-danger" style="margin-top: 20px;">
-        <i class="fas fa-exclamation-circle"></i>
-        {{ session('error') }}
-    </div>
+<div class="alert alert-danger" style="margin-top: 20px;">
+    <i class="fas fa-exclamation-circle"></i>
+    {{ session('error') }}
+</div>
 @endif
 
 <!-- Thống kê tổng quan -->
@@ -238,276 +240,276 @@
     </div>
 </div>
 
-    <!-- Chi tiết theo từng sách -->
-    <div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
-        <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px;">
-            <h5 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
-                <i class="fas fa-book" style="color: #22c55e; margin-right: 8px;"></i> Chi Tiết Số Lượng Sách Theo Từng Cuốn
-            </h5>
-        </div>
-        <div class="card-body" style="padding: 25px;">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover">
-                    <thead>
-                        <tr>
-                            <th>STT</th>
-                            <th>Tên sách</th>
-                            <th>Tác giả</th>
-                            <th>Tổng số lượng</th>
-                            <th>Còn lại</th>
-                            <th>Có sẵn</th>
-                            <th>Sách mới</th>
-                            <th>Sách cũ</th>
-                            <th>Sách hỏng</th>
-                            <th>Sách mất</th>
-                            <th>ĐÃ MƯỢN</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($stats['books_in_stock'] as $index => $item)
-                            <tr>
-                                <td>{{ $index + 1 }}</td>
-                                <td>
-                                    <strong>{{ $item['book']->ten_sach ?? 'N/A' }}</strong>
-                                </td>
-                                <td>{{ $item['book']->tac_gia ?? 'N/A' }}</td>
-                                <td>
-                                    <span class="badge badge-primary">{{ $item['total'] }}</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-success">{{ $item['remaining'] }}</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-info">{{ $item['available'] }}</span>
-                                </td>
-                                <td>
-                                    <span class="badge" style="background-color: #3b82f6; color: white;">{{ $item['new'] ?? 0 }}</span>
-                                </td>
-                                <td>
-                                    <span class="badge" style="background-color: #f59e0b; color: white;">{{ $item['old'] ?? 0 }}</span>
-                                </td>
-                                <td>
-                                    <span class="badge" style="background-color: #ef4444; color: white;">{{ $item['damaged'] ?? 0 }}</span>
-                                </td>
-                                <td>
-                                    <span class="badge" style="background-color: #6b7280; color: white;">{{ $item['lost'] ?? 0 }}</span>
-                                </td>
-                                <td>
-                                    <span class="badge badge-warning">{{ $item['borrowed'] }}</span>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="11" class="text-center">Chưa có sách nào trong kho</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+<!-- Chi tiết theo từng sách -->
+<div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
+    <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px;">
+        <h5 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
+            <i class="fas fa-book" style="color: #22c55e; margin-right: 8px;"></i> Chi Tiết Số Lượng Sách Theo Từng Cuốn
+        </h5>
+    </div>
+    <div class="card-body" style="padding: 25px;">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>STT</th>
+                        <th>Tên sách</th>
+                        <th>Tác giả</th>
+                        <th>Tổng số lượng</th>
+                        <th>Còn lại</th>
+                        <th>Có sẵn</th>
+                        <th>Sách mới</th>
+                        <th>Sách cũ</th>
+                        <th>Sách hỏng</th>
+                        <th>Sách mất</th>
+                        <th>ĐÃ MƯỢN</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($stats['books_in_stock'] as $index => $item)
+                    <tr>
+                        <td>{{ $index + 1 }}</td>
+                        <td>
+                            <strong>{{ $item['book']->ten_sach ?? 'N/A' }}</strong>
+                        </td>
+                        <td>{{ $item['book']->tac_gia ?? 'N/A' }}</td>
+                        <td>
+                            <span class="badge badge-primary">{{ $item['total'] }}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-success">{{ $item['remaining'] }}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-info">{{ $item['available'] }}</span>
+                        </td>
+                        <td>
+                            <span class="badge" style="background-color: #3b82f6; color: white;">{{ $item['new'] ?? 0 }}</span>
+                        </td>
+                        <td>
+                            <span class="badge" style="background-color: #f59e0b; color: white;">{{ $item['old'] ?? 0 }}</span>
+                        </td>
+                        <td>
+                            <span class="badge" style="background-color: #ef4444; color: white;">{{ $item['damaged'] ?? 0 }}</span>
+                        </td>
+                        <td>
+                            <span class="badge" style="background-color: #6b7280; color: white;">{{ $item['lost'] ?? 0 }}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-warning">{{ $item['borrowed'] }}</span>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="11" class="text-center">Chưa có sách nào trong kho</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 
-    <!-- Danh sách phiếu nhập -->
-    <div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
-        <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px;">
-            <h5 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
-                <i class="fas fa-file-invoice" style="color: #22c55e; margin-right: 8px;"></i> Danh Sách Phiếu Nhập Kho
-            </h5>
-        </div>
-        <div class="card-body" style="padding: 25px;">
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Số phiếu</th>
-                            <th>Ngày nhập</th>
-                            <th>Sách</th>
-                            <th>Số lượng nhập</th>
-                            <th>Đơn giá</th>
-                            <th>Thành tiền</th>
-                            <th>Người nhập</th>
-                            <th>Người phê duyệt</th>
-                            <th>Nhà cung cấp</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($stats['import_receipts'] as $receipt)
-                            <tr>
-                                <td><strong>{{ $receipt->receipt_number }}</strong></td>
-                                <td>{{ $receipt->receipt_date->format('d/m/Y') }}</td>
-                                <td>{{ $receipt->book->ten_sach ?? 'N/A' }}</td>
-                                <td>
-                                    <span class="badge badge-primary">{{ $receipt->quantity }}</span>
-                                </td>
-                                <td>{{ number_format($receipt->unit_price, 0, ',', '.') }} VNĐ</td>
-                                <td><strong>{{ number_format($receipt->total_price, 0, ',', '.') }} VNĐ</strong></td>
-                                <td>{{ $receipt->receiver->name ?? 'N/A' }}</td>
-                                <td>{{ $receipt->approver->name ?? 'N/A' }}</td>
-                                <td>{{ $receipt->supplier ?? 'N/A' }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="9" class="text-center">Chưa có phiếu nhập nào</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+<!-- Danh sách phiếu nhập -->
+<div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
+    <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px;">
+        <h5 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
+            <i class="fas fa-file-invoice" style="color: #22c55e; margin-right: 8px;"></i> Danh Sách Phiếu Nhập Kho
+        </h5>
+    </div>
+    <div class="card-body" style="padding: 25px;">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Số phiếu</th>
+                        <th>Ngày nhập</th>
+                        <th>Sách</th>
+                        <th>Số lượng nhập</th>
+                        <th>Đơn giá</th>
+                        <th>Thành tiền</th>
+                        <th>Người nhập</th>
+                        <th>Người phê duyệt</th>
+                        <th>Nhà cung cấp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($stats['import_receipts'] as $receipt)
+                    <tr>
+                        <td><strong>{{ $receipt->receipt_number }}</strong></td>
+                        <td>{{ $receipt->receipt_date->format('d/m/Y') }}</td>
+                        <td>{{ $receipt->book->ten_sach ?? 'N/A' }}</td>
+                        <td>
+                            <span class="badge badge-primary">{{ $receipt->quantity }}</span>
+                        </td>
+                        <td>{{ number_format($receipt->unit_price, 0, ',', '.') }} VNĐ</td>
+                        <td><strong>{{ number_format($receipt->total_price, 0, ',', '.') }} VNĐ</strong></td>
+                        <td>{{ $receipt->receiver->name ?? 'N/A' }}</td>
+                        <td>{{ $receipt->approver->name ?? 'N/A' }}</td>
+                        <td>{{ $receipt->supplier ?? 'N/A' }}</td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="9" class="text-center">Chưa có phiếu nhập nào</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 
-    <!-- Danh sách ai đang mượn -->
-    <div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
-        <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px; display: flex; justify-content: space-between; align-items: center;">
-            <h5 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
-                <i class="fas fa-user-check" style="color: #22c55e; margin-right: 8px;"></i> Danh Sách Người Đang Mượn Sách Từ Kho
-            </h5>
-            <form action="{{ route('admin.inventory.report.sync') }}" method="POST" style="margin: 0;">
-                @csrf
-                <button type="submit" class="btn btn-sm btn-success" style="background: #22c55e; border: none; padding: 8px 16px; border-radius: 6px; color: white; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" onclick="return confirm('Bạn có chắc chắn muốn đồng bộ hóa dữ liệu? Hành động này sẽ liên kết Inventory với BorrowItem.');">
-                    <i class="fas fa-sync-alt"></i> Đồng Bộ Dữ Liệu
-                </button>
-            </form>
-        </div>
-        <div class="card-body" style="padding: 25px;">
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>STT</th>
-                            <th>Người mượn</th>
-                            <th>Số thẻ</th>
-                            <th>Sách</th>
-                            <th>Ngày mượn</th>
-                            <th>Hạn trả</th>
-                            <th>Số ngày mượn</th>
-                            <th>Thủ thư</th>
-                            <th>Trạng thái</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($stats['current_borrows'] as $index => $item)
+<!-- Danh sách ai đang mượn -->
+<div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
+    <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px; display: flex; justify-content: space-between; align-items: center;">
+        <h5 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
+            <i class="fas fa-user-check" style="color: #22c55e; margin-right: 8px;"></i> Danh Sách Người Đang Mượn Sách Từ Kho
+        </h5>
+        <form action="{{ route('admin.inventory.report.sync') }}" method="POST" style="margin: 0;">
+            @csrf
+            <button type="submit" class="btn btn-sm btn-success" style="background: #22c55e; border: none; padding: 8px 16px; border-radius: 6px; color: white; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" onclick="return confirm('Bạn có chắc chắn muốn đồng bộ hóa dữ liệu? Hành động này sẽ liên kết Inventory với BorrowItem.');">
+                <i class="fas fa-sync-alt"></i> Đồng Bộ Dữ Liệu
+            </button>
+        </form>
+    </div>
+    <div class="card-body" style="padding: 25px;">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>STT</th>
+                        <th>Người mượn</th>
+                        <th>Số thẻ</th>
+                        <th>Sách</th>
+                        <th>Ngày mượn</th>
+                        <th>Hạn trả</th>
+                        <th>Số ngày mượn</th>
+                        <th>Thủ thư</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($stats['current_borrows'] as $index => $item)
+                    @php
+                    $borrowItem = $item->borrow_item ?? null;
+                    $isOverdue = $borrowItem && $borrowItem->isOverdue();
+                    $daysOverdue = $borrowItem && $isOverdue ? now()->diffInDays($borrowItem->ngay_hen_tra) : 0;
+                    @endphp
+                    <tr>
+                        <td>{{ $index + 1 }}</td>
+                        <td>
+                            <strong>{{ $item->reader->ho_ten ?? 'N/A' }}</strong>
+                        </td>
+                        <td>{{ $item->reader->so_the_doc_gia ?? 'N/A' }}</td>
+                        <td>{{ $item->book->ten_sach ?? 'N/A' }}</td>
+                        <td>{{ $item->ngay_muon ? (is_string($item->ngay_muon) ? \Carbon\Carbon::parse($item->ngay_muon)->format('d/m/Y') : $item->ngay_muon->format('d/m/Y')) : 'N/A' }}</td>
+                        <td>
+                            @if($item->ngay_hen_tra)
                             @php
-                                $borrowItem = $item->borrow_item ?? null;
-                                $isOverdue = $borrowItem && $borrowItem->isOverdue();
-                                $daysOverdue = $borrowItem && $isOverdue ? now()->diffInDays($borrowItem->ngay_hen_tra) : 0;
+                            $ngayHenTra = is_string($item->ngay_hen_tra) ? \Carbon\Carbon::parse($item->ngay_hen_tra) : $item->ngay_hen_tra;
                             @endphp
-                            <tr>
-                                <td>{{ $index + 1 }}</td>
-                                <td>
-                                    <strong>{{ $item->reader->ho_ten ?? 'N/A' }}</strong>
-                                </td>
-                                <td>{{ $item->reader->so_the_doc_gia ?? 'N/A' }}</td>
-                                <td>{{ $item->book->ten_sach ?? 'N/A' }}</td>
-                                <td>{{ $item->ngay_muon ? (is_string($item->ngay_muon) ? \Carbon\Carbon::parse($item->ngay_muon)->format('d/m/Y') : $item->ngay_muon->format('d/m/Y')) : 'N/A' }}</td>
-                                <td>
-                                    @if($item->ngay_hen_tra)
-                                        @php
-                                            $ngayHenTra = is_string($item->ngay_hen_tra) ? \Carbon\Carbon::parse($item->ngay_hen_tra) : $item->ngay_hen_tra;
-                                        @endphp
-                                        @if($isOverdue)
-                                            <span class="badge badge-danger">{{ $ngayHenTra->format('d/m/Y') }}</span>
-                                        @else
-                                            {{ $ngayHenTra->format('d/m/Y') }}
-                                        @endif
-                                    @else
-                                        N/A
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($item->ngay_muon)
-                                        @php
-                                            $ngayMuon = is_string($item->ngay_muon) ? \Carbon\Carbon::parse($item->ngay_muon) : $item->ngay_muon;
-                                        @endphp
-                                        {{ $ngayMuon->diffInDays(now()) }} ngày
-                                    @else
-                                        N/A
-                                    @endif
-                                </td>
-                                <td>{{ $item->librarian->name ?? 'N/A' }}</td>
-                                <td>
-                                    @if($isOverdue)
-                                        <span class="badge badge-danger">Quá hạn ({{ $daysOverdue }} ngày)</span>
-                                    @else
-                                        <span class="badge badge-warning">Đang mượn</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="9" class="text-center">Hiện tại không có ai đang mượn sách từ kho</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+                            @if($isOverdue)
+                            <span class="badge badge-danger">{{ $ngayHenTra->format('d/m/Y') }}</span>
+                            @else
+                            {{ $ngayHenTra->format('d/m/Y') }}
+                            @endif
+                            @else
+                            N/A
+                            @endif
+                        </td>
+                        <td>
+                            @if($item->ngay_muon)
+                            @php
+                            $ngayMuon = is_string($item->ngay_muon) ? \Carbon\Carbon::parse($item->ngay_muon) : $item->ngay_muon;
+                            @endphp
+                            {{ $ngayMuon->diffInDays(now()) }} ngày
+                            @else
+                            N/A
+                            @endif
+                        </td>
+                        <td>{{ $item->librarian->name ?? 'N/A' }}</td>
+                        <td>
+                            @if($isOverdue)
+                            <span class="badge badge-danger">Quá hạn ({{ $daysOverdue }} ngày)</span>
+                            @else
+                            <span class="badge badge-warning">Đang mượn</span>
+                            @endif
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="9" class="text-center">Hiện tại không có ai đang mượn sách từ kho</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 
-    <!-- Danh sách ai đã trả -->
-    <div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
-        <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px; display: flex; justify-content: space-between; align-items: center;">
-            <h5 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
-                <i class="fas fa-user-check" style="color: #22c55e; margin-right: 8px;"></i> Danh Sách Người Đã Trả Sách (Gần Đây)
-            </h5>
-            <form action="{{ route('admin.inventory.report.sync') }}" method="POST" style="margin: 0;">
-                @csrf
-                <button type="submit" class="btn btn-sm btn-success" style="background: #22c55e; border: none; padding: 8px 16px; border-radius: 6px; color: white; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" onclick="return confirm('Bạn có chắc chắn muốn đồng bộ hóa dữ liệu? Hành động này sẽ liên kết Inventory với BorrowItem (bao gồm cả đã trả).');">
-                    <i class="fas fa-sync-alt"></i> Đồng Bộ Dữ Liệu
-                </button>
-            </form>
-        </div>
-        <div class="card-body" style="padding: 25px;">
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>STT</th>
-                            <th>Người trả</th>
-                            <th>Số thẻ</th>
-                            <th>Sách</th>
-                            <th>Ngày mượn</th>
-                            <th>Hạn trả</th>
-                            <th>Ngày trả thực tế</th>
-                            <th>Số ngày mượn</th>
-                            <th>Thủ thư</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($stats['returned_borrows'] as $index => $borrow)
-                            <tr>
-                                <td>{{ $index + 1 }}</td>
-                                <td>
-                                    <strong>{{ $borrow->reader->ho_ten ?? 'N/A' }}</strong>
-                                </td>
-                                <td>{{ $borrow->reader->so_the_doc_gia ?? 'N/A' }}</td>
-                                <td>{{ $borrow->book->ten_sach ?? 'N/A' }}</td>
-                                <td>{{ $borrow->ngay_muon ? $borrow->ngay_muon->format('d/m/Y') : 'N/A' }}</td>
-                                <td>{{ $borrow->ngay_hen_tra ? $borrow->ngay_hen_tra->format('d/m/Y') : 'N/A' }}</td>
-                                <td>
-                                    @if($borrow->ngay_tra_thuc_te)
-                                        <span class="badge badge-success">{{ $borrow->ngay_tra_thuc_te->format('d/m/Y') }}</span>
-                                    @else
-                                        <span class="badge badge-secondary">N/A</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($borrow->ngay_muon && $borrow->ngay_tra_thuc_te)
-                                        {{ $borrow->ngay_muon->diffInDays($borrow->ngay_tra_thuc_te) }} ngày
-                                    @else
-                                        N/A
-                                    @endif
-                                </td>
-                                <td>{{ $borrow->librarian->name ?? 'N/A' }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="9" class="text-center">Chưa có ai trả sách</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+<!-- Danh sách ai đã trả -->
+<div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
+    <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px; display: flex; justify-content: space-between; align-items: center;">
+        <h5 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
+            <i class="fas fa-user-check" style="color: #22c55e; margin-right: 8px;"></i> Danh Sách Người Đã Trả Sách (Gần Đây)
+        </h5>
+        <form action="{{ route('admin.inventory.report.sync') }}" method="POST" style="margin: 0;">
+            @csrf
+            <button type="submit" class="btn btn-sm btn-success" style="background: #22c55e; border: none; padding: 8px 16px; border-radius: 6px; color: white; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" onclick="return confirm('Bạn có chắc chắn muốn đồng bộ hóa dữ liệu? Hành động này sẽ liên kết Inventory với BorrowItem (bao gồm cả đã trả).');">
+                <i class="fas fa-sync-alt"></i> Đồng Bộ Dữ Liệu
+            </button>
+        </form>
+    </div>
+    <div class="card-body" style="padding: 25px;">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>STT</th>
+                        <th>Người trả</th>
+                        <th>Số thẻ</th>
+                        <th>Sách</th>
+                        <th>Ngày mượn</th>
+                        <th>Hạn trả</th>
+                        <th>Ngày trả thực tế</th>
+                        <th>Số ngày mượn</th>
+                        <th>Thủ thư</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($stats['returned_borrows'] as $index => $borrow)
+                    <tr>
+                        <td>{{ $index + 1 }}</td>
+                        <td>
+                            <strong>{{ $borrow->reader->ho_ten ?? 'N/A' }}</strong>
+                        </td>
+                        <td>{{ $borrow->reader->so_the_doc_gia ?? 'N/A' }}</td>
+                        <td>{{ $borrow->book->ten_sach ?? 'N/A' }}</td>
+                        <td>{{ $borrow->ngay_muon ? $borrow->ngay_muon->format('d/m/Y') : 'N/A' }}</td>
+                        <td>{{ $borrow->ngay_hen_tra ? $borrow->ngay_hen_tra->format('d/m/Y') : 'N/A' }}</td>
+                        <td>
+                            @if($borrow->ngay_tra_thuc_te)
+                            <span class="badge badge-success">{{ $borrow->ngay_tra_thuc_te->format('d/m/Y') }}</span>
+                            @else
+                            <span class="badge badge-secondary">N/A</span>
+                            @endif
+                        </td>
+                        <td>
+                            @if($borrow->ngay_muon && $borrow->ngay_tra_thuc_te)
+                            {{ $borrow->ngay_muon->diffInDays($borrow->ngay_tra_thuc_te) }} ngày
+                            @else
+                            N/A
+                            @endif
+                        </td>
+                        <td>{{ $borrow->librarian->name ?? 'N/A' }}</td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="9" class="text-center">Chưa có ai trả sách</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 @endsection
