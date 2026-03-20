@@ -28,6 +28,7 @@ class InventoryReservation extends Model
         'admin_note',
         'processed_by',
         'ready_at',
+        'customer_confirmed_at',
         'fulfilled_at',
         'cancelled_at',
         'proof_images',
@@ -39,6 +40,7 @@ class InventoryReservation extends Model
         'total_fee' => 'decimal:2',
         'proof_images' => 'array',
         'ready_at' => 'datetime',
+        'customer_confirmed_at' => 'datetime',
         'fulfilled_at' => 'datetime',
         'cancelled_at' => 'datetime',
     ];

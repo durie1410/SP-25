@@ -170,16 +170,19 @@
 
                 <p class="mb-1">
                     <strong>Tiền thuê:</strong>
-                    <span class="fw-bold">{{ number_format($borrow->tien_thue ?? 0) }}₫</span>
+                    <span class="fw-bold">{{ number_format($borrow->items->sum('tien_thue') ?? 0) }}₫</span>
                 </p>
 
                 <p class="mb-1">
                     <strong>Tổng tiền:</strong>
                     <span class="fw-bold text-success">
                         @php
-                            $tienThueTotal = $borrow->tien_thue ?? 0;
+                            // Luôn tính từ items để đảm bảo tính chính xác
+                            $tienThueTotal = $borrow->items->sum('tien_thue') ?? 0;
+                            $tienCocTotal = $borrow->items->sum('tien_coc') ?? 0;
+                            $tienShipTotal = $borrow->items->sum('tien_ship') ?? 0;
                             $tienPhatTotal = $borrow->items->sum('tien_phat') ?? 0;
-                            $tongTienTotal = $tienThueTotal + $tienPhatTotal;
+                            $tongTienTotal = $tienThueTotal + $tienCocTotal + $tienShipTotal + $tienPhatTotal;
                         @endphp
                         {{ number_format($tongTienTotal, 0) }}₫
                     </span>
@@ -217,18 +220,21 @@
                     <p class="mb-2"><strong>Ảnh xác nhận khách nhận sách tại quầy:</strong></p>
                     <div class="d-flex flex-wrap gap-2">
                         @if($borrow->anh_bia_truoc)
-                            <a href="{{ $borrow->anh_bia_truoc }}" target="_blank">
-                                <img src="{{ $borrow->anh_bia_truoc }}" alt="Ảnh bìa trước" class="img-thumbnail" style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;">
+                            @php $borrowFrontUrl = (strpos($borrow->anh_bia_truoc, 'http') === 0) ? $borrow->anh_bia_truoc : asset('storage/' . $borrow->anh_bia_truoc); @endphp
+                            <a href="{{ $borrowFrontUrl }}" target="_blank">
+                                <img src="{{ $borrowFrontUrl }}" alt="Ảnh bìa trước" class="img-thumbnail" style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;" onerror="this.src='/images/no-image.png'; this.onerror=null;">
                             </a>
                         @endif
                         @if($borrow->anh_bia_sau)
-                            <a href="{{ $borrow->anh_bia_sau }}" target="_blank">
-                                <img src="{{ $borrow->anh_bia_sau }}" alt="Ảnh bìa sau" class="img-thumbnail" style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;">
+                            @php $borrowBackUrl = (strpos($borrow->anh_bia_sau, 'http') === 0) ? $borrow->anh_bia_sau : asset('storage/' . $borrow->anh_bia_sau); @endphp
+                            <a href="{{ $borrowBackUrl }}" target="_blank">
+                                <img src="{{ $borrowBackUrl }}" alt="Ảnh bìa sau" class="img-thumbnail" style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;" onerror="this.src='/images/no-image.png'; this.onerror=null;">
                             </a>
                         @endif
                         @if($borrow->anh_gay_sach)
-                            <a href="{{ $borrow->anh_gay_sach }}" target="_blank">
-                                <img src="{{ $borrow->anh_gay_sach }}" alt="Ảnh gáy sách" class="img-thumbnail" style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;">
+                            @php $borrowSpineUrl = (strpos($borrow->anh_gay_sach, 'http') === 0) ? $borrow->anh_gay_sach : asset('storage/' . $borrow->anh_gay_sach); @endphp
+                            <a href="{{ $borrowSpineUrl }}" target="_blank">
+                                <img src="{{ $borrowSpineUrl }}" alt="Ảnh gáy sách" class="img-thumbnail" style="height: 120px; width: 120px; object-fit: cover; cursor: pointer;" onerror="this.src='/images/no-image.png'; this.onerror=null;">
                             </a>
                         @endif
                     </div>
@@ -373,18 +379,27 @@
                             @if($item->anh_bia_truoc || $item->anh_bia_sau || $item->anh_gay_sach || $item->ghi_chu_nhan_sach)
                                 <div class="d-flex flex-wrap gap-1 mb-2">
                                     @if($item->anh_bia_truoc)
-                                        <a href="{{ $item->anh_bia_truoc }}" target="_blank">
-                                            <img src="{{ $item->anh_bia_truoc }}" alt="Bìa trước" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;">
+                                        @php
+                                            $frontUrl = (strpos($item->anh_bia_truoc, 'http') === 0) ? $item->anh_bia_truoc : asset('storage/' . $item->anh_bia_truoc);
+                                        @endphp
+                                        <a href="{{ $frontUrl }}" target="_blank">
+                                            <img src="{{ $frontUrl }}" alt="Bìa trước" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;" onerror="this.src='/images/no-image.png'; this.onerror=null;">
                                         </a>
                                     @endif
                                     @if($item->anh_bia_sau)
-                                        <a href="{{ $item->anh_bia_sau }}" target="_blank">
-                                            <img src="{{ $item->anh_bia_sau }}" alt="Bìa sau" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;">
+                                        @php
+                                            $backUrl = (strpos($item->anh_bia_sau, 'http') === 0) ? $item->anh_bia_sau : asset('storage/' . $item->anh_bia_sau);
+                                        @endphp
+                                        <a href="{{ $backUrl }}" target="_blank">
+                                            <img src="{{ $backUrl }}" alt="Bìa sau" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;" onerror="this.src='/images/no-image.png'; this.onerror=null;">
                                         </a>
                                     @endif
                                     @if($item->anh_gay_sach)
-                                        <a href="{{ $item->anh_gay_sach }}" target="_blank">
-                                            <img src="{{ $item->anh_gay_sach }}" alt="Gáy sách" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;">
+                                        @php
+                                            $spineUrl = (strpos($item->anh_gay_sach, 'http') === 0) ? $item->anh_gay_sach : asset('storage/' . $item->anh_gay_sach);
+                                        @endphp
+                                        <a href="{{ $spineUrl }}" target="_blank">
+                                            <img src="{{ $spineUrl }}" alt="Gáy sách" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;" onerror="this.src='/images/no-image.png'; this.onerror=null;">
                                         </a>
                                     @endif
                                 </div>

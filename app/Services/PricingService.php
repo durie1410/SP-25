@@ -17,21 +17,28 @@ class PricingService
      * @param string $condition Tình trạng sách (Moi, Tot, Trung binh, Cu)
      * @return float Phí thuê
      */
-    public static function calculateRentalFee($bookPrice, $days, $condition = 'Trung binh')
+    public static function calculateRentalFee($bookPrice, $days, $condition = 'Trung binh', $dailyFee = null)
     {
+        // Nếu có daily_fee truyền vào, ưu tiên dùng
+        if ($dailyFee !== null && $dailyFee > 0) {
+            $rentalFee = $dailyFee * $days;
+            $roundTo = config('pricing.rental.round_to', 1000);
+            return round($rentalFee / $roundTo) * $roundTo;
+        }
+
         // Kiểm tra giá sách hợp lệ
         if ($bookPrice <= 0 || $days <= 0) {
             return 0;
         }
-        
+
         // Tỷ lệ phí thuê mỗi ngày (1% giá sách mỗi ngày)
         // Không phân biệt có thẻ độc giả hay không
         // Tính phí thuê cho tất cả sách, không phân biệt tình trạng (theo config: only_for_new_books = false)
         $dailyRate = config('pricing.rental.daily_rate', config('library.rental_daily_rate', 0.01)); // 1% mỗi ngày
-        
+
         // Tính phí thuê = giá sách * tỷ lệ mỗi ngày * số ngày
         $rentalFee = $bookPrice * $dailyRate * $days;
-        
+
         // Làm tròn theo cấu hình (mặc định làm tròn đến hàng nghìn)
         $roundTo = config('pricing.rental.round_to', 1000);
         return round($rentalFee / $roundTo) * $roundTo;
@@ -63,7 +70,7 @@ class PricingService
 
     /**
      * Tính phí thuê và tiền cọc cho một BorrowItem
-     * 
+     *
      * @param Book $book
      * @param Inventory $inventory
      * @param Carbon $ngayMuon
@@ -71,12 +78,16 @@ class PricingService
      * @param bool $hasCard
      * @return array ['tien_thue' => float, 'tien_coc' => float]
      */
-    public static function calculateFees(Book $book, Inventory $inventory, $ngayMuon, $ngayHenTra, $hasCard = false)
+    public static function calculateFees(Book $book, $inventory, $ngayMuon, $ngayHenTra, $hasCard = false)
     {
         $bookPrice = floatval($book->gia ?? 0);
-        $condition = $inventory->condition ?? 'Trung binh';
+        $condition = $inventory && $inventory->condition ? $inventory->condition : 'Trung binh';
         $bookType = $book->loai_sach ?? 'binh_thuong';
-        
+        $inventoryStatus = $inventory && $inventory->status ? $inventory->status : 'San sang';
+
+        // Lấy daily_fee từ book nếu có
+        $dailyFee = isset($book->daily_fee) ? floatval($book->daily_fee) : null;
+
         // Tính số ngày mượn
         $days = 1;
         if ($ngayMuon && $ngayHenTra) {
@@ -84,21 +95,24 @@ class PricingService
             $ngayHenTraCarbon = Carbon::parse($ngayHenTra);
             $days = max(1, $ngayMuonCarbon->diffInDays($ngayHenTraCarbon));
         }
-        
-        // Nếu inventory không hợp lệ, trả về 0
-        if (in_array($inventory->status, ['Hong', 'Dang muon', 'Mat'])) {
+
+        // Nếu inventory không hợp lệ (hỏng hoặc mất), không tính tiền cọc nhưng vẫn tính tiền thuê
+        $isInventoryInvalid = in_array($inventoryStatus, ['Hong', 'Mat']);
+
+        // Nếu giá sách = 0 và không có daily_fee, trả về 0
+        if ($bookPrice <= 0 && !$dailyFee) {
             return [
                 'tien_thue' => 0,
                 'tien_coc' => 0
             ];
         }
-        
-        // Tính phí thuê (tính cho tất cả sách)
-        $tienThue = self::calculateRentalFee($bookPrice, $days, $condition);
-        
-        // Tính tiền cọc
-        $tienCoc = self::calculateDeposit($bookPrice, $condition, $bookType, $hasCard);
-        
+
+        // Tính phí thuê (tính cho tất cả sách) - ưu tiên daily_fee nếu có
+        $tienThue = self::calculateRentalFee($bookPrice, $days, $condition, $dailyFee);
+
+        // Tính tiền cọc - chỉ tính nếu inventory hợp lệ
+        $tienCoc = $isInventoryInvalid ? 0 : self::calculateDeposit($bookPrice, $condition, $bookType, $hasCard);
+
         return [
             'tien_thue' => $tienThue,
             'tien_coc' => $tienCoc

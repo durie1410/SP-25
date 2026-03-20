@@ -77,7 +77,8 @@ use Illuminate\Support\Str;
         @forelse($reservations as $groupCode => $group)
             @php
                 $firstReservation = $group->first();
-                $groupLabel = $firstReservation->reservation_code ?: 'Đơn lẻ';
+                $groupLabel = $firstReservation->reservation_code
+                    ?: 'RSV' . str_pad((string) $firstReservation->id, 6, '0', STR_PAD_LEFT);
                 $readerName = $firstReservation->reader->ho_ten ?? ($firstReservation->user->name ?? 'N/A');
                 $readerCard = $firstReservation->reader->so_the_doc_gia ?? '';
                 $groupTotal = $group->sum(fn($item) => (float) ($item->total_fee ?? 0));
@@ -209,6 +210,15 @@ use Illuminate\Support\Str;
                             <div>
                                 <div style="font-size: 11px; color: #64748b;">Trạng thái</div>
                                 <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
+                                @if($r->status === 'ready')
+                                    <div style="margin-top: 6px;">
+                                        @if($r->customer_confirmed_at)
+                                            <span class="badge badge-success" style="font-size: 10px;">Khách đã xác nhận</span>
+                                        @else
+                                            <span class="badge badge-warning" style="font-size: 10px;">Chờ khách xác nhận</span>
+                                        @endif
+                                    </div>
+                                @endif
                             </div>
                             <div>
                                 <div style="font-size: 11px; color: #64748b;">Bản sao</div>
