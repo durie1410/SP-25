@@ -77,7 +77,8 @@ use Illuminate\Support\Str;
         @forelse($reservations as $groupCode => $group)
             @php
                 $firstReservation = $group->first();
-                $groupLabel = $firstReservation->reservation_code ?: 'Đơn lẻ';
+                $groupLabel = $firstReservation->reservation_code
+                    ?: 'RSV' . str_pad((string) $firstReservation->id, 6, '0', STR_PAD_LEFT);
                 $readerName = $firstReservation->reader->ho_ten ?? ($firstReservation->user->name ?? 'N/A');
                 $readerCard = $firstReservation->reader->so_the_doc_gia ?? '';
                 $groupTotal = $group->sum(fn($item) => (float) ($item->total_fee ?? 0));
