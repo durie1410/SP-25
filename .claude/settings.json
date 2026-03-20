@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"Get-ChildItem ''C:\\\\laragon\\\\www\\\\quanlythuviennn\\\\public\\\\storage'' -Directory | Select-Object -ExpandProperty Name\")",
+      "Bash(powershell -Command \"if \\(Test-Path ''C:\\\\laragon\\\\www\\\\quanlythuviennn\\\\storage\\\\app\\\\public\\\\reservation_proofs''\\) { Get-ChildItem ''C:\\\\laragon\\\\www\\\\quanlythuviennn\\\\storage\\\\app\\\\public\\\\reservation_proofs'' -File | Select-Object -First 10 Name,Length,LastWriteTime } else { Write-Host ''Directory does not exist'' }\")",
+      "Bash(powershell -Command \"Get-ChildItem ''C:\\\\laragon\\\\www\\\\quanlythuviennn\\\\public\\\\storage'' -ErrorAction SilentlyContinue | Select-Object Mode,Target; if \\(Test-Path ''C:\\\\laragon\\\\www\\\\quanlythuviennn\\\\public\\\\storage\\\\reservation_proofs''\\) { Get-ChildItem ''C:\\\\laragon\\\\www\\\\quanlythuviennn\\\\public\\\\storage\\\\reservation_proofs'' -ErrorAction SilentlyContinue | Select-Object Name | Select-Object -First 3 } else { Write-Host ''No reservation_proofs dir in public/storage'' }\")",
+      "Bash(powershell -Command \":*)",
+      "Bash(powershell -Command \"Remove-Item ''C:\\\\laragon\\\\www\\\\quanlythuviennn\\\\public\\\\storage'' -Force -Recurse; php ''C:\\\\laragon\\\\www\\\\quanlythuviennn\\\\artisan'' storage:link\")",
+      "Bash(php -r \":*)",
+      "Bash(php artisan:*)"
+    ]
+  }
+}

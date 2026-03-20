@@ -35,7 +35,13 @@ class ReservationCartController extends Controller
 
         $items = $cart->items()->with('book')->orderBy('created_at', 'desc')->get();
 
-        return view('reservation_cart.index', compact('cart', 'items'));
+        // Tính available stock cho từng item để truyền ra view
+        $itemsWithStock = $items->map(function ($item) {
+            $item->availableStock = $this->getAvailableStock($item->book);
+            return $item;
+        });
+
+        return view('reservation_cart.index', compact('cart', 'itemsWithStock'));
     }
 
     public function add(Request $request)
@@ -620,6 +626,62 @@ class ReservationCartController extends Controller
             'item_price' => $item->fresh()->total_price ?? 0,
             'total_price' => $cart->fresh()->total_price ?? 0,
         ]);
+    }
+
+    public function cancelReservation(Request $request, $id)
+    {
+        $user = $request->user();
+        $reservation = \App\Models\InventoryReservation::with(['book', 'reader.user', 'user'])
+            ->where('id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$reservation) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Không tìm thấy yêu cầu đặt trước.'], 404);
+            }
+            return redirect()->route('reservation-cart.history')->with('error', 'Không tìm thấy yêu cầu đặt trước.');
+        }
+
+        if (!$reservation->canBeCancelledByUser($user->id)) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Yêu cầu này không thể hủy ở trạng thái "' . $reservation->getStatusLabel() . '".'
+                ], 422);
+            }
+            return redirect()->route('reservation-cart.history')
+                ->with('error', 'Yêu cầu này không thể hủy ở trạng thái "' . $reservation->getStatusLabel() . '".');
+        }
+
+        $bookTitle = $reservation->book?->ten_sach ?? 'Sách';
+        $reservation->cancel('Hủy bởi người dùng tại trang cá nhân.', null);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Đã hủy yêu cầu đặt trước \"{$bookTitle}\" thành công."
+            ]);
+        }
+
+        return redirect()->route('reservation-cart.history')
+            ->with('success', "Đã hủy yêu cầu đặt trước \"{$bookTitle}\" thành công.");
+    }
+
+    public function showReservationDetail($id)
+    {
+        $user = auth()->user();
+        $reservation = \App\Models\InventoryReservation::with(['book', 'inventory', 'reader', 'user', 'processedBy'])
+            ->where('id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$reservation) {
+            return redirect()->route('reservation-cart.history')
+                ->with('error', 'Không tìm thấy yêu cầu đặt trước.');
+        }
+
+        return view('reservation_cart.detail', compact('reservation'));
     }
 
     private function getAvailableStock(Book $book): int

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\Category;
 use App\Models\Favorite;
+use App\Models\Inventory;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -14,7 +15,14 @@ class BookApiController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Book::with('category');
+        // Lấy book_id đã có trong inventory (đã duyệt phiếu nhập kho)
+        $bookIdsFromInventory = Inventory::select('book_id')
+            ->distinct()
+            ->pluck('book_id')
+            ->toArray();
+
+        $query = Book::with('category')
+            ->whereIn('id', $bookIdsFromInventory);
 
         // Tìm kiếm theo tên sách hoặc tác giả
         if ($request->filled('search')) {
@@ -54,6 +62,20 @@ class BookApiController extends Controller
 
     public function show($id): JsonResponse
     {
+        // Lấy book_id đã có trong inventory (đã duyệt phiếu nhập kho)
+        $bookIdsFromInventory = Inventory::select('book_id')
+            ->distinct()
+            ->pluck('book_id')
+            ->toArray();
+
+        // Kiểm tra sách có trong inventory không
+        if (!in_array($id, $bookIdsFromInventory)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sách này hiện không có sẵn trong kho.'
+            ], 404);
+        }
+
         $book = Book::with(['category', 'inventories'])->find($id);
 
         if (!$book) {
@@ -97,14 +119,22 @@ class BookApiController extends Controller
 
     public function featured(): JsonResponse
     {
-        // Lấy sách mới nhất
+        // Lấy book_id đã có trong inventory (đã duyệt phiếu nhập kho)
+        $bookIdsFromInventory = Inventory::select('book_id')
+            ->distinct()
+            ->pluck('book_id')
+            ->toArray();
+
+        // Lấy sách mới nhất - CHỈ sách đã có trong kho
         $newBooks = Book::with('category')
+            ->whereIn('id', $bookIdsFromInventory)
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
 
-        // Lấy sách được mượn nhiều nhất
+        // Lấy sách được mượn nhiều nhất - CHỈ sách đã có trong kho
         $popularBooks = Book::with('category')
+            ->whereIn('id', $bookIdsFromInventory)
             ->withCount('borrows')
             ->orderBy('borrows_count', 'desc')
             ->limit(10)

@@ -73,17 +73,6 @@
         overflow: hidden;
     }
 
-    .history-item {
-        display: flex;
-        padding: 20px;
-        border-bottom: 1px solid var(--reserve-border);
-        gap: 20px;
-    }
-
-    .history-item:last-child {
-        border-bottom: none;
-    }
-
     .book-cover {
         width: 80px;
         height: 110px;
@@ -143,6 +132,11 @@
     }
 
     .status-cancelled {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-overdue {
         background: #fee2e2;
         color: #991b1b;
     }
@@ -275,6 +269,31 @@
         background: #fef2f2;
         border-color: #f87171;
     }
+
+    .notice-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 600;
+    }
+
+    .notice-inline.warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .notice-inline.danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .notice-inline.success {
+        background: #d1fae5;
+        color: #065f46;
+    }
 </style>
 @endpush
 
@@ -296,11 +315,9 @@
                 if (!empty($reservation->reservation_code)) {
                     return $reservation->reservation_code;
                 }
-
                 $pickup = $reservation->pickup_date ? $reservation->pickup_date->format('Ymd') : 'none';
                 $return = $reservation->return_date ? $reservation->return_date->format('Ymd') : 'none';
                 $time = $reservation->pickup_time ?: 'none';
-
                 return "single-{$reservation->id}-{$pickup}-{$return}-{$time}";
             });
         @endphp
@@ -315,17 +332,23 @@
                 $groupStatus = $group->contains(fn ($item) => $item->status === 'ready') ? 'ready' : $first->status;
             @endphp
 
-            <details class="history-item" style="display:block;">
-                <summary style="list-style:none; cursor:pointer; display:flex; align-items:flex-start; gap:20px;">
-                    <div class="book-info" style="flex:1;">
-                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap;">
+            <div style="padding: 20px; border-bottom: 1px solid var(--reserve-border);">
+                <div style="display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
+                    <img src="{{ $first->book && $first->book->hinh_anh ? asset('storage/' . $first->book->hinh_anh) : 'https://via.placeholder.com/80x110?text=No+Image' }}"
+                         alt="{{ $first->book->ten_sach ?? 'Sách' }}"
+                         class="book-cover">
+
+                    <div class="book-info">
+                        <h3 class="book-title">{{ $first->book->ten_sach ?? 'N/A' }}</h3>
+                        <p class="book-author">Tác giả: {{ $first->book->tac_gia ?? 'Không rõ' }}</p>
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap;">
                             <span class="reservation-code">{{ $displayCode }}</span>
                             <span class="status-badge status-{{ $groupStatus }}">
                                 {{ $groupStatus === 'ready' ? 'Đã sẵn sàng' : $first->getStatusLabel() }}
                             </span>
                             <span class="schedule-label">{{ $group->count() }} sách</span>
                         </div>
-                        <div class="schedule-info" style="margin-top:0;">
+                        <div class="schedule-info" style="margin-top: 0;">
                             <div class="schedule-item">
                                 <span class="schedule-label">Ngày lấy</span>
                                 <span class="schedule-value">{{ $first->pickup_date ? \Carbon\Carbon::parse($first->pickup_date)->format('d/m/Y') : 'N/A' }}</span>
@@ -336,6 +359,7 @@
                             </div>
                         </div>
                     </div>
+
                     <div class="fee-info">
                         <div class="fee-label">Tổng tiền</div>
                         <div class="fee-value">{{ number_format($groupTotal, 0, ',', '.') }}đ</div>
@@ -362,47 +386,41 @@
                             </div>
                         @endif
                     </div>
-                </summary>
-
-                <div style="margin-top:14px; display:grid; gap:12px;">
-                    @foreach($group as $reservation)
-                        <div style="display:flex; gap:14px; border:1px solid var(--reserve-border); border-radius:10px; padding:12px; background:#fff;">
-                            <img src="{{ $reservation->book->image_url ?? asset('images/default-book.png') }}"
-                                 alt="{{ $reservation->book->ten_sach ?? 'Sách' }}"
-                                 class="book-cover">
-                            <div class="book-info">
-                                <h3 class="book-title" style="font-size:16px;">{{ $reservation->book->ten_sach ?? 'N/A' }}</h3>
-                                <p class="book-author">Tác giả: {{ $reservation->book->tac_gia ?? 'Không rõ' }}</p>
-                                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
-                                    <span class="status-badge status-{{ $reservation->status }}">{{ $reservation->getStatusLabel() }}</span>
-                                    @if($reservation->inventory_id)
-                                        <span class="reservation-code">Bản sao #{{ $reservation->inventory_id }}</span>
-                                    @endif
-                                    <span class="fee-label">{{ number_format($reservation->total_fee ?? 0, 0, ',', '.') }}đ</span>
-                                </div>
-
-                                @php
-                                    $proofImages = $reservation->getProofImages();
-                                @endphp
-                                <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Ảnh minh chứng</div>
-                                @if(!empty($proofImages))
-                                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                                        @foreach($proofImages as $img)
-                                            <a href="{{ asset('storage/' . ltrim($img, '/')) }}" target="_blank" rel="noopener noreferrer">
-                                                <img src="{{ asset('storage/' . ltrim($img, '/')) }}"
-                                                     alt="Ảnh minh chứng"
-                                                     style="width:52px; height:52px; object-fit:cover; border-radius:8px; border:1px solid var(--reserve-border);">
-                                            </a>
-                                        @endforeach
-                                    </div>
-                                @else
-                                    <div class="fee-label">Chưa có ảnh minh chứng</div>
-                                @endif
-                            </div>
-                        </div>
-                    @endforeach
                 </div>
-            </details>
+
+                @if($group->count() > 1 || !empty($first->reservation_code))
+                    <details style="margin-top: 14px;">
+                        <summary style="cursor: pointer; color: var(--reserve-primary); font-weight: 600; list-style: none;">
+                            <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
+                            Xem chi tiết ({{ $group->count() }} sách)
+                        </summary>
+                        <div style="margin-top: 14px; display: grid; gap: 12px;">
+                            @foreach($group as $reservation)
+                                <div style="display: flex; gap: 14px; border: 1px solid var(--reserve-border); border-radius: 10px; padding: 12px; background: #fff;">
+                                    <img src="{{ $reservation->book && $reservation->book->hinh_anh ? asset('storage/' . $reservation->book->hinh_anh) : 'https://via.placeholder.com/60x80?text=No' }}"
+                                         alt="{{ $reservation->book->ten_sach ?? 'Sách' }}"
+                                         style="width: 60px; height: 80px; object-fit: cover; border-radius: 6px;">
+                                    <div class="book-info">
+                                        <h4 style="font-size: 15px; font-weight: 600; margin: 0 0 4px 0; color: var(--reserve-text);">
+                                            {{ $reservation->book->ten_sach ?? 'N/A' }}
+                                        </h4>
+                                        <p style="margin: 0 0 8px 0; font-size: 13px; color: var(--reserve-muted);">
+                                            {{ $reservation->book->tac_gia ?? 'Không rõ' }}
+                                        </p>
+                                        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                            <span class="status-badge status-{{ $reservation->status }}">{{ $reservation->getStatusLabel() }}</span>
+                                            @if($reservation->inventory_id)
+                                                <span class="reservation-code">Bản sao #{{ $reservation->inventory_id }}</span>
+                                            @endif
+                                            <span class="fee-label">{{ number_format($reservation->total_fee ?? 0, 0, ',', '.') }}đ</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </details>
+                @endif
+            </div>
         @empty
             <div class="empty-state">
                 <div class="empty-icon">📚</div>

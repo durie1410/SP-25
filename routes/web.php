@@ -67,8 +67,6 @@ Route::get('/borrows/momo/return', [BorrowController::class, 'borrowMomoReturn']
 Route::post('/borrows/momo/ipn', [BorrowController::class, 'borrowMomoIpn'])
     ->name('admin.borrows.momo.ipn');
 
-Route::post('/orders/store', [OrderController::class, 'store'])
-    ->name('orders.store');
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -222,6 +220,9 @@ Route::prefix('reservation-cart')->name('reservation-cart.')->middleware('auth')
     Route::get('/history', [ReservationCartController::class, 'history'])->name('history');
     Route::post('/history/{reservationCode}/confirm-ready', [ReservationCartController::class, 'confirmReadyGroup'])->name('history.confirm-ready');
     Route::post('/history/{reservationCode}/cancel-ready', [ReservationCartController::class, 'cancelReadyGroup'])->name('history.cancel-ready');
+    // Client actions
+    Route::post('/cancel/{id}', [ReservationCartController::class, 'cancelReservation'])->name('cancel');
+    Route::get('/detail/{id}', [ReservationCartController::class, 'showReservationDetail'])->name('detail');
 });
 
 // Notification bell (user)
@@ -801,6 +802,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
 
     // Route::get('users/lock/{id}', [AuthController::class, 'lockUser'])->name('users.lock');
 });
+
 
 // VnPay Payment Routes
 Route::prefix('vnpay')->name('vnpay.')->middleware('auth')->group(function () {

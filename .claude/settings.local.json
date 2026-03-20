@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(php artisan:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/admin/books/create -L --cookie-jar /tmp/cookies.txt)",
+      "Bash(curl -s http://127.0.0.1:8000/test-books-create)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :8000)",
+      "Bash(taskkill /PID 77964 /F)",
+      "Bash(taskkill /PID 77440 /F)",
+      "Bash(powershell -Command \"Stop-Process -Id 77964 -Force; Stop-Process -Id 77440 -Force\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8080/admin/books/create)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/admin/books/create)"
+    ]
+  }
+}
