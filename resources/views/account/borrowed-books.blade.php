@@ -857,9 +857,15 @@
                     tien_ship: {{ $item->tien_ship ?? 0 }},
                     ghi_chu: {!! json_encode($item->ghi_chu ?? '') !!},
                     ghi_chu_nhan_sach: {!! json_encode($item->ghi_chu_nhan_sach ?? '') !!},
-                    anh_bia_truoc: {!! json_encode($item->anh_bia_truoc ?? null) !!},
-                    anh_bia_sau: {!! json_encode($item->anh_bia_sau ?? null) !!},
-                    anh_gay_sach: {!! json_encode($item->anh_gay_sach ?? null) !!},
+                    anh_bia_truoc: {!! json_encode($item->anh_bia_truoc ? (preg_match('/^https?:\/\//i', $item->anh_bia_truoc) ? $item->anh_bia_truoc : asset('storage/' . ltrim(str_replace(['\\', 'storage/'], ['/', ''], $item->anh_bia_truoc), '/'))) : null) !!},
+                    anh_bia_sau: {!! json_encode($item->anh_bia_sau ? (preg_match('/^https?:\/\//i', $item->anh_bia_sau) ? $item->anh_bia_sau : asset('storage/' . ltrim(str_replace(['\\', 'storage/'], ['/', ''], $item->anh_bia_sau), '/'))) : null) !!},
+                    anh_gay_sach: {!! json_encode($item->anh_gay_sach ? (preg_match('/^https?:\/\//i', $item->anh_gay_sach) ? $item->anh_gay_sach : asset('storage/' . ltrim(str_replace(['\\', 'storage/'], ['/', ''], $item->anh_gay_sach), '/'))) : null) !!},
+                    proof_images: {!! json_encode(collect($item->reservation?->getProofImages() ?? [])->map(function($img){
+                        if (!$img) return null;
+                        if (preg_match('/^https?:\/\//i', $img)) return $img;
+                        $normalized = ltrim(str_replace(['\\', 'storage/'], ['/', ''], (string) $img), '/');
+                        return asset('storage/' . $normalized);
+                    })->filter()->values()->all()) !!},
                     inventory: {
                         barcode: {!! json_encode($item->inventory->barcode ?? '') !!},
                         location: {!! json_encode($item->inventory->location ?? '') !!},
@@ -1562,10 +1568,11 @@
                                 <span class="detail-value">${item.ghi_chu}</span>
                             </div>
                             ` : ''}
-                            ${(item.anh_bia_truoc || item.anh_bia_sau || item.anh_gay_sach) ? `
+                            ${((item.proof_images && item.proof_images.length) || item.anh_bia_truoc || item.anh_bia_sau || item.anh_gay_sach) ? `
                             <div class="detail-row" style="margin-top: 12px; align-items: flex-start;">
                                 <span class="detail-label">Ảnh minh chứng:</span>
                                 <div class="detail-value" style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    ${(item.proof_images || []).map((img, idx) => `<a href="${img}" target="_blank"><img src="${img}" alt="Minh chứng ${idx + 1}" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;" onerror="this.src='/images/no-image.png'; this.onerror=null;"></a>`).join('')}
                                     ${item.anh_bia_truoc ? `<a href="${item.anh_bia_truoc}" target="_blank"><img src="${item.anh_bia_truoc}" alt="Bìa trước" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;" onerror="this.src='/images/no-image.png'; this.onerror=null;"></a>` : ''}
                                     ${item.anh_bia_sau ? `<a href="${item.anh_bia_sau}" target="_blank"><img src="${item.anh_bia_sau}" alt="Bìa sau" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;" onerror="this.src='/images/no-image.png'; this.onerror=null;"></a>` : ''}
                                     ${item.anh_gay_sach ? `<a href="${item.anh_gay_sach}" target="_blank"><img src="${item.anh_gay_sach}" alt="Gáy sách" style="width:70px;height:70px;object-fit:cover;border:1px solid #ddd;border-radius:6px;" onerror="this.src='/images/no-image.png'; this.onerror=null;"></a>` : ''}
