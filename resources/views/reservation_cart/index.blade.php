@@ -363,6 +363,14 @@
         background: #f0fdfa;
     }
 
+    .reservation-quantity-btn.disabled,
+    .reservation-quantity-btn:disabled {
+        background: #f1f5f9 !important;
+        color: #cbd5e1 !important;
+        cursor: not-allowed !important;
+        opacity: 0.7;
+    }
+
     .reservation-quantity-input {
         width: 54px;
         height: 38px;
@@ -524,6 +532,16 @@
         display: none;
     }
 
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+
     @media (max-width: 1024px) {
         .reservation-cart-grid {
             grid-template-columns: minmax(0, 1fr);
@@ -642,7 +660,7 @@
     @endif
 @endforeach
 
-@if($itemsWithStock->count() === 0)
+@if($items->count() === 0)
         <div class="reservation-empty">
             <div class="reservation-empty-icon">
                 <i class="fas fa-calendar-times"></i>
@@ -677,7 +695,7 @@
                     <div class="reservation-card-header">
                         <h3 class="reservation-card-title">
                             <i class="fas fa-list-ul"></i>
-                            Sách trong giỏ đặt trước ({{ $itemsWithStock->sum('quantity') }})
+                            Sách trong giỏ đặt trước ({{ $items->sum('quantity') }})
                         </h3>
                     </div>
 
@@ -698,14 +716,18 @@
                     </div>
 
                     <div class="reservation-items-list">
-                        @foreach($itemsWithStock as $item)
+                        @foreach($items as $item)
                             @php
-                                $sameBookItems = $itemsWithStock->where('book_id', $item->book_id)->values();
+                                $sameBookItems = $items->where('book_id', $item->book_id)->values();
                                 $sameBookIndex = $sameBookItems->search(fn($cartItem) => $cartItem->id === $item->id);
                                 // Lấy daily_fee từ cart item, nếu null thì lấy từ sách
                                 $dailyFee = (int) ($item->daily_fee ?? $item->book?->daily_fee ?? 5000);
                                 $quantity = max(1, (int) ($item->quantity ?? 1));
-                                $availableStock = (int) ($item->availableStock ?? 0);
+                                // Lấy giới hạn tối đa cho mỗi sách (min giữa kho và quy định 2 cuốn)
+                                $maxQuantity = max(1, (int) ($item->max_quantity ?? 2));
+                                $canIncrease = $quantity < $maxQuantity;
+                                $canDecrease = $quantity > 1;
+
 
                                 // Lấy ngày từ DB (có thể là string hoặc object)
                                 $pickupDateStr = null;
@@ -828,27 +850,28 @@
                                     <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
                                         <div class="reservation-side-label">Số lượng đặt trước</div>
                                         <div class="reservation-quantity-control">
-                                            <button type="button" class="reservation-quantity-btn" onclick="changeReservationQuantity({{ $item->id }}, -1)">-</button>
+                                            <button type="button" class="reservation-quantity-btn {{ !$canDecrease ? 'disabled' : '' }}"
+                                                    onclick="{{ $canDecrease ? "changeReservationQuantity({$item->id}, -1)" : '' }}"
+                                                    {{ !$canDecrease ? 'disabled' : '' }}>-</button>
                                             <input
                                                 type="number"
                                                 id="reservation-quantity-{{ $item->id }}"
                                                 class="reservation-quantity-input"
                                                 value="{{ $quantity }}"
                                                 min="1"
-                                                max="{{ $availableStock }}"
-                                                data-available-stock="{{ $availableStock }}"
+                                                max="{{ $maxQuantity }}"
+                                                data-max-quantity="{{ $maxQuantity }}"
                                                 onchange="updateReservationQuantityInput({{ $item->id }})"
                                             >
-                                            <button type="button" class="reservation-quantity-btn" onclick="changeReservationQuantity({{ $item->id }}, 1)">+</button>
+                                            <button type="button" class="reservation-quantity-btn {{ !$canIncrease ? 'disabled' : '' }}"
+                                                    onclick="{{ $canIncrease ? "changeReservationQuantity({$item->id}, 1)" : '' }}"
+                                                    {{ !$canIncrease ? 'disabled' : '' }}>+</button>
                                         </div>
-                                        @if($availableStock > 0 && $quantity > $availableStock)
-                                            <span class="stock-warning" style="color: #dc2626; font-size: 12px; margin-top: 4px;">
-                                                <i class="fas fa-exclamation-triangle"></i> Kho chỉ còn {{ $availableStock }} cuốn
-                                            </span>
-                                        @elseif($availableStock > 0 && $availableStock <= 3)
-                                            <span class="stock-warning" style="color: #d97706; font-size: 12px; margin-top: 4px;">
-                                                <i class="fas fa-info-circle"></i> Chỉ còn {{ $availableStock }} cuốn trong kho
-                                            </span>
+
+                                        @if($maxQuantity <= 1 && $quantity >= $maxQuantity)
+                                            <small class="text-muted" style="font-size: 11px; color: #dc2626;">
+                                                <i class="fas fa-info-circle"></i> Kho chỉ còn {{ $maxQuantity }} cuốn
+                                            </small>
                                         @endif
                                         @if($quantity > 1)
                                             <form method="POST" action="{{ route('reservation-cart.split-item', $item->id) }}" class="reservation-split-form {{ $quantity > 1 ? '' : 'is-hidden' }}" data-item-id="{{ $item->id }}">
@@ -892,7 +915,7 @@
 
                     <div class="reservation-summary-row">
                         <span>Sách đã chọn</span>
-                        <span><strong id="selected-books-count">{{ $itemsWithStock->sum('quantity') }}</strong> cuốn</span>
+                        <span><strong id="selected-books-count">{{ $items->sum('quantity') }}</strong> cuốn</span>
                     </div>
 
                     <div class="reservation-summary-row total">
@@ -900,7 +923,7 @@
                         <span class="reservation-total-price" id="total-price">
                             @php
                                 $total = 0;
-                                foreach($itemsWithStock as $item) {
+                                foreach($items as $item) {
                                     $pickupDateStr = null;
                                     $returnDateStr = null;
 
@@ -947,17 +970,17 @@
                                 <div style="display: flex; gap: 8px;">
                                     <select class="form-control" id="pickup-time-hour" onchange="handlePickupTimeChange()">
                                         @for($h = 8; $h <= 20; $h++)
-                                            <option value="{{ str_pad($h, 2, '0', STR_PAD_LEFT) }}" {{ ($itemsWithStock->first()?->pickup_time && strpos($itemsWithStock->first()->pickup_time, str_pad($h, 2, '0', STR_PAD_LEFT) . ':') === 0) ? 'selected' : '' }}>{{ $h }}h</option>
+                                            <option value="{{ str_pad($h, 2, '0', STR_PAD_LEFT) }}" {{ ($items->first()?->pickup_time && strpos($items->first()->pickup_time, str_pad($h, 2, '0', STR_PAD_LEFT) . ':') === 0) ? 'selected' : '' }}>{{ $h }}h</option>
                                         @endfor
                                     </select>
                                     <select class="form-control" id="pickup-time-minute" onchange="handlePickupTimeChange()">
-                                        <option value="00" {{ ($itemsWithStock->first()?->pickup_time && strpos($itemsWithStock->first()->pickup_time, ':00') !== false) ? 'selected' : '' }}>00p</option>
-                                        <option value="15" {{ ($itemsWithStock->first()?->pickup_time && strpos($itemsWithStock->first()->pickup_time, ':15') !== false) ? 'selected' : '' }}>15p</option>
-                                        <option value="30" {{ ($itemsWithStock->first()?->pickup_time && strpos($itemsWithStock->first()->pickup_time, ':30') !== false) ? 'selected' : '' }}>30p</option>
-                                        <option value="45" {{ ($itemsWithStock->first()?->pickup_time && strpos($itemsWithStock->first()->pickup_time, ':45') !== false) ? 'selected' : '' }}>45p</option>
+                                        <option value="00" {{ ($items->first()?->pickup_time && strpos($items->first()->pickup_time, ':00') !== false) ? 'selected' : '' }}>00p</option>
+                                        <option value="15" {{ ($items->first()?->pickup_time && strpos($items->first()->pickup_time, ':15') !== false) ? 'selected' : '' }}>15p</option>
+                                        <option value="30" {{ ($items->first()?->pickup_time && strpos($items->first()->pickup_time, ':30') !== false) ? 'selected' : '' }}>30p</option>
+                                        <option value="45" {{ ($items->first()?->pickup_time && strpos($items->first()->pickup_time, ':45') !== false) ? 'selected' : '' }}>45p</option>
                                     </select>
                                 </div>
-                                <input type="hidden" id="pickup-time-hidden" value="{{ $itemsWithStock->first()?->pickup_time ?? '' }}">
+                                <input type="hidden" id="pickup-time-hidden" value="{{ $items->first()?->pickup_time ?? '' }}">
                             </div>
                         </div>
                         <div style="font-weight: 700; margin-bottom: 8px;">Quy định mượn trả</div>
@@ -979,8 +1002,8 @@
                           onsubmit="return validateCartBeforeSubmit()">
                         @csrf
                         <!-- DEBUG -->
-                        <input type="hidden" name="pickup_time" id="pickup-time-form" value="{{ $itemsWithStock->first()?->pickup_time ?? '' }}">
-                        <input type="hidden" name="debug_pickup_time" value="{{ $itemsWithStock->first()?->pickup_time ?? '' }}">
+                        <input type="hidden" name="pickup_time" id="pickup-time-form" value="{{ $items->first()?->pickup_time ?? '' }}">
+                        <input type="hidden" name="debug_pickup_time" value="{{ $items->first()?->pickup_time ?? '' }}">
                         <button class="btn btn-primary reservation-submit-btn" type="submit">
                             Gửi yêu cầu đặt trước <i class="fas fa-arrow-right ms-2"></i>
                         </button>
@@ -1339,13 +1362,18 @@ function updateItemPriceDisplay(itemId){
 
 function changeReservationQuantity(itemId, delta){
     const input = document.getElementById(`reservation-quantity-${itemId}`);
-    if(!input){
-        return;
-    }
+    if(!input) return;
 
-    const availableStock = parseInt(input.dataset.availableStock || input.max || 999, 10);
-    const previousValue = Math.max(1, parseInt(input.value || '1', 10));
-    const nextValue = Math.max(1, Math.min(availableStock, previousValue + delta));
+    const maxQuantity = parseInt(input.dataset.maxQuantity || '2', 10);
+    const currentValue = Math.max(1, parseInt(input.value || '1', 10));
+    let nextValue = currentValue + delta;
+
+    // Giới hạn
+    nextValue = Math.max(1, Math.min(maxQuantity, nextValue));
+
+    // Nếu không thay đổi thì không làm gì
+    if(nextValue === currentValue) return;
+
     input.value = nextValue;
     updateReservationQuantityDisplay(itemId, nextValue);
 }
@@ -1354,20 +1382,24 @@ function updateReservationQuantityDisplay(itemId, quantity){
     const input = document.getElementById(`reservation-quantity-${itemId}`);
     const itemCard = getReservationItemCard(itemId);
 
-    if(!input || !itemCard){
-        return;
-    }
+    if(!input || !itemCard) return;
 
-    const availableStock = parseInt(input.dataset.availableStock || input.max || 999, 10);
-    const qty = Math.max(1, Math.min(availableStock, parseInt(input.value || '1', 10)));
+    const maxQuantity = parseInt(input.dataset.maxQuantity || '2', 10);
+    const previousValue = parseInt(input.value || '1', 10);
+    const qty = Math.max(1, Math.min(maxQuantity, parseInt(input.value || '1', 10)));
+
+
     input.value = qty;
     itemCard.dataset.quantity = qty;
 
     // Cập nhật label
     const quantityLabel = itemCard.querySelector('.reservation-quantity-value');
-    if(quantityLabel){
+    if(quantityLabel) {
         quantityLabel.textContent = qty;
     }
+
+    // Cập nhật trạng thái nút +/-
+    updateQuantityButtons(itemCard, qty, maxQuantity);
 
     // Gửi API để lưu số lượng xuống database
     fetch(`/reservation-cart/update-quantity/${itemId}`, {
@@ -1382,8 +1414,14 @@ function updateReservationQuantityDisplay(itemId, quantity){
     .then(response => response.json())
     .then(data => {
         if(data.success){
-            // Cập nhật lại giá tiền
             updateItemPriceDisplay(itemId);
+        } else {
+            // Revert về giá trị trước đó
+            input.value = previousValue;
+            itemCard.dataset.quantity = previousValue;
+            if(quantityLabel) quantityLabel.textContent = previousValue;
+            updateQuantityButtons(itemCard, previousValue, maxQuantity);
+            showToastMessage(data.message || 'Có lỗi xảy ra khi cập nhật số lượng!', 'error');
         }
     })
     .catch(error => {
@@ -1391,7 +1429,41 @@ function updateReservationQuantityDisplay(itemId, quantity){
     });
 }
 
+function updateQuantityButtons(itemCard, qty, maxQuantity) {
+    const minusBtn = itemCard.querySelector('.reservation-quantity-btn:first-child');
+    const plusBtn = itemCard.querySelector('.reservation-quantity-btn:last-child');
+
+    if(minusBtn) {
+        const canDecrease = qty > 1;
+        minusBtn.disabled = !canDecrease;
+        minusBtn.classList.toggle('disabled', !canDecrease);
+        minusBtn.onclick = canDecrease ? () => changeReservationQuantity(itemCard.dataset.itemId, -1) : '';
+    }
+
+    if(plusBtn) {
+        const canIncrease = qty < maxQuantity;
+        plusBtn.disabled = !canIncrease;
+        plusBtn.classList.toggle('disabled', !canIncrease);
+        plusBtn.onclick = canIncrease ? () => changeReservationQuantity(itemCard.dataset.itemId, 1) : '';
+    }
+}
+
 function updateReservationQuantityInput(itemId, previousValue = null){
+    const input = document.getElementById(`reservation-quantity-${itemId}`);
+    if(!input) return;
+
+    const value = parseInt(input.value || '1', 10);
+    const MAX_PER_BOOK = 2;
+
+    // Validate: không nhỏ hơn 1, không lớn hơn 2
+    if(value < 1) {
+        input.value = 1;
+        alert('Số lượng không được nhỏ hơn 1!');
+    } else if(value > MAX_PER_BOOK) {
+        input.value = MAX_PER_BOOK;
+        alert('Mỗi loại sách chỉ được đặt tối đa 2 cuốn theo quy định thư viện!');
+    }
+
     updateReservationQuantityDisplay(itemId);
 }
 
@@ -1528,5 +1600,45 @@ document.addEventListener('DOMContentLoaded', function () {
         syncSplitButtonVisibility(checkbox.value, Number(itemCard.dataset.quantity || 1));
     });
 });
+
+function showToastMessage(message, type = 'info') {
+    // Tạo toast message đơn giản
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 16px 24px;
+        border-radius: 12px;
+        z-index: 99999;
+        font-weight: 600;
+        font-size: 14px;
+        max-width: 350px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        animation: slideIn 0.3s ease;
+    `;
+
+    if(type === 'error') {
+        toast.style.background = '#fef2f2';
+        toast.style.color = '#dc2626';
+        toast.style.border = '1px solid #fecaca';
+    } else if(type === 'success') {
+        toast.style.background = '#ecfdf5';
+        toast.style.color = '#047857';
+        toast.style.border = '1px solid #a7f3d0';
+    } else {
+        toast.style.background = '#eff6ff';
+        toast.style.color = '#1d4ed8';
+        toast.style.border = '1px solid #bfdbfe';
+    }
+
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
 </script>
 @endsection

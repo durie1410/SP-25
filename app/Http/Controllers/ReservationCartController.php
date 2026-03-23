@@ -35,13 +35,14 @@ class ReservationCartController extends Controller
 
         $items = $cart->items()->with('book')->orderBy('created_at', 'desc')->get();
 
-        // Tính available stock cho từng item để truyền ra view
-        $itemsWithStock = $items->map(function ($item) {
-            $item->availableStock = $this->getAvailableStock($item->book);
-            return $item;
+        // Tính available stock cho mỗi item để hiển thị giới hạn
+        $items->each(function ($item) {
+            $item->available_stock = $this->getAvailableStock($item->book);
+            // Giới hạn tối đa 2 cuốn/cùng loại hoặc số trong kho (lấy min)
+            $item->max_quantity = min($item->available_stock, 2);
         });
 
-        return view('reservation_cart.index', compact('cart', 'itemsWithStock'));
+        return view('reservation_cart.index', compact('cart', 'items'));
     }
 
     public function add(Request $request)
@@ -58,11 +59,13 @@ class ReservationCartController extends Controller
         }
 
         $maxBorrowBooks = (int) config('library.borrow_max_books', 5);
+        // Giới hạn tối đa 2 cuốn cùng loại theo quy định thư viện
+        $maxPerBook = 2;
 
         $data = $request->validate([
             'book_id' => 'required|exists:books,id',
             'borrow_item_id' => 'nullable|exists:borrow_items,id',
-            'quantity' => 'nullable|integer|min:1|max:' . $maxBorrowBooks,
+            'quantity' => 'nullable|integer|min:1|max:' . $maxPerBook,
             'split_items' => 'nullable|boolean',
         ]);
 
@@ -83,6 +86,14 @@ class ReservationCartController extends Controller
         $existingQuantity = (int) $cart->items()
             ->where('book_id', (int) $data['book_id'])
             ->sum('quantity');
+
+        // Kiểm tra giới hạn 2 cuốn cùng loại
+        if (($existingQuantity + $requestedQuantity) > $maxPerBook) {
+            return response()->json([
+                'success' => false,
+                'message' => "Mỗi loại sách chỉ được đặt tối đa {$maxPerBook} cuốn theo quy định thư viện.",
+            ], 422);
+        }
 
         $currentTotalQuantity = (int) $cart->items()->sum('quantity');
         if (($currentTotalQuantity + $requestedQuantity) > $maxBorrowBooks) {
@@ -472,9 +483,11 @@ class ReservationCartController extends Controller
         }
 
         $maxBorrowBooks = (int) config('library.borrow_max_books', 5);
+        // Giới hạn tối đa 2 cuốn cùng loại theo quy định thư viện
+        $maxPerBook = 2;
 
         $request->validate([
-            'quantity' => 'required|integer|min:1|max:' . $maxBorrowBooks,
+            'quantity' => 'required|integer|min:1|max:' . $maxPerBook,
         ]);
 
         $cart = ReservationCart::where('user_id', $user->id)->first();
@@ -494,15 +507,28 @@ class ReservationCartController extends Controller
         }
 
         $availableStock = $this->getAvailableStock($item->book);
+        // Lấy giới hạn tối thiểu giữa số trong kho và quy định thư viện (2 cuốn/cùng loại)
+        $effectiveMax = min($availableStock, $maxPerBook);
+        $effectiveMax = max(1, $effectiveMax); // Ít nhất 1 nếu có hàng
+
         $otherQuantity = (int) $cart->items()
             ->where('book_id', $item->book_id)
             ->where('id', '!=', $item->id)
             ->sum('quantity');
 
-        if ($availableStock > 0 && ($otherQuantity + (int) $request->quantity) > $availableStock) {
+        // Kiểm tra với số lượng thực tế trong kho
+        if ($availableStock > 0 && ($otherQuantity + (int) $request->quantity) > $effectiveMax) {
             return response()->json([
                 'success' => false,
-                'message' => "Bạn chỉ có thể đặt tối đa {$availableStock} cuốn vì kho hiện còn {$availableStock} cuốn.",
+                'message' => "Kho chỉ còn {$availableStock} cuốn. Bạn chỉ có thể đặt tối đa {$effectiveMax} cuốn cùng loại theo quy định thư viện.",
+            ], 422);
+        }
+
+        // Nếu kho = 0 hoặc không xác định, vẫn giới hạn theo quy định thư viện
+        if ($availableStock <= 0 && (int) $request->quantity > $maxPerBook) {
+            return response()->json([
+                'success' => false,
+                'message' => "Mỗi loại sách chỉ được đặt tối đa {$maxPerBook} cuốn theo quy định thư viện.",
             ], 422);
         }
 
