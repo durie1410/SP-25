@@ -252,9 +252,23 @@
     <div class="history-card">
         @forelse($reservations as $reservation)
             <div class="history-item">
-                <img src="{{ $reservation->book->anh_dai_dien ?? 'https://via.placeholder.com/80x110' }}"
-                     alt="{{ $reservation->book->ten_sach ?? 'Sách' }}"
-                     class="book-cover">
+                @php
+                    $book = $reservation->book;
+                    $hasImage = $book && $book->hinh_anh;
+                @endphp
+                @if($hasImage)
+                    <img src="{{ $book->image_url }}"
+                         alt="{{ $book->ten_sach ?? 'Sách' }}"
+                         class="book-cover"
+                         onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="book-cover-placeholder" style="display: none; width: 80px; height: 110px; border-radius: 8px; background: linear-gradient(135deg, #e8f5e9 0%, #81c784 100%); align-items: center; justify-content: center; font-size: 11px; color: #1b5e20; text-align: center; padding: 8px; font-weight: 600;">
+                        📖<br>{{ Str::limit($book->ten_sach ?? 'Sách', 10) }}
+                    </div>
+                @else
+                    <div class="book-cover-placeholder" style="width: 80px; height: 110px; border-radius: 8px; background: linear-gradient(135deg, #e8f5e9 0%, #81c784 100%); align-items: center; justify-content: center; font-size: 11px; color: #1b5e20; text-align: center; padding: 8px; font-weight: 600;">
+                        📖<br>{{ Str::limit($book->ten_sach ?? 'Sách', 10) }}
+                    </div>
+                @endif
 
                 <div class="book-info">
                     <h3 class="book-title">{{ $reservation->book->ten_sach ?? 'N/A' }}</h3>
