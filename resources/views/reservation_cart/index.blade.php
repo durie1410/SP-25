@@ -363,6 +363,14 @@
         background: #f0fdfa;
     }
 
+    .reservation-quantity-btn.disabled,
+    .reservation-quantity-btn:disabled {
+        background: #f1f5f9 !important;
+        color: #cbd5e1 !important;
+        cursor: not-allowed !important;
+        opacity: 0.7;
+    }
+
     .reservation-quantity-input {
         width: 54px;
         height: 38px;
@@ -522,6 +530,16 @@
 
     .reservation-split-form.is-hidden {
         display: none;
+    }
+
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
     }
 
     @media (max-width: 1024px) {
@@ -705,6 +723,10 @@
                                 // Lấy daily_fee từ cart item, nếu null thì lấy từ sách
                                 $dailyFee = (int) ($item->daily_fee ?? $item->book?->daily_fee ?? 5000);
                                 $quantity = max(1, (int) ($item->quantity ?? 1));
+                                // Lấy giới hạn tối đa cho mỗi sách (min giữa kho và quy định 2 cuốn)
+                                $maxQuantity = max(1, (int) ($item->max_quantity ?? 2));
+                                $canIncrease = $quantity < $maxQuantity;
+                                $canDecrease = $quantity > 1;
 
                                 // Lấy ngày từ DB (có thể là string hoặc object)
                                 $pickupDateStr = null;
@@ -827,18 +849,28 @@
                                     <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
                                         <div class="reservation-side-label">Số lượng đặt trước</div>
                                         <div class="reservation-quantity-control">
-                                            <button type="button" class="reservation-quantity-btn" onclick="changeReservationQuantity({{ $item->id }}, -1)">-</button>
+                                            <button type="button" class="reservation-quantity-btn {{ !$canDecrease ? 'disabled' : '' }}"
+                                                    onclick="{{ $canDecrease ? "changeReservationQuantity({$item->id}, -1)" : '' }}"
+                                                    {{ !$canDecrease ? 'disabled' : '' }}>-</button>
                                             <input
                                                 type="number"
                                                 id="reservation-quantity-{{ $item->id }}"
                                                 class="reservation-quantity-input"
                                                 value="{{ $quantity }}"
                                                 min="1"
-                                                max="100"
+                                                max="{{ $maxQuantity }}"
+                                                data-max-quantity="{{ $maxQuantity }}"
                                                 onchange="updateReservationQuantityInput({{ $item->id }})"
                                             >
-                                            <button type="button" class="reservation-quantity-btn" onclick="changeReservationQuantity({{ $item->id }}, 1)">+</button>
+                                            <button type="button" class="reservation-quantity-btn {{ !$canIncrease ? 'disabled' : '' }}"
+                                                    onclick="{{ $canIncrease ? "changeReservationQuantity({$item->id}, 1)" : '' }}"
+                                                    {{ !$canIncrease ? 'disabled' : '' }}>+</button>
                                         </div>
+                                        @if($maxQuantity <= 1 && $quantity >= $maxQuantity)
+                                            <small class="text-muted" style="font-size: 11px; color: #dc2626;">
+                                                <i class="fas fa-info-circle"></i> Kho chỉ còn {{ $maxQuantity }} cuốn
+                                            </small>
+                                        @endif
                                         @if($quantity > 1)
                                             <form method="POST" action="{{ route('reservation-cart.split-item', $item->id) }}" class="reservation-split-form {{ $quantity > 1 ? '' : 'is-hidden' }}" data-item-id="{{ $item->id }}">
                                                 @csrf
@@ -1328,12 +1360,18 @@ function updateItemPriceDisplay(itemId){
 
 function changeReservationQuantity(itemId, delta){
     const input = document.getElementById(`reservation-quantity-${itemId}`);
-    if(!input){
-        return;
-    }
+    if(!input) return;
 
-    const previousValue = Math.max(1, parseInt(input.value || '1', 10));
-    const nextValue = Math.max(1, previousValue + delta);
+    const maxQuantity = parseInt(input.dataset.maxQuantity || '2', 10);
+    const currentValue = Math.max(1, parseInt(input.value || '1', 10));
+    let nextValue = currentValue + delta;
+
+    // Giới hạn
+    nextValue = Math.max(1, Math.min(maxQuantity, nextValue));
+
+    // Nếu không thay đổi thì không làm gì
+    if(nextValue === currentValue) return;
+
     input.value = nextValue;
     updateReservationQuantityDisplay(itemId, nextValue);
 }
@@ -1342,19 +1380,23 @@ function updateReservationQuantityDisplay(itemId, quantity){
     const input = document.getElementById(`reservation-quantity-${itemId}`);
     const itemCard = getReservationItemCard(itemId);
 
-    if(!input || !itemCard){
-        return;
-    }
+    if(!input || !itemCard) return;
 
-    const qty = Math.max(1, parseInt(input.value || '1', 10));
+    const maxQuantity = parseInt(input.dataset.maxQuantity || '2', 10);
+    const previousValue = parseInt(input.value || '1', 10);
+    const qty = Math.max(1, Math.min(maxQuantity, parseInt(input.value || '1', 10)));
+
     input.value = qty;
     itemCard.dataset.quantity = qty;
 
     // Cập nhật label
     const quantityLabel = itemCard.querySelector('.reservation-quantity-value');
-    if(quantityLabel){
+    if(quantityLabel) {
         quantityLabel.textContent = qty;
     }
+
+    // Cập nhật trạng thái nút +/-
+    updateQuantityButtons(itemCard, qty, maxQuantity);
 
     // Gửi API để lưu số lượng xuống database
     fetch(`/reservation-cart/update-quantity/${itemId}`, {
@@ -1369,8 +1411,14 @@ function updateReservationQuantityDisplay(itemId, quantity){
     .then(response => response.json())
     .then(data => {
         if(data.success){
-            // Cập nhật lại giá tiền
             updateItemPriceDisplay(itemId);
+        } else {
+            // Revert về giá trị trước đó
+            input.value = previousValue;
+            itemCard.dataset.quantity = previousValue;
+            if(quantityLabel) quantityLabel.textContent = previousValue;
+            updateQuantityButtons(itemCard, previousValue, maxQuantity);
+            showToastMessage(data.message || 'Có lỗi xảy ra khi cập nhật số lượng!', 'error');
         }
     })
     .catch(error => {
@@ -1378,7 +1426,41 @@ function updateReservationQuantityDisplay(itemId, quantity){
     });
 }
 
+function updateQuantityButtons(itemCard, qty, maxQuantity) {
+    const minusBtn = itemCard.querySelector('.reservation-quantity-btn:first-child');
+    const plusBtn = itemCard.querySelector('.reservation-quantity-btn:last-child');
+
+    if(minusBtn) {
+        const canDecrease = qty > 1;
+        minusBtn.disabled = !canDecrease;
+        minusBtn.classList.toggle('disabled', !canDecrease);
+        minusBtn.onclick = canDecrease ? () => changeReservationQuantity(itemCard.dataset.itemId, -1) : '';
+    }
+
+    if(plusBtn) {
+        const canIncrease = qty < maxQuantity;
+        plusBtn.disabled = !canIncrease;
+        plusBtn.classList.toggle('disabled', !canIncrease);
+        plusBtn.onclick = canIncrease ? () => changeReservationQuantity(itemCard.dataset.itemId, 1) : '';
+    }
+}
+
 function updateReservationQuantityInput(itemId, previousValue = null){
+    const input = document.getElementById(`reservation-quantity-${itemId}`);
+    if(!input) return;
+
+    const value = parseInt(input.value || '1', 10);
+    const MAX_PER_BOOK = 2;
+
+    // Validate: không nhỏ hơn 1, không lớn hơn 2
+    if(value < 1) {
+        input.value = 1;
+        alert('Số lượng không được nhỏ hơn 1!');
+    } else if(value > MAX_PER_BOOK) {
+        input.value = MAX_PER_BOOK;
+        alert('Mỗi loại sách chỉ được đặt tối đa 2 cuốn theo quy định thư viện!');
+    }
+
     updateReservationQuantityDisplay(itemId);
 }
 
@@ -1515,5 +1597,45 @@ document.addEventListener('DOMContentLoaded', function () {
         syncSplitButtonVisibility(checkbox.value, Number(itemCard.dataset.quantity || 1));
     });
 });
+
+function showToastMessage(message, type = 'info') {
+    // Tạo toast message đơn giản
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 16px 24px;
+        border-radius: 12px;
+        z-index: 99999;
+        font-weight: 600;
+        font-size: 14px;
+        max-width: 350px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        animation: slideIn 0.3s ease;
+    `;
+
+    if(type === 'error') {
+        toast.style.background = '#fef2f2';
+        toast.style.color = '#dc2626';
+        toast.style.border = '1px solid #fecaca';
+    } else if(type === 'success') {
+        toast.style.background = '#ecfdf5';
+        toast.style.color = '#047857';
+        toast.style.border = '1px solid #a7f3d0';
+    } else {
+        toast.style.background = '#eff6ff';
+        toast.style.color = '#1d4ed8';
+        toast.style.border = '1px solid #bfdbfe';
+    }
+
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
 </script>
 @endsection
