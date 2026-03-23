@@ -128,7 +128,12 @@ class BookController extends Controller
     {
         $categories = CacheService::getActiveCategories();
         $publishers = \App\Models\Publisher::where('trang_thai', 'active')->orderBy('ten_nha_xuat_ban')->get();
-        return view('admin.books.create', compact('categories', 'publishers'));
+        $locations = \App\Models\Inventory::select('location')
+            ->distinct()
+            ->whereNotNull('location')
+            ->orderBy('location')
+            ->pluck('location');
+        return view('admin.books.create', compact('categories', 'publishers', 'locations'));
     }
 
     public function store(BookRequest $request)
@@ -158,6 +163,7 @@ class BookController extends Controller
         }
 
         try {
+            // Tạo sách mới - mặc định là inactive cho đến khi phiếu nhập kho được duyệt
             $book = Book::create([
                 'ten_sach' => $request->ten_sach,
                 'category_id' => $request->category_id,
@@ -167,19 +173,37 @@ class BookController extends Controller
                 'hinh_anh' => $path,
                 'mo_ta' => $request->mo_ta,
                 'gia' => $request->gia,
-                'trang_thai' => $request->trang_thai,
+                'trang_thai' => 'inactive', // Mặc định không hiển thị cho đến khi duyệt phiếu nhập kho
                 'danh_gia_trung_binh' => 0,
                 'so_luong_ban' => 0,
                 'so_luot_xem' => 0,
+                'so_luong' => 0, // Chưa có số lượng, chờ phê duyệt phiếu nhập kho
             ]);
 
-            // Log book creation
-            AuditService::logCreated($book, "Book '{$book->ten_sach}' created");
-            
-            // Clear dashboard cache
-            CacheService::clearDashboard();
+            // Tạo phiếu nhập kho chờ phê duyệt
+            $soLuong = $request->so_luong ?? 1;
+            $donGia = $request->gia ?? 0;
+            $receiptNumber = 'PNK-' . date('Ymd') . '-' . str_pad($book->id, 4, '0', STR_PAD_LEFT);
 
-            return redirect()->route('admin.books.index')->with('success', 'Thêm sách thành công!');
+            InventoryReceipt::create([
+                'book_id' => $book->id,
+                'receipt_number' => $receiptNumber,
+                'receipt_date' => now(),
+                'quantity' => $soLuong,
+                'unit_price' => $donGia,
+                'total_price' => $soLuong * $donGia,
+                'supplier' => $request->nha_xuat_ban_id ? \App\Models\Publisher::find($request->nha_xuat_ban_id)?->ten_nha_xuat_ban : 'Không xác định',
+                'storage_location' => $request->vi_tri ?? 'Kệ A',
+                'storage_type' => 'Kho',
+                'status' => 'pending', // Chờ phê duyệt
+                'notes' => 'Tạo từ form thêm sách mới',
+                'received_by' => auth()->id(),
+            ]);
+
+            // Log
+            AuditService::logCreated($book, "Tạo sách '{$book->ten_sach}' và phiếu nhập kho {$receiptNumber} chờ phê duyệt");
+
+            return redirect()->route('admin.books.index')->with('success', "Tạo sách '{$book->ten_sach}' thành công! Phiếu nhập kho {$receiptNumber} đang chờ phê duyệt.");
         } catch (\Exception $e) {
             \Log::error('Create Book error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return redirect()->back()->with('error', 'Lỗi khi tạo sách: ' . $e->getMessage())->withInput();

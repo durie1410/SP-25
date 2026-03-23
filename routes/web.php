@@ -67,8 +67,6 @@ Route::get('/borrows/momo/return', [BorrowController::class, 'borrowMomoReturn']
 Route::post('/borrows/momo/ipn', [BorrowController::class, 'borrowMomoIpn'])
     ->name('admin.borrows.momo.ipn');
 
-Route::post('/orders/store', [OrderController::class, 'store'])
-    ->name('orders.store');
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -220,6 +218,11 @@ Route::prefix('reservation-cart')->name('reservation-cart.')->middleware('auth')
     Route::post('/update-dates/{itemId}', [ReservationCartController::class, 'updateDates'])->name('update-dates');
     Route::post('/update-quantity/{itemId}', [ReservationCartController::class, 'updateQuantity'])->name('update-quantity');
     Route::get('/history', [ReservationCartController::class, 'history'])->name('history');
+    Route::post('/history/{reservationCode}/confirm-ready', [ReservationCartController::class, 'confirmReadyGroup'])->name('history.confirm-ready');
+    Route::post('/history/{reservationCode}/cancel-ready', [ReservationCartController::class, 'cancelReadyGroup'])->name('history.cancel-ready');
+    // Client actions
+    Route::post('/cancel/{id}', [ReservationCartController::class, 'cancelReservation'])->name('cancel');
+    Route::get('/detail/{id}', [ReservationCartController::class, 'showReservationDetail'])->name('detail');
 });
 
 // Notification bell (user)
@@ -351,9 +354,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('categories/{id}/move-books', [CategoryController::class, 'moveBooks'])->name('categories.move-books')->middleware('permission:edit-categories');
     Route::resource('authors', App\Http\Controllers\Admin\AuthorController::class)->middleware('permission:view-readers');
     // Vô hiệu hóa create và store - sách mới chỉ được tạo từ quản lý kho
-    Route::resource('books', BookController::class)->middleware('permission:view-books')->except(['create', 'store', 'edit', 'update', 'destroy']);
     Route::get('books/create', [BookController::class, 'create'])->name('books.create')->middleware('admin-only');
     Route::post('books', [BookController::class, 'store'])->name('books.store')->middleware('admin-only');
+    Route::resource('books', BookController::class)->middleware('permission:view-books')->except(['create', 'store', 'edit', 'update', 'destroy']);
     Route::get('books/{book}/edit', [BookController::class, 'edit'])->name('books.edit')->middleware('permission:edit-books');
     Route::put('books/{book}', [BookController::class, 'update'])->name('books.update')->middleware('permission:edit-books');
     Route::delete('books/{book}', [BookController::class, 'destroy'])->name('books.destroy')->middleware('permission:delete-books');
@@ -780,26 +783,26 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('reports/export-csv', [ReportController::class, 'exportCSV'])->name('reports.export.csv');
     Route::get('reports/export-pdf', [ReportController::class, 'exportPDF'])->name('reports.export.pdf');
-
+    Route::get('reports/export-excel', [ReportController::class, 'exportExcel'])->name('reports.export.excel');
     //duyet dki
-   Route::prefix('admin')->middleware(['auth','admin'])->group(function () {
+    Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
 
-    // danh sách user
-    Route::get('users', [AuthController::class, 'index'])->name('users.index');
+        // danh sách user
+        Route::get('users', [AuthController::class, 'index'])->name('users.index');
 
-    // khóa user
-    Route::get('users/lock/{id}', [AuthController::class, 'lockUser'])->name('users.lock');
+        // khóa user
+        Route::get('users/lock/{id}', [AuthController::class, 'lockUser'])->name('users.lock');
 
-    // mở khóa
-    Route::get('users/unlock/{id}', [AuthController::class, 'unlockUser'])->name('users.unlock');
-
-});
+        // mở khóa
+        Route::get('users/unlock/{id}', [AuthController::class, 'unlockUser'])->name('users.unlock');
+    });
     // Route::get('users/pending', [AuthController::class, 'pendingUsers'])->name('users.pending');
 
     // Route::get('users/approve/{id}', [AuthController::class, 'approveUser'])->name('users.approve');
 
     // Route::get('users/lock/{id}', [AuthController::class, 'lockUser'])->name('users.lock');
 });
+
 
 // VnPay Payment Routes
 Route::prefix('vnpay')->name('vnpay.')->middleware('auth')->group(function () {

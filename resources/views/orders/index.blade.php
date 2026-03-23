@@ -630,29 +630,6 @@
                                             </button>
                                         @endif
 
-                                            @php
-                                                // Chỉ cho phép hủy khi đơn còn ở trạng thái mới (chưa chuyển sang chuẩn bị / giao hàng)
-                                                $canCancelOrder = $order->trang_thai === 'Cho duyet'
-                                                    && ($order->trang_thai_chi_tiet === null
-                                                        || $order->trang_thai_chi_tiet === \App\Models\Borrow::STATUS_DON_HANG_MOI);
-                                            @endphp
-
-                                            @if($canCancelOrder)
-                                                <button type="button" class="btn-action btn-cancel"
-                                                    onclick="showCancelModal(event, {{ $order->id }})">
-                                                    Hủy đơn
-                                                </button>
-                                            @elseif($order->trang_thai === 'Cho duyet' 
-                                                && in_array($order->trang_thai_chi_tiet, [
-                                                    \App\Models\Borrow::STATUS_DANG_CHUAN_BI_SACH,
-                                                    \App\Models\Borrow::STATUS_CHO_BAN_GIAO_VAN_CHUYEN,
-                                                    \App\Models\Borrow::STATUS_DANG_GIAO_HANG,
-                                                    \App\Models\Borrow::STATUS_GIAO_HANG_THANH_CONG,
-                                                ]))
-                                                <span style="display:block; margin-top:6px; font-size:12px; color:#6b7280;">
-                                                    ❌ Đơn đang được xử lý/giao hàng, không thể hủy.
-                                                </span>
-                                            @endif
                                         </div>
                                     </td>
                                 </tr>
@@ -678,30 +655,6 @@
                 </a>
             </div>
         @endif
-    </div>
-
-    <!-- Modal Hủy Đơn -->
-    <div id="cancelModal" class="modal-custom" tabindex="-1">
-        <div class="modal-dialog-custom">
-            <div class="modal-header-custom">
-                <h5 class="m-0 font-weight-bold" style="font-size: 1.125rem;">Xác nhận hủy đơn mượn</h5>
-                <button type="button" class="btn-close" onclick="hideCancelModal()"
-                    style="border: none; background: none; font-size: 1.5rem; line-height: 1;">&times;</button>
-            </div>
-            <div class="modal-body-custom">
-                <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;">Vui lòng cho chúng tôi biết lý do
-                    bạn muốn hủy đơn mượn này.</p>
-                <textarea id="cancelReason" class="form-control-custom"
-                    placeholder="Nhập lý do hủy đơn (tối thiểu 10 ký tự)..."></textarea>
-                <div id="errorMessage" class="text-danger mt-2"
-                    style="display: none; font-size: 0.75rem; font-weight: 500;"></div>
-            </div>
-            <div class="modal-footer-custom">
-                <button type="button" class="btn-action" onclick="hideCancelModal()"
-                    style="background: var(--gray-100); color: var(--gray-700);">Đóng</button>
-                <button type="button" class="btn-action btn-cancel" onclick="confirmCancel()">Xác nhận hủy</button>
-            </div>
-        </div>
     </div>
 
     <!-- Modal Hoàn Trả Sách (Upload Ảnh) -->
@@ -784,62 +737,6 @@
     <script>
         let currentBorrowId = null;
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-        // --- Hủy đơn ---
-        function showCancelModal(event, borrowId) {
-            currentBorrowId = borrowId;
-            document.getElementById('cancelModal').style.display = 'flex';
-            document.getElementById('cancelModal').classList.add('show');
-            document.getElementById('cancelReason').value = '';
-            document.getElementById('errorMessage').style.display = 'none';
-        }
-
-        function hideCancelModal() {
-            document.getElementById('cancelModal').style.display = 'none';
-            document.getElementById('cancelModal').classList.remove('show');
-            currentBorrowId = null;
-        }
-
-        function confirmCancel(event) {
-            const reason = document.getElementById('cancelReason').value.trim();
-            const errorDiv = document.getElementById('errorMessage');
-
-            if (reason.length < 10) {
-                errorDiv.textContent = 'Lí do hủy đơn phải có ít nhất 10 ký tự';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            const btn = event.target;
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>...';
-
-            fetch(`/borrows/${currentBorrowId}/cancel`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ cancellation_reason: reason })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload();
-                    } else {
-                        errorDiv.textContent = data.message;
-                        errorDiv.style.display = 'block';
-                        btn.disabled = false;
-                        btn.textContent = 'Xác nhận hủy';
-                    }
-                })
-                .catch(() => {
-                    errorDiv.textContent = 'Có lỗi xảy ra';
-                    errorDiv.style.display = 'block';
-                    btn.disabled = false;
-                });
-        }
 
         // --- Xác nhận hoàn trả (Upload ảnh) ---
         function showReturnModal(borrowId) {

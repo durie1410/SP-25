@@ -11,7 +11,8 @@ use App\Models\Borrow;
 use App\Models\BorrowItem;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
-
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ReportExport;
 class ReportController extends Controller
 {
     public function index()
@@ -143,7 +144,10 @@ class ReportController extends Controller
         }
         return $months;
     }
-
+public function exportExcel()
+{
+    return Excel::download(new ReportExport, 'baocao_thuvien.xlsx');
+}
     public function exportCSV()
 {
     $fileName = 'borrow_report.csv';

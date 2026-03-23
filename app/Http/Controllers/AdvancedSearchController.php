@@ -201,15 +201,24 @@ class AdvancedSearchController extends Controller
 
   
 
- // Autocomplete sách với tổng số lượng khả dụng
+ // Autocomplete sách với tổng số lượng khả dụng - CHỈ hiển thị sách đã có trong kho
 public function autocompleteBooks(Request $request)
 {
     $query = $request->get('q', '');
     if (strlen($query) < 2) return response()->json([]);
 
-    // Lấy các book có ít nhất 1 inventory
-    $books = Book::where('ten_sach', 'like', "%{$query}%")
-        ->orWhere('tac_gia', 'like', "%{$query}%")
+    // Lấy các book_id đã có trong inventory (đã duyệt phiếu nhập kho)
+    $bookIdsFromInventory = Inventory::select('book_id')
+        ->distinct()
+        ->pluck('book_id')
+        ->toArray();
+
+    // Lấy các book có ít nhất 1 inventory VÀ khớp với từ khóa tìm kiếm
+    $books = Book::whereIn('id', $bookIdsFromInventory)
+        ->where(function($q) use ($query) {
+            $q->where('ten_sach', 'like', "%{$query}%")
+              ->orWhere('tac_gia', 'like', "%{$query}%");
+        })
         ->limit(100)
         ->get();
 
@@ -217,7 +226,7 @@ public function autocompleteBooks(Request $request)
         // Tổng số lượng khả dụng
         $availableQty = Inventory::where('book_id', $book->id)
             ->where('status', 'Co san')
-            ->count(); // hoặc sum('so_luong') nếu inventory có nhiều cuốn
+            ->count();
 
         return [
             'id' => $book->id,

@@ -728,6 +728,7 @@
                                 $canIncrease = $quantity < $maxQuantity;
                                 $canDecrease = $quantity > 1;
 
+
                                 // Lấy ngày từ DB (có thể là string hoặc object)
                                 $pickupDateStr = null;
                                 $returnDateStr = null;
@@ -866,6 +867,7 @@
                                                     onclick="{{ $canIncrease ? "changeReservationQuantity({$item->id}, 1)" : '' }}"
                                                     {{ !$canIncrease ? 'disabled' : '' }}>+</button>
                                         </div>
+
                                         @if($maxQuantity <= 1 && $quantity >= $maxQuantity)
                                             <small class="text-muted" style="font-size: 11px; color: #dc2626;">
                                                 <i class="fas fa-info-circle"></i> Kho chỉ còn {{ $maxQuantity }} cuốn
@@ -968,14 +970,14 @@
                                 <div style="display: flex; gap: 8px;">
                                     <select class="form-control" id="pickup-time-hour" onchange="handlePickupTimeChange()">
                                         @for($h = 8; $h <= 20; $h++)
-                                            <option value="{{ str_pad($h, 2, '0', STR_PAD_LEFT) }}" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, str_pad($h, 2, '0', STR_PAD_LEFT) . ':') === 0) ? 'selected' : '' }}>{{ $h }}h</option>
+                                            <option value="{{ str_pad($h, 2, '0', STR_PAD_LEFT) }}" {{ ($items->first()?->pickup_time && strpos($items->first()->pickup_time, str_pad($h, 2, '0', STR_PAD_LEFT) . ':') === 0) ? 'selected' : '' }}>{{ $h }}h</option>
                                         @endfor
                                     </select>
                                     <select class="form-control" id="pickup-time-minute" onchange="handlePickupTimeChange()">
-                                        <option value="00" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, ':00') !== false) ? 'selected' : '' }}>00p</option>
-                                        <option value="15" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, ':15') !== false) ? 'selected' : '' }}>15p</option>
-                                        <option value="30" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, ':30') !== false) ? 'selected' : '' }}>30p</option>
-                                        <option value="45" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, ':45') !== false) ? 'selected' : '' }}>45p</option>
+                                        <option value="00" {{ ($items->first()?->pickup_time && strpos($items->first()->pickup_time, ':00') !== false) ? 'selected' : '' }}>00p</option>
+                                        <option value="15" {{ ($items->first()?->pickup_time && strpos($items->first()->pickup_time, ':15') !== false) ? 'selected' : '' }}>15p</option>
+                                        <option value="30" {{ ($items->first()?->pickup_time && strpos($items->first()->pickup_time, ':30') !== false) ? 'selected' : '' }}>30p</option>
+                                        <option value="45" {{ ($items->first()?->pickup_time && strpos($items->first()->pickup_time, ':45') !== false) ? 'selected' : '' }}>45p</option>
                                     </select>
                                 </div>
                                 <input type="hidden" id="pickup-time-hidden" value="{{ $items->first()?->pickup_time ?? '' }}">
@@ -1385,6 +1387,7 @@ function updateReservationQuantityDisplay(itemId, quantity){
     const maxQuantity = parseInt(input.dataset.maxQuantity || '2', 10);
     const previousValue = parseInt(input.value || '1', 10);
     const qty = Math.max(1, Math.min(maxQuantity, parseInt(input.value || '1', 10)));
+
 
     input.value = qty;
     itemCard.dataset.quantity = qty;
