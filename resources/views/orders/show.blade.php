@@ -1011,26 +1011,7 @@
                 <a href="{{ route('orders.index') }}" class="btn-custom btn-back">
                     <i class="fas fa-arrow-left"></i> Quay lại
                 </a>
-                @php
-                    // Không cho phép hủy khi đang vận chuyển
-                    $canCancel = $borrow->trang_thai === 'Cho duyet' 
-                        && !in_array($borrow->trang_thai_chi_tiet, [
-                            'cho_ban_giao_van_chuyen',
-                            'dang_giao_hang',
-                            'giao_hang_thanh_cong',
-                            'dang_van_chuyen_tra_ve'
-                        ]);
-                @endphp
-                @if($canCancel)
-                    <button class="btn-custom btn-cancel" onclick="showCancelModal()">
-                        <i class="fas fa-times-circle"></i> Hủy đơn mượn
-                    </button>
-                @elseif(in_array($borrow->trang_thai_chi_tiet, ['cho_ban_giao_van_chuyen', 'dang_giao_hang', 'giao_hang_thanh_cong']))
-                    <div style="padding: 10px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; color: #856404; font-size: 14px;">
-                        <strong>❌ Không thể hủy đơn:</strong> Đơn hàng đã được bàn giao cho đơn vị vận chuyển.
-                    </div>
-                @endif
-                
+
                 {{-- Hiển thị nút "Nhận sách" khi đang giao hàng --}}
                 @if(in_array($borrow->trang_thai_chi_tiet, ['dang_giao_hang', 'giao_hang_thanh_cong']) && !$borrow->customer_confirmed_delivery)
                     <div style="margin-top: 20px; padding: 20px; background: #e7f3ff; border: 2px solid #2196f3; border-radius: 8px;">
@@ -1069,24 +1050,6 @@
         </div>
     </div>
 
-    <!-- Modal Hủy Đơn -->
-    <div id="cancelModal" class="modal-custom">
-        <div class="modal-dialog-custom">
-            <div class="modal-header-custom">
-                <h5 style="margin: 0; font-size: 1.125rem; font-weight: 600;">Xác nhận hủy đơn mượn</h5>
-                <button type="button" class="btn-close-custom" onclick="hideCancelModal()">&times;</button>
-            </div>
-            <div class="modal-body-custom">
-                <p style="color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem;">Vui lòng cho chúng tôi biết lý do bạn muốn hủy đơn mượn này.</p>
-                <textarea id="cancelReason" class="form-control-custom" placeholder="Nhập lý do hủy đơn (tối thiểu 10 ký tự)..."></textarea>
-                <div id="errorMessage" style="color: #dc3545; margin-top: 0.5rem; display: none; font-size: 0.75rem; font-weight: 500;"></div>
-            </div>
-            <div class="modal-footer-custom">
-                <button type="button" class="btn-secondary-custom" onclick="hideCancelModal()">Đóng</button>
-                <button type="button" class="btn-custom btn-cancel" onclick="confirmCancel()">Xác nhận hủy</button>
-            </div>
-        </div>
-    </div>
 @endsection
 
 @push('scripts')
@@ -1106,81 +1069,5 @@
 
             form.classList.add('is-hidden');
         }
-
-        function showCancelModal() {
-            document.getElementById('cancelModal').classList.add('active');
-            document.getElementById('cancelReason').value = '';
-            document.getElementById('errorMessage').style.display = 'none';
-        }
-
-        function hideCancelModal() {
-            document.getElementById('cancelModal').classList.remove('active');
-        }
-
-        function confirmCancel() {
-            const reason = document.getElementById('cancelReason').value.trim();
-            const errorDiv = document.getElementById('errorMessage');
-
-            // Validate
-            if (reason.length < 10) {
-                errorDiv.textContent = 'Lí do hủy đơn phải có ít nhất 10 ký tự';
-                errorDiv.style.display = 'block';
-                return;
-            }
-
-            // Disable button
-            const btn = event.target;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
-
-            // Send request
-            fetch(`/borrows/${borrowId}/cancel`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    cancellation_reason: reason
-                })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        if(window.showGlobalModal) {
-                            window.showGlobalModal('Thành công', 'Đã hủy đơn mượn thành công!', 'success');
-                        } else {
-                            if(window.showGlobalModal) {
-                                window.showGlobalModal('Thành công', 'Đã hủy đơn mượn thành công!', 'success');
-                            } else if(window.alert) {
-                                window.alert('Thành công', 'Đã hủy đơn mượn thành công!');
-                            } else {
-                                alert('✅ Đã hủy đơn mượn thành công!');
-                            }
-                        }
-                        setTimeout(() => window.location.reload(), 1500);
-                    } else {
-                        errorDiv.textContent = data.message || 'Có lỗi xảy ra khi hủy đơn mượn';
-                        errorDiv.style.display = 'block';
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fas fa-check"></i> Xác nhận hủy';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    errorDiv.textContent = 'Có lỗi xảy ra khi hủy đơn mượn';
-                    errorDiv.style.display = 'block';
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-check"></i> Xác nhận hủy';
-                });
-        }
-
-        // Close modal when clicking outside
-        document.getElementById('cancelModal').addEventListener('click', function (e) {
-            if (e.target === this) {
-                hideCancelModal();
-            }
-        });
     </script>
 @endpush

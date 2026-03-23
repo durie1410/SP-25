@@ -115,30 +115,37 @@ class UserAccountController extends Controller
                 return redirect()->route('account')->with('error', 'Không thể cập nhật thông tin. Vui lòng thử lại.');
             }
 
-            // Cập nhật reader nếu có (đồng bộ thông tin)
-            if ($user->reader) {
-                $reader = $user->reader;
-                $reader->ho_ten = $user->name;
-                $reader->email = $user->email;
-                $reader->so_dien_thoai = $user->phone;
-                $reader->so_cccd = $user->so_cccd;
-                $reader->ngay_sinh = $user->ngay_sinh;
-                $reader->gioi_tinh = $user->gioi_tinh;
-                
-                // Đồng bộ địa chỉ chi tiết sang reader
-                $reader->tinh_thanh = $user->province;
-                $reader->huyen = $user->district;
-                $reader->xa = $user->xa;
-                $reader->so_nha = $user->address;
-                
-                // Ghép thành địa chỉ đầy đủ
-                $fullAddress = collect([$user->address, $user->xa, $user->district, $user->province])
-                    ->filter()
-                    ->implode(', ');
-                $reader->dia_chi = $fullAddress;
-                
-                $reader->save();
+            // Cập nhật reader nếu có, hoặc tạo mới nếu chưa có
+            $reader = $user->reader;
+            if (!$reader) {
+                // Tạo mới reader cho user
+                $reader = new \App\Models\Reader();
+                $reader->user_id = $user->id;
+                $reader->so_the_doc_gia = 'RD' . strtoupper(substr(md5(uniqid((string) mt_rand(), true)), 0, 6));
+                $reader->ngay_cap_the = now();
+                $reader->ngay_het_han = now()->addYear();
+                $reader->trang_thai = 'Hoat dong';
             }
+            $reader->ho_ten = $user->name;
+            $reader->email = $user->email;
+            $reader->so_dien_thoai = $user->phone;
+            $reader->so_cccd = $user->so_cccd;
+            $reader->ngay_sinh = $user->ngay_sinh;
+            $reader->gioi_tinh = $user->gioi_tinh;
+
+            // Đồng bộ địa chỉ chi tiết sang reader
+            $reader->tinh_thanh = $user->province;
+            $reader->huyen = $user->district;
+            $reader->xa = $user->xa;
+            $reader->so_nha = $user->address;
+
+            // Ghép thành địa chỉ đầy đủ
+            $fullAddress = collect([$user->address, $user->xa, $user->district, $user->province])
+                ->filter()
+                ->implode(', ');
+            $reader->dia_chi = $fullAddress;
+
+            $reader->save();
 
             return redirect()->route('account')->with('success', 'Cập nhật thông tin thành công!');
         } catch (\Exception $e) {

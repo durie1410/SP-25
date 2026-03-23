@@ -16,6 +16,13 @@ class PublicBookController extends Controller
 {
     public function show($id, Request $request)
     {
+        // Lấy tất cả book_id từ kho (cả kho và trưng bày) - CHỈ hiển thị sách đã có trong kho
+        $bookIdsFromInventory = Inventory::select('book_id')
+            ->distinct()
+            ->pluck('book_id')
+            ->toArray();
+
+        // Tìm sách và kiểm tra có trong inventory chưa
         $book = Book::with([
             'category',
             'publisher',
@@ -32,23 +39,22 @@ class PublicBookController extends Controller
             'inventories'
         ])->findOrFail($id);
 
+        // Nếu sách chưa có trong kho (chưa duyệt phiếu nhập kho), không cho xem
+        if (!in_array($book->id, $bookIdsFromInventory)) {
+            abort(404, 'Sách này hiện không có sẵn trong kho.');
+        }
+
         // Tăng lượt xem
         $book->increment('so_luot_xem');
 
         // Kiểm tra mode từ query parameter (mặc định là 'borrow' nếu không có)
         $mode = $request->get('mode', 'borrow'); // 'buy' hoặc 'borrow'
-        
+
         // Lấy thông tin độc giả hiện tại nếu ở chế độ mượn
         $currentReader = null;
         if ($mode === 'borrow' && auth()->check()) {
             $currentReader = Reader::where('user_id', auth()->id())->first();
         }
-
-        // Lấy tất cả book_id từ kho (cả kho và trưng bày) - CHỈ hiển thị sách đã có trong kho
-        $bookIdsFromInventory = Inventory::select('book_id')
-            ->distinct()
-            ->pluck('book_id')
-            ->toArray();
 
         // Lấy sách liên quan (cùng thể loại) - CHỈ lấy sách có trong kho
         $relatedBooks = collect();

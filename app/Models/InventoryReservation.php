@@ -28,6 +28,7 @@ class InventoryReservation extends Model
         'admin_note',
         'processed_by',
         'ready_at',
+        'customer_confirmed_at',
         'fulfilled_at',
         'cancelled_at',
         'proof_images',
@@ -39,6 +40,7 @@ class InventoryReservation extends Model
         'total_fee' => 'decimal:2',
         'proof_images' => 'array',
         'ready_at' => 'datetime',
+        'customer_confirmed_at' => 'datetime',
         'fulfilled_at' => 'datetime',
         'cancelled_at' => 'datetime',
     ];
@@ -122,6 +124,11 @@ class InventoryReservation extends Model
         return $query->where('status', 'cancelled');
     }
 
+    public function scopeOverdue($query)
+    {
+        return $query->where('status', 'overdue');
+    }
+
     public function isPending(): bool
     {
         return $this->status === 'pending';
@@ -142,6 +149,11 @@ class InventoryReservation extends Model
         return $this->status === 'cancelled';
     }
 
+    public function isOverdue(): bool
+    {
+        return $this->status === 'overdue';
+    }
+
     public function markAsReady(string $adminNote = null, int $processedById = null): bool
     {
         return $this->update([
@@ -158,6 +170,15 @@ class InventoryReservation extends Model
             'status' => 'fulfilled',
             'processed_by' => $processedById ?? auth()->id(),
             'fulfilled_at' => now(),
+        ]);
+    }
+
+    public function markAsOverdue(string $reason = null, int $processedById = null): bool
+    {
+        return $this->update([
+            'status' => 'overdue',
+            'admin_note' => $reason ? ($this->admin_note ? $this->admin_note . "\n" . $reason : $reason) : $this->admin_note,
+            'processed_by' => $processedById ?? auth()->id(),
         ]);
     }
 
@@ -217,6 +238,12 @@ class InventoryReservation extends Model
         return $this->user_id === $userId && $this->isPending();
     }
 
+    public function canBeCancelledByUser(?int $userId): bool
+    {
+        if (!$userId) return false;
+        return $this->user_id === $userId && in_array($this->status, ['pending', 'ready', 'overdue']);
+    }
+
     public function getStatusLabel(): string
     {
         return match ($this->status) {
@@ -224,6 +251,7 @@ class InventoryReservation extends Model
             'ready' => 'Đã sẵn sàng',
             'fulfilled' => 'Đã hoàn thành',
             'cancelled' => 'Đã hủy',
+            'overdue' => 'Quá hạn',
             default => 'Không xác định',
         };
     }

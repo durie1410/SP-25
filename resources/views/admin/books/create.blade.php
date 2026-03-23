@@ -6,7 +6,7 @@
 <div class="admin-table">
     <h3><i class="fas fa-plus"></i> Thêm sách mới</h3>
     
-    <form action="{{ route('admin.books.store') }}" method="POST" enctype="multipart/form-data">
+    <form action="{{ route('admin.books.store') }}" method="POST" enctype="multipart/form-data" id="bookForm">
         @csrf
         <div class="row">
             <div class="col-md-6">
@@ -87,10 +87,33 @@
                     <input type="number" name="gia" class="form-control" min="0" step="1000" placeholder="Để trống nếu miễn phí">
                 </div>
             </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Số lượng</label>
+                    <input type="number" name="so_luong" class="form-control" min="0" value="1" required>
+                </div>
+            </div>
         </div>
 
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Vị trí lưu trữ</label>
+                    <input type="text" name="vi_tri" class="form-control" list="location-list" placeholder="Chọn hoặc nhập vị trí mới">
+                    <datalist id="location-list">
+                        @if(isset($locations))
+                            @foreach($locations as $location)
+                                <option value="{{ $location }}">
+                            @endforeach
+                        @endif
+                        <option value="Kệ A">
+                        <option value="Kệ B">
+                        <option value="Kệ C">
+                        <option value="Kho chính">
+                    </datalist>
+                </div>
+            </div>
+            <div class="col-md-4">
                 <div class="mb-3">
                     <label class="form-label">Trạng thái</label>
                     <select name="trang_thai" class="form-control" required>

@@ -23,8 +23,7 @@ class InventoryReservationController extends Controller
 
         if ($request->filled('status')) {
             if ($request->status === 'overdue') {
-                $query->whereIn('status', ['pending', 'ready'])
-                    ->whereDate('pickup_date', '<', now()->toDateString());
+                $query->where('status', 'overdue');
             } else {
                 $query->where('status', $request->status);
             }
@@ -370,7 +369,7 @@ class InventoryReservationController extends Controller
             $cancelledCount = 0;
 
             foreach ($reservations as $reservation) {
-                if (!in_array($reservation->status, ['pending', 'ready'], true)) {
+                if (!in_array($reservation->status, ['pending', 'ready', 'overdue'], true)) {
                     throw new \Exception('Yêu cầu #' . $reservation->id . ' không thể hủy (trạng thái: ' . $reservation->status . ').');
                 }
 
@@ -410,7 +409,7 @@ class InventoryReservationController extends Controller
     {
         $reservation = InventoryReservation::with(['book', 'reader', 'user'])->findOrFail($id);
 
-        if (!in_array($reservation->status, ['pending', 'ready'], true)) {
+        if (!in_array($reservation->status, ['pending', 'ready', 'overdue'], true)) {
             return back()->with('error', 'Yêu cầu này không thể hủy.');
         }
 
@@ -426,9 +425,9 @@ class InventoryReservationController extends Controller
             $adminNote = 'Quá hạn nhận sách: đã qua ngày lấy nhưng khách chưa đến nhận.';
         }
 
-        $reservation->cancel($adminNote, Auth::id());
-
         if ($isMarkOverdue) {
+            $reservation->markAsOverdue($adminNote, Auth::id());
+
             // Gửi thông báo cho khách khi yêu cầu bị quá hạn nhận sách
             $userId = $reservation->reader?->user_id ?? $reservation->user_id;
             if ($userId) {
@@ -462,7 +461,6 @@ class InventoryReservationController extends Controller
             return back()->with('success', 'Đã đánh dấu quá hạn cho yêu cầu đặt trước.');
         }
 
-        // Gọi cancel để cập nhật trạng thái
         $reservation->cancel($adminNote, Auth::id());
 
         return back()->with('success', 'Đã hủy yêu cầu đặt trước.');

@@ -642,7 +642,7 @@
     @endif
 @endforeach
 
-@if($items->count() === 0)
+@if($itemsWithStock->count() === 0)
         <div class="reservation-empty">
             <div class="reservation-empty-icon">
                 <i class="fas fa-calendar-times"></i>
@@ -677,7 +677,7 @@
                     <div class="reservation-card-header">
                         <h3 class="reservation-card-title">
                             <i class="fas fa-list-ul"></i>
-                            Sách trong giỏ đặt trước ({{ $items->sum('quantity') }})
+                            Sách trong giỏ đặt trước ({{ $itemsWithStock->sum('quantity') }})
                         </h3>
                     </div>
 
@@ -698,13 +698,14 @@
                     </div>
 
                     <div class="reservation-items-list">
-                        @foreach($items as $item)
+                        @foreach($itemsWithStock as $item)
                             @php
-                                $sameBookItems = $items->where('book_id', $item->book_id)->values();
+                                $sameBookItems = $itemsWithStock->where('book_id', $item->book_id)->values();
                                 $sameBookIndex = $sameBookItems->search(fn($cartItem) => $cartItem->id === $item->id);
                                 // Lấy daily_fee từ cart item, nếu null thì lấy từ sách
                                 $dailyFee = (int) ($item->daily_fee ?? $item->book?->daily_fee ?? 5000);
                                 $quantity = max(1, (int) ($item->quantity ?? 1));
+                                $availableStock = (int) ($item->availableStock ?? 0);
 
                                 // Lấy ngày từ DB (có thể là string hoặc object)
                                 $pickupDateStr = null;
@@ -834,11 +835,21 @@
                                                 class="reservation-quantity-input"
                                                 value="{{ $quantity }}"
                                                 min="1"
-                                                max="100"
+                                                max="{{ $availableStock }}"
+                                                data-available-stock="{{ $availableStock }}"
                                                 onchange="updateReservationQuantityInput({{ $item->id }})"
                                             >
                                             <button type="button" class="reservation-quantity-btn" onclick="changeReservationQuantity({{ $item->id }}, 1)">+</button>
                                         </div>
+                                        @if($availableStock > 0 && $quantity > $availableStock)
+                                            <span class="stock-warning" style="color: #dc2626; font-size: 12px; margin-top: 4px;">
+                                                <i class="fas fa-exclamation-triangle"></i> Kho chỉ còn {{ $availableStock }} cuốn
+                                            </span>
+                                        @elseif($availableStock > 0 && $availableStock <= 3)
+                                            <span class="stock-warning" style="color: #d97706; font-size: 12px; margin-top: 4px;">
+                                                <i class="fas fa-info-circle"></i> Chỉ còn {{ $availableStock }} cuốn trong kho
+                                            </span>
+                                        @endif
                                         @if($quantity > 1)
                                             <form method="POST" action="{{ route('reservation-cart.split-item', $item->id) }}" class="reservation-split-form {{ $quantity > 1 ? '' : 'is-hidden' }}" data-item-id="{{ $item->id }}">
                                                 @csrf
@@ -881,7 +892,7 @@
 
                     <div class="reservation-summary-row">
                         <span>Sách đã chọn</span>
-                        <span><strong id="selected-books-count">{{ $items->sum('quantity') }}</strong> cuốn</span>
+                        <span><strong id="selected-books-count">{{ $itemsWithStock->sum('quantity') }}</strong> cuốn</span>
                     </div>
 
                     <div class="reservation-summary-row total">
@@ -889,7 +900,7 @@
                         <span class="reservation-total-price" id="total-price">
                             @php
                                 $total = 0;
-                                foreach($items as $item) {
+                                foreach($itemsWithStock as $item) {
                                     $pickupDateStr = null;
                                     $returnDateStr = null;
 
@@ -936,17 +947,17 @@
                                 <div style="display: flex; gap: 8px;">
                                     <select class="form-control" id="pickup-time-hour" onchange="handlePickupTimeChange()">
                                         @for($h = 8; $h <= 20; $h++)
-                                            <option value="{{ str_pad($h, 2, '0', STR_PAD_LEFT) }}" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, str_pad($h, 2, '0', STR_PAD_LEFT) . ':') === 0) ? 'selected' : '' }}>{{ $h }}h</option>
+                                            <option value="{{ str_pad($h, 2, '0', STR_PAD_LEFT) }}" {{ ($itemsWithStock->first()?->pickup_time && strpos($itemsWithStock->first()->pickup_time, str_pad($h, 2, '0', STR_PAD_LEFT) . ':') === 0) ? 'selected' : '' }}>{{ $h }}h</option>
                                         @endfor
                                     </select>
                                     <select class="form-control" id="pickup-time-minute" onchange="handlePickupTimeChange()">
-                                        <option value="00" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, ':00') !== false) ? 'selected' : '' }}>00p</option>
-                                        <option value="15" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, ':15') !== false) ? 'selected' : '' }}>15p</option>
-                                        <option value="30" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, ':30') !== false) ? 'selected' : '' }}>30p</option>
-                                        <option value="45" {{ (isset($items[0]) && isset($items[0]->pickup_time) && strpos($items[0]->pickup_time, ':45') !== false) ? 'selected' : '' }}>45p</option>
+                                        <option value="00" {{ ($itemsWithStock->first()?->pickup_time && strpos($itemsWithStock->first()->pickup_time, ':00') !== false) ? 'selected' : '' }}>00p</option>
+                                        <option value="15" {{ ($itemsWithStock->first()?->pickup_time && strpos($itemsWithStock->first()->pickup_time, ':15') !== false) ? 'selected' : '' }}>15p</option>
+                                        <option value="30" {{ ($itemsWithStock->first()?->pickup_time && strpos($itemsWithStock->first()->pickup_time, ':30') !== false) ? 'selected' : '' }}>30p</option>
+                                        <option value="45" {{ ($itemsWithStock->first()?->pickup_time && strpos($itemsWithStock->first()->pickup_time, ':45') !== false) ? 'selected' : '' }}>45p</option>
                                     </select>
                                 </div>
-                                <input type="hidden" id="pickup-time-hidden" value="{{ $items->first()?->pickup_time ?? '' }}">
+                                <input type="hidden" id="pickup-time-hidden" value="{{ $itemsWithStock->first()?->pickup_time ?? '' }}">
                             </div>
                         </div>
                         <div style="font-weight: 700; margin-bottom: 8px;">Quy định mượn trả</div>
@@ -968,8 +979,8 @@
                           onsubmit="return validateCartBeforeSubmit()">
                         @csrf
                         <!-- DEBUG -->
-                        <input type="hidden" name="pickup_time" id="pickup-time-form" value="{{ $items->first()?->pickup_time ?? '' }}">
-                        <input type="hidden" name="debug_pickup_time" value="{{ $items->first()?->pickup_time ?? '' }}">
+                        <input type="hidden" name="pickup_time" id="pickup-time-form" value="{{ $itemsWithStock->first()?->pickup_time ?? '' }}">
+                        <input type="hidden" name="debug_pickup_time" value="{{ $itemsWithStock->first()?->pickup_time ?? '' }}">
                         <button class="btn btn-primary reservation-submit-btn" type="submit">
                             Gửi yêu cầu đặt trước <i class="fas fa-arrow-right ms-2"></i>
                         </button>
@@ -1332,8 +1343,9 @@ function changeReservationQuantity(itemId, delta){
         return;
     }
 
+    const availableStock = parseInt(input.dataset.availableStock || input.max || 999, 10);
     const previousValue = Math.max(1, parseInt(input.value || '1', 10));
-    const nextValue = Math.max(1, previousValue + delta);
+    const nextValue = Math.max(1, Math.min(availableStock, previousValue + delta));
     input.value = nextValue;
     updateReservationQuantityDisplay(itemId, nextValue);
 }
@@ -1346,7 +1358,8 @@ function updateReservationQuantityDisplay(itemId, quantity){
         return;
     }
 
-    const qty = Math.max(1, parseInt(input.value || '1', 10));
+    const availableStock = parseInt(input.dataset.availableStock || input.max || 999, 10);
+    const qty = Math.max(1, Math.min(availableStock, parseInt(input.value || '1', 10)));
     input.value = qty;
     itemCard.dataset.quantity = qty;
 
