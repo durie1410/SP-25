@@ -21,17 +21,23 @@ class ReservationCartItem extends Model
 
     /**
      * Calculate days from pickup and return dates
+     * Mượn + trả cùng ngày = 1 ngày, mượn hôm nay trả ngày mai = 2 ngày
      */
     public function calculateDaysFromDates(): int
     {
-        // Lấy từ attributes để tránh vấn đề với Carbon cast
-        $pickupDate = $this->attributes['pickup_date'] ?? null;
-        $returnDate = $this->attributes['return_date'] ?? null;
+        // Lấy pickup_date - có thể là string, Carbon object, hoặc null
+        $pickupDate = $this->pickup_date ?? $this->attributes['pickup_date'] ?? null;
+        $returnDate = $this->return_date ?? $this->attributes['return_date'] ?? null;
 
         if ($pickupDate && $returnDate) {
-            $pickup = new \DateTime($pickupDate);
-            $return = new \DateTime($returnDate);
-            return max(1, (int)$pickup->diff($return)->days);
+            // Convert sang string nếu là Carbon object
+            $pickupStr = $pickupDate instanceof \Carbon\Carbon ? $pickupDate->format('Y-m-d') : $pickupDate;
+            $returnStr = $returnDate instanceof \Carbon\Carbon ? $returnDate->format('Y-m-d') : $returnDate;
+
+            $pickup = new \DateTime($pickupStr);
+            $return = new \DateTime($returnStr);
+            // Cộng 1 để tính cả ngày mượn
+            return max(1, (int)$pickup->diff($return)->days + 1);
         }
         return $this->days ?? 1;
     }
@@ -41,8 +47,9 @@ class ReservationCartItem extends Model
      */
     public function getTotalPriceAttribute(): float
     {
-        $pickupDate = $this->attributes['pickup_date'] ?? null;
-        $returnDate = $this->attributes['return_date'] ?? null;
+        // Lấy pickup_date - có thể là string, Carbon object, hoặc null
+        $pickupDate = $this->pickup_date ?? $this->attributes['pickup_date'] ?? null;
+        $returnDate = $this->return_date ?? $this->attributes['return_date'] ?? null;
 
         if (!$pickupDate || !$returnDate) {
             return 0;
@@ -50,7 +57,7 @@ class ReservationCartItem extends Model
 
         $days = $this->calculateDaysFromDates();
         $quantity = max(1, (int) ($this->quantity ?? 1));
-        $dailyFee = (int) ($this->daily_fee ?? 5000);
+        $dailyFee = (int) ($this->daily_fee ?? $this->book?->daily_fee ?? 5000);
 
         return $days * $dailyFee * $quantity;
     }

@@ -68,9 +68,35 @@ class InventoryReservationController extends Controller
             $query->where('reservation_code', 'like', "%{$code}%");
         }
 
-        $reservations = $query->paginate(20);
+        // Phân trang theo nhóm thay vì theo từng cuốn
+        $all = $query->get();
+        $grouped = $all->groupBy(function ($reservation) {
+            if (!empty($reservation->reservation_code)) {
+                return $reservation->reservation_code;
+            }
+            $pickup = $reservation->pickup_date ? $reservation->pickup_date->format('Ymd') : 'none';
+            $return = $reservation->return_date ? $reservation->return_date->format('Ymd') : 'none';
+            $time = $reservation->pickup_time ?: 'none';
+            $readerKey = $reservation->reader_id ?? $reservation->user_id ?? 'guest';
+            return "reader-{$readerKey}-{$pickup}-{$return}-{$time}";
+        });
 
-        return view('admin.inventory_reservations.index', compact('reservations'));
+        $totalGroups = $grouped->count();
+        $perPage = 20;
+        $currentPage = (int) $request->input('page', 1);
+        $pagedGroups = $grouped->slice(($currentPage - 1) * $perPage, $perPage);
+
+        $paginatedGroups = new \Illuminate\Pagination\LengthAwarePaginator(
+            $pagedGroups,
+            $totalGroups,
+            $perPage,
+            $currentPage,
+            ['path' => $request->url(), 'query' => $request->except('page')]
+        );
+
+        return view('admin.inventory_reservations.index', [
+            'reservations' => $paginatedGroups,
+        ]);
     }
 
     public function markAsReady(Request $request, $id)
@@ -268,12 +294,8 @@ class InventoryReservationController extends Controller
                     throw new \Exception('Có sách chưa ở trạng thái sẵn sàng.');
                 }
 
-                $days = 1;
-                if ($reservation->pickup_date && $reservation->return_date && $reservation->return_date->greaterThan($reservation->pickup_date)) {
-                    $days = max(1, $reservation->pickup_date->diffInDays($reservation->return_date));
-                }
-                $dailyFee = (float) ($reservation->book?->daily_fee ?? 5000);
-                $rentalFee = (float) ($reservation->total_fee ?? ($dailyFee * $days));
+                // Lấy giá đã lưu từ khi đặt trước
+                $rentalFee = (float) $reservation->total_fee;
                 $totalFee += $rentalFee;
 
                 BorrowItem::create([
@@ -319,6 +341,68 @@ class InventoryReservationController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->with('error', 'Fulfill thất bại: ' . $e->getMessage());
+        }
+    }
+
+    public function cancelMultiple(Request $request)
+    {
+        $reservationIds = collect(explode(',', (string) $request->input('reservation_ids', '')))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($reservationIds->isEmpty()) {
+            return back()->with('error', 'Vui lòng chọn ít nhất 1 cuốn để hủy.');
+        }
+
+        $reservations = InventoryReservation::with(['book', 'inventory', 'reader', 'reader.user', 'user'])
+            ->whereIn('id', $reservationIds->all())
+            ->get();
+
+        if ($reservations->isEmpty()) {
+            return back()->with('error', 'Không tìm thấy yêu cầu đặt trước hợp lệ.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $adminNote = 'Hủy theo yêu cầu. ' . ($request->input('admin_note', ''));
+            $cancelledCount = 0;
+
+            foreach ($reservations as $reservation) {
+                if (!in_array($reservation->status, ['pending', 'ready'], true)) {
+                    throw new \Exception('Yêu cầu #' . $reservation->id . ' không thể hủy (trạng thái: ' . $reservation->status . ').');
+                }
+
+                // Gọi method cancel để giải phóng inventory
+                $reservation->cancel($adminNote, Auth::id());
+
+                $cancelledCount++;
+            }
+
+            DB::commit();
+
+            // Gửi thông báo sau khi commit để tránh trùng
+            foreach ($reservations as $reservation) {
+                $userId = $reservation->reader?->user_id ?? $reservation->user_id;
+                if ($userId) {
+                    app(NotificationService::class)->sendNotification(
+                        $userId,
+                        'reservation_cancelled',
+                        [
+                            'reader_name' => $reservation->reader?->ho_ten ?? ($reservation->user?->name ?? 'Bạn'),
+                            'book_title' => $reservation->book?->ten_sach ?? 'Sách',
+                            'reason' => $adminNote,
+                        ],
+                        ['database']
+                    );
+                }
+            }
+
+            return back()->with('success', 'Đã hủy ' . $cancelledCount . ' yêu cầu đặt trước.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->with('error', 'Hủy thất bại: ' . $e->getMessage());
         }
     }
 
@@ -377,6 +461,9 @@ class InventoryReservationController extends Controller
 
             return back()->with('success', 'Đã đánh dấu quá hạn cho yêu cầu đặt trước.');
         }
+
+        // Gọi cancel để cập nhật trạng thái
+        $reservation->cancel($adminNote, Auth::id());
 
         return back()->with('success', 'Đã hủy yêu cầu đặt trước.');
     }

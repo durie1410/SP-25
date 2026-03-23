@@ -62,19 +62,21 @@
         </div>
 
         @php
-            $proofImages = is_array($reservation->proof_images)
-                ? $reservation->proof_images
-                : (is_string($reservation->proof_images) ? json_decode($reservation->proof_images, true) : []);
-            $proofImages = is_array($proofImages) ? $proofImages : [];
+            $proofImages = $reservation->getProofImages();
         @endphp
 
         @if(!empty($proofImages))
             <div class="mb-4">
-                <div class="fw-bold mb-2">Ảnh đã lưu</div>
+                <div class="fw-bold mb-2">Ảnh đã lưu ({{ count($proofImages) }} ảnh)</div>
                 <div class="d-flex flex-wrap gap-3">
-                    @foreach($proofImages as $img)
-                        <div style="width: 140px;">
-                            <img src="{{ asset('storage/' . $img) }}" alt="Proof image" class="img-thumbnail" style="width: 140px; height: 140px; object-fit: cover;">
+                    @foreach($proofImages as $idx => $img)
+                        <div style="width: 140px; text-align: center;">
+                            <img src="{{ asset("storage/{$img}") }}"
+                                 alt="Ảnh {{ $idx + 1 }}"
+                                 class="img-thumbnail"
+                                 style="width: 140px; height: 140px; object-fit: cover; cursor: pointer;"
+                                 onclick="showGallery({{ json_encode($proofImages) }}, {{ $idx }})">
+                            <div style="font-size: 11px; color: #64748b; margin-top: 4px;">{{ $idx + 1 }}</div>
                         </div>
                     @endforeach
                 </div>
@@ -94,6 +96,19 @@
 
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> Lưu ảnh chứng minh
+                </button>
+            </form>
+        @else
+            <form action="{{ route('admin.inventory-reservations.proof.store', $reservation->id) }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="mb-3">
+                    <label class="form-label">Thêm ảnh chứng minh</label>
+                    <input type="file" name="proof_images[]" class="form-control" accept="image/*" multiple>
+                    <small class="text-muted">Hỗ trợ JPG/PNG/GIF/WebP, tối đa 4MB mỗi ảnh.</small>
+                </div>
+                <div id="proof-preview" class="d-flex flex-wrap gap-3 mb-3"></div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Thêm ảnh
                 </button>
             </form>
         @endif
@@ -126,5 +141,62 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 });
+
+function showGallery(images, startIndex) {
+    const existing = document.getElementById('gallery-modal');
+    if (existing) existing.remove();
+
+    const imagesList = Array.isArray(images) ? images : [images];
+    let current = startIndex ?? 0;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'gallery-modal';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+
+    const counter = document.createElement('div');
+    counter.style.cssText = 'position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#fff;font-size:16px;font-weight:600;';
+
+    const img = document.createElement('img');
+    img.style.cssText = 'max-width:90%;max-height:80vh;object-fit:contain;border-radius:8px;';
+
+    function render() {
+        img.src = '/storage/' + imagesList[current];
+        counter.textContent = (current + 1) + ' / ' + imagesList.length;
+    }
+    render();
+
+    function prev() { current = (current - 1 + imagesList.length) % imagesList.length; render(); }
+    function next() { current = (current + 1) % imagesList.length; render(); }
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕ Đóng';
+    closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 20px;border-radius:6px;cursor:pointer;';
+    closeBtn.onclick = () => overlay.remove();
+
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = '‹';
+    prevBtn.style.cssText = 'position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;width:50px;height:50px;border-radius:50%;font-size:28px;cursor:pointer;';
+    prevBtn.onclick = prev;
+
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = '›';
+    nextBtn.style.cssText = 'position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;width:50px;height:50px;border-radius:50%;font-size:28px;cursor:pointer;';
+    nextBtn.onclick = next;
+
+    overlay.appendChild(counter);
+    overlay.appendChild(img);
+    overlay.appendChild(closeBtn);
+    overlay.appendChild(prevBtn);
+    overlay.appendChild(nextBtn);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+    document.addEventListener('keydown', function handler(e) {
+        if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', handler); }
+        if (e.key === 'ArrowLeft') prev();
+        if (e.key === 'ArrowRight') next();
+    });
+
+    document.body.appendChild(overlay);
+}
 </script>
 @endpush
