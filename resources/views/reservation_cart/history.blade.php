@@ -310,41 +310,7 @@
     </div>
 
     <div class="history-card">
-        @php
-            $groupedReservations = $reservations->getCollection()->groupBy(function ($reservation) {
-                if (!empty($reservation->reservation_code)) {
-                    return $reservation->reservation_code;
-                }
-                $pickup = $reservation->pickup_date ? $reservation->pickup_date->format('Ymd') : 'none';
-                $return = $reservation->return_date ? $reservation->return_date->format('Ymd') : 'none';
-                $time = $reservation->pickup_time ?: 'none';
-                return "single-{$reservation->id}-{$pickup}-{$return}-{$time}";
-            });
-        @endphp
 
-        @forelse($groupedReservations as $groupCode => $group)
-            @php
-                $first = $group->first();
-                $displayCode = !empty($first->reservation_code)
-                    ? $first->reservation_code
-                    : 'RSV' . str_pad((string) $first->id, 6, '0', STR_PAD_LEFT);
-                $groupTotal = $group->sum(fn ($item) => (float) ($item->total_fee ?? 0));
-                $groupStatus = $group->contains(fn ($item) => $item->status === 'ready') ? 'ready' : $first->status;
-            @endphp
-
-            <div style="padding: 20px; border-bottom: 1px solid var(--reserve-border);">
-                <div style="display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;">
-                    <img src="{{ $first->book && $first->book->hinh_anh ? asset('storage/' . $first->book->hinh_anh) : 'https://via.placeholder.com/80x110?text=No+Image' }}"
-                         alt="{{ $first->book->ten_sach ?? 'Sách' }}"
-                         class="book-cover">
-
-                    <div class="book-info">
-                        <h3 class="book-title">{{ $first->book->ten_sach ?? 'N/A' }}</h3>
-                        <p class="book-author">Tác giả: {{ $first->book->tac_gia ?? 'Không rõ' }}</p>
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap;">
-                            <span class="reservation-code">{{ $displayCode }}</span>
-                            <span class="status-badge status-{{ $groupStatus }}">
-                                {{ $groupStatus === 'ready' ? 'Đã sẵn sàng' : $first->getStatusLabel() }}
                             </span>
                             <span class="schedule-label">{{ $group->count() }} sách</span>
                         </div>
