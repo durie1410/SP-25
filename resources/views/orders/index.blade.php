@@ -641,7 +641,7 @@
             <!-- Phân trang -->
             @if($orders->hasPages())
                 <div class="pagination-wrapper mt-4">
-                    {{ $orders->links() }}
+                    {{ $orders->links('vendor.pagination.default') }}
                 </div>
             @endif
 

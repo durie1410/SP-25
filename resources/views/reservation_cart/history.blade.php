@@ -205,11 +205,21 @@
     .pagination {
         display: flex;
         justify-content: center;
+        align-items: center;
         padding: 20px;
         gap: 8px;
+        list-style: none;
+        margin: 0;
+    }
+
+    .pagination li {
+        list-style: none;
     }
 
     .pagination a, .pagination span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         padding: 8px 12px;
         border-radius: 8px;
         text-decoration: none;
@@ -295,66 +305,28 @@
         <p class="page-subtitle">Theo dõi các yêu cầu đặt trước của bạn</p>
     </div>
 
-    <div class="history-card">
-        @php
-            $groupedReservations = $reservations->getCollection()->groupBy(function ($reservation) {
-                if (!empty($reservation->reservation_code)) {
-                    return $reservation->reservation_code;
-                }
 
-                $pickup = $reservation->pickup_date ? $reservation->pickup_date->format('Ymd') : 'none';
-                $return = $reservation->return_date ? $reservation->return_date->format('Ymd') : 'none';
-                $time = $reservation->pickup_time ?: 'none';
-
-                return "single-{$reservation->id}-{$pickup}-{$return}-{$time}";
-            });
-        @endphp
-
-        @forelse($groupedReservations as $groupCode => $group)
-            @php
-                $first = $group->first();
-                $displayCode = !empty($first->reservation_code)
-                    ? $first->reservation_code
-                    : 'RSV' . str_pad((string) $first->id, 6, '0', STR_PAD_LEFT);
-                $groupTotal = $group->sum(fn ($item) => (float) ($item->total_fee ?? 0));
-                // Kiểm tra quá hạn: pickup_date trong quá khứ HOẶC ready quá 2 giờ
-                $isOverdueByTime = fn($item) => in_array($item->status, ['pending', 'ready'], true)
-                    && (
-                        ($item->pickup_date && $item->pickup_date->lt(now()->startOfDay()))
-                        || ($item->status === 'ready' && $item->ready_at && $item->ready_at->lt(now()->subHours(2)))
-                    );
-
-                // Xác định trạng thái nhóm - ưu tiên overdue cao nhất
-                $groupHasOverdue = $group->contains(fn ($item) =>
-                    $item->status === 'overdue' || $isOverdueByTime($item)
-                );
-                $groupStatus = $groupHasOverdue ? 'overdue'
-                    : ($group->contains(fn ($item) => $item->status === 'ready') ? 'ready'
-                    : ($group->contains(fn ($item) => $item->status === 'fulfilled') ? 'fulfilled'
-                    : ($group->contains(fn ($item) => $item->status === 'cancelled') ? 'cancelled'
-                    : $first->status)));
-            @endphp
-
-            <details class="history-item" style="display:block;">
-                <summary style="list-style:none; cursor:pointer; display:flex; align-items:flex-start; gap:20px;">
-                    <div class="book-info" style="flex:1;">
-                        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap;">
-                            <span class="reservation-code">{{ $displayCode }}</span>
-                            <span class="status-badge status-{{ $groupStatus }}">
-                                {{ $groupStatus === 'overdue' ? 'Quá hạn' : ($groupStatus === 'ready' ? 'Đã sẵn sàng' : $first->getStatusLabel()) }}
-                            </span>
-                            <span class="schedule-label">{{ $group->count() }} sách</span>
-                        </div>
-                        <div class="schedule-info" style="margin-top:0;">
                             <div class="schedule-item">
                                 <span class="schedule-label">Ngày lấy</span>
-                                <span class="schedule-value">{{ $first->pickup_date ? \Carbon\Carbon::parse($first->pickup_date)->format('d/m/Y') : 'N/A' }}</span>
+                                <span class="schedule-value">{{ $first->pickup_display }}</span>
+                            </div>
+                            <div class="schedule-item">
+                                <span class="schedule-label">Hạn nhận</span>
+                                <span class="schedule-value {{ $groupOverdue ? 'text-danger' : '' }}">
+                                    {{ $first->pickup_deadline_display }} (sau 2 giờ)
+                                </span>
                             </div>
                             <div class="schedule-item">
                                 <span class="schedule-label">Ngày trả</span>
                                 <span class="schedule-value">{{ $first->return_date ? \Carbon\Carbon::parse($first->return_date)->format('d/m/Y') : 'N/A' }}</span>
                             </div>
                         </div>
+
+                        @if($groupOverdue)
+                            <div style="margin-top: 8px; color: #991b1b; font-weight: 700; font-size: 13px;">
+                                ⛔ Đã quá hạn nhận sách
+                            </div>
+                        @endif
                     </div>
                     <div class="fee-info">
                         <div class="fee-label">Tổng tiền</div>
@@ -362,13 +334,17 @@
 
                         @if($groupStatus === 'ready' && !$groupHasOverdue && !empty($first->reservation_code))
                             <div class="ready-actions">
-                                @if(!$group->contains(fn($item) => !empty($item->customer_confirmed_at)))
+                                @if($canConfirmReady)
                                     <form action="{{ route('reservation-cart.history.confirm-ready', $first->reservation_code) }}" method="POST">
                                         @csrf
                                         <button type="submit" class="ready-btn ready-btn-confirm">
                                             <i class="fas fa-check-circle"></i> Xác nhận sẽ đến nhận
                                         </button>
                                     </form>
+                                @elseif($groupOverdue)
+                                    <button type="button" class="ready-btn ready-btn-confirm" disabled style="opacity: .45; cursor: not-allowed;">
+                                        <i class="fas fa-clock"></i> Đã quá hạn nhận sách
+                                    </button>
                                 @else
                                     <span class="status-badge status-ready">Đã xác nhận nhận sách</span>
                                 @endif
@@ -410,33 +386,11 @@
                                     <span class="fee-label">{{ number_format($reservation->total_fee ?? 0, 0, ',', '.') }}đ</span>
                                 </div>
 
-                                @php
-                                    $proofImages = $reservation->getProofImages();
-                                @endphp
-                                <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Ảnh minh chứng</div>
-                                @if(!empty($proofImages))
-                                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                                        @foreach($proofImages as $img)
-                                            <a href="{{ asset('storage/' . ltrim($img, '/')) }}" target="_blank" rel="noopener noreferrer">
-                                                <img src="{{ asset('storage/' . ltrim($img, '/')) }}"
-                                                     alt="Ảnh minh chứng"
-                                                     style="width:52px; height:52px; object-fit:cover; border-radius:8px; border:1px solid var(--reserve-border);">
-                                            </a>
-                                        @endforeach
-                                    </div>
-                                @else
-                                    <div class="fee-label">Chưa có ảnh minh chứng</div>
-                                @endif
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-            </details>
-        @empty
+
             <div class="empty-state">
                 <div class="empty-icon">📚</div>
                 <p>Bạn chưa có yêu cầu đặt trước nào.</p>
-                <a href="{{ route('books.index') }}" class="btn btn-primary" style="margin-top: 16px;">
+                <a href="{{ route('books.public') }}" class="btn btn-primary" style="margin-top: 16px;">
                     Khám phá sách
                 </a>
             </div>
@@ -444,7 +398,7 @@
 
         @if($reservations->hasPages())
             <div class="pagination">
-                {{ $reservations->links() }}
+                {{ $reservations->links('vendor.pagination.default') }}
             </div>
         @endif
     </div>

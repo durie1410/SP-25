@@ -445,7 +445,35 @@
         </div>
 
         <div class="pagination-wrapper">
-            {{ $favorites->links() }}
+            <nav aria-label="Phân trang sách yêu thích">
+                <ul class="pagination">
+                    <li class="{{ $favorites->onFirstPage() ? 'disabled' : '' }}" aria-disabled="{{ $favorites->onFirstPage() ? 'true' : 'false' }}">
+                        @if($favorites->onFirstPage())
+                            <span>&lsaquo;</span>
+                        @else
+                            <a href="{{ $favorites->previousPageUrl() }}" rel="prev">&lsaquo;</a>
+                        @endif
+                    </li>
+
+                    @for($page = 1; $page <= max(1, $favorites->lastPage()); $page++)
+                        <li class="{{ $page === $favorites->currentPage() ? 'active' : '' }}" aria-current="{{ $page === $favorites->currentPage() ? 'page' : 'false' }}">
+                            @if($page === $favorites->currentPage())
+                                <span>{{ $page }}</span>
+                            @else
+                                <a href="{{ $favorites->url($page) }}">{{ $page }}</a>
+                            @endif
+                        </li>
+                    @endfor
+
+                    <li class="{{ $favorites->hasMorePages() ? '' : 'disabled' }}" aria-disabled="{{ $favorites->hasMorePages() ? 'false' : 'true' }}">
+                        @if($favorites->hasMorePages())
+                            <a href="{{ $favorites->nextPageUrl() }}" rel="next">&rsaquo;</a>
+                        @else
+                            <span>&rsaquo;</span>
+                        @endif
+                    </li>
+                </ul>
+            </nav>
         </div>
     @else
         <div class="empty-state favorite-library-empty">

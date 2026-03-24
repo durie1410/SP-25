@@ -421,13 +421,69 @@ class ReservationCartController extends Controller
                 ->with('error', 'Bạn cần đăng ký thông tin độc giả để xem lịch sử đặt trước.');
         }
 
-        // Lấy danh sách đặt trước của user (group theo mã đơn để hiển thị theo cụm)
-        $reservations = \App\Models\InventoryReservation::with(['book', 'inventory'])
+        // Phân trang theo NHÓM đơn (reservation_code), tránh bị tách 1 đơn qua nhiều trang.
+        $reservations = InventoryReservation::query()
             ->where('user_id', $user->id)
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->selectRaw("CASE WHEN reservation_code IS NULL OR reservation_code = '' THEN CONCAT('single-', id) ELSE CONCAT('code-', reservation_code) END AS group_key")
+            ->selectRaw('MAX(created_at) AS latest_created_at')
+            ->groupBy('group_key')
+            ->orderByDesc('latest_created_at')
+            ->paginate(10)
+            ->withQueryString();
 
-        return view('reservation_cart.history', compact('reservations'));
+        $currentGroupRows = $reservations->getCollection();
+        $reservationCodes = [];
+        $singleIds = [];
+
+        foreach ($currentGroupRows as $row) {
+            $groupKey = (string) ($row->group_key ?? '');
+            if (str_starts_with($groupKey, 'code-')) {
+                $reservationCodes[] = substr($groupKey, 5);
+            } elseif (str_starts_with($groupKey, 'single-')) {
+                $singleIds[] = (int) substr($groupKey, 7);
+            }
+        }
+
+        $groupedReservations = collect();
+
+        if (!empty($reservationCodes) || !empty($singleIds)) {
+            $records = InventoryReservation::with(['book', 'inventory'])
+                ->where('user_id', $user->id)
+                ->where(function ($query) use ($reservationCodes, $singleIds) {
+                    if (!empty($reservationCodes)) {
+                        $query->whereIn('reservation_code', $reservationCodes);
+                    }
+
+                    if (!empty($singleIds)) {
+                        if (!empty($reservationCodes)) {
+                            $query->orWhere(function ($subQuery) use ($singleIds) {
+                                $subQuery->whereNull('reservation_code')
+                                    ->whereIn('id', $singleIds);
+                            });
+                        } else {
+                            $query->whereNull('reservation_code')
+                                ->whereIn('id', $singleIds);
+                        }
+                    }
+                })
+                ->orderByDesc('created_at')
+                ->get();
+
+            $recordsByGroup = $records->groupBy(function ($reservation) {
+                return !empty($reservation->reservation_code)
+                    ? 'code-' . $reservation->reservation_code
+                    : 'single-' . $reservation->id;
+            });
+
+            foreach ($currentGroupRows as $row) {
+                $groupKey = (string) ($row->group_key ?? '');
+                if ($recordsByGroup->has($groupKey)) {
+                    $groupedReservations->put($groupKey, $recordsByGroup->get($groupKey));
+                }
+            }
+        }
+
+        return view('reservation_cart.history', compact('reservations', 'groupedReservations'));
     }
 
     public function confirmReadyGroup(Request $request, string $reservationCode)

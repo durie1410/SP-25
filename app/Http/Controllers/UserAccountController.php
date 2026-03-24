@@ -247,7 +247,8 @@ class UserAccountController extends Controller
                 })
                 ->with(['borrowItems.book', 'borrowItems.inventory', 'librarian', 'reader'])
                 ->orderBy('ngay_muon', 'desc')
-                ->paginate(12);
+                ->paginate(3)
+                ->withQueryString();
 
             // KHÔNG tính lại tiền thuê - chỉ đọc trực tiếp từ database
             // Tiền thuê đã được tính và lưu khi tạo phiếu mượn (BorrowController storeItem/store)
@@ -279,7 +280,8 @@ class UserAccountController extends Controller
             }])
             ->where('user_id', $user->id)
             ->latest()
-            ->paginate(12);
+            ->paginate(6)
+            ->withQueryString();
 
         return view('account.favorite-books', compact('favorites'));
     }
