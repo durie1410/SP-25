@@ -146,26 +146,28 @@ class LibraryHousekeeping extends Command
         // Helper: gửi thông báo hủy đặt trước
         // ============================================================
         $sendCancelNotif = function ($model, $reason) use ($notificationService) {
-            $userId  = $model->reader?->user_id ?? $model->user_id;
-            $data    = [
-                'reader_name' => $model->reader?->ho_ten ?? ($model->user?->name ?? 'Bạn'),
-                'book_title'  => $model->book?->ten_sach ?? 'Sách',
-                'reason'      => $reason,
-            ];
+            try {
+                $userId  = $model->reader?->user_id ?? $model->user_id;
+                $data    = [
+                    'reader_name' => $model->reader?->ho_ten ?? ($model->user?->name ?? 'Bạn'),
+                    'book_title'  => $model->book?->ten_sach ?? 'Sách',
+                    'reason'      => $reason,
+                ];
 
-            $recipientEmail = $model->reader?->email ?? $model->user?->email;
+                $recipientEmail = $model->reader?->email ?? $model->user?->email;
 
-            if ($userId) {
-                // Chỉ database qua sendNotification để tạo đúng 1 log thông báo
-                $notificationService->sendNotification(
-                    $userId,
-                    'reservation_cancelled',
-                    $data,
-                    ['database']
-                );
+                if ($userId) {
+                    $notificationService->sendNotification($userId, 'reservation_cancelled', $data, ['database']);
 
-                // Email gửi riêng để không tạo thêm notification cùng type
-                if (!empty($recipientEmail)) {
+                    if (!empty($recipientEmail)) {
+                        $notificationService->sendSimpleEmail(
+                            $recipientEmail,
+                            'Yêu cầu đặt trước đã bị hủy',
+                            'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã bị hủy. Lý do: {{reason}}.',
+                            $data
+                        );
+                    }
+                } elseif (!empty($recipientEmail)) {
                     $notificationService->sendSimpleEmail(
                         $recipientEmail,
                         'Yêu cầu đặt trước đã bị hủy',
@@ -173,14 +175,8 @@ class LibraryHousekeeping extends Command
                         $data
                     );
                 }
-            } elseif (!empty($recipientEmail)) {
-                // Không có user_id thì vẫn gửi email trực tiếp để độc giả nhận được thông báo hủy
-                $notificationService->sendSimpleEmail(
-                    $recipientEmail,
-                    'Yêu cầu đặt trước đã bị hủy',
-                    'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã bị hủy. Lý do: {{reason}}.',
-                    $data
-                );
+            } catch (\Throwable $e) {
+                $this->warn("FAIL sendCancelNotif for #{$model->id}: " . $e->getMessage());
             }
         };
 
