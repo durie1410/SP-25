@@ -217,6 +217,7 @@ Route::prefix('reservation-cart')->name('reservation-cart.')->middleware('auth')
     Route::post('/update-days/{itemId}', [ReservationCartController::class, 'updateDays'])->name('update-days');
     Route::post('/update-dates/{itemId}', [ReservationCartController::class, 'updateDates'])->name('update-dates');
     Route::post('/update-quantity/{itemId}', [ReservationCartController::class, 'updateQuantity'])->name('update-quantity');
+    Route::post('/update-pickup-time', [ReservationCartController::class, 'updatePickupTime'])->name('update-pickup-time');
     Route::get('/history', [ReservationCartController::class, 'history'])->name('history');
     Route::post('/history/{reservationCode}/confirm-ready', [ReservationCartController::class, 'confirmReadyGroup'])->name('history.confirm-ready');
     Route::post('/history/{reservationCode}/cancel-ready', [ReservationCartController::class, 'cancelReadyGroup'])->name('history.cancel-ready');
