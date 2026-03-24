@@ -329,7 +329,6 @@ class ReservationCartController extends Controller
         $pickupDate = $firstItem?->pickup_date;
         if ($pickupDate) {
             $pickupDateObj = $pickupDate instanceof \Carbon\Carbon ? $pickupDate : \Carbon\Carbon::parse($pickupDate);
-            $now = \Carbon\now();
             $pickupDateTime = \Carbon\Carbon::parse($pickupDateObj->format('Y-m-d') . ' ' . $pickupTime);
 
             // Nếu ngày lấy là hôm nay, giờ phải lớn hơn giờ hiện tại + 1 tiếng
@@ -501,7 +500,6 @@ class ReservationCartController extends Controller
             ], 422);
         }
 
-        $maxBorrowBooks = (int) config('library.borrow_max_books', 5);
         // Giới hạn tối đa 2 cuốn cùng loại theo quy định thư viện
         $maxPerBook = 2;
 
@@ -526,25 +524,30 @@ class ReservationCartController extends Controller
         }
 
         $availableStock = $this->getAvailableStock($item->book);
-        // Lấy giới hạn tối thiểu giữa số trong kho và quy định thư viện (2 cuốn/cùng loại)
-        $effectiveMax = min($availableStock, $maxPerBook);
-        $effectiveMax = max(1, $effectiveMax); // Ít nhất 1 nếu có hàng
 
+        // Tính tổng số lượng đã có trong giỏ cho cùng loại sách (bao gồm cả item hiện tại)
+        $currentItemQuantity = (int) $item->quantity;
         $otherQuantity = (int) $cart->items()
             ->where('book_id', $item->book_id)
             ->where('id', '!=', $item->id)
             ->sum('quantity');
 
-        // Kiểm tra với số lượng thực tế trong kho
-        if ($availableStock > 0 && ($otherQuantity + (int) $request->quantity) > $effectiveMax) {
+        // Tổng sẽ có = số đã có trong giỏ (không tính item này) + số lượng mới
+        $totalAfterUpdate = $otherQuantity + (int) $request->quantity;
+
+        // Lấy min giữa số trong kho và quy định 2 cuốn
+        $effectiveMax = min(max(1, $availableStock), $maxPerBook);
+
+        // Kiểm tra nếu vượt quá số lượng cho phép
+        if ($totalAfterUpdate > $effectiveMax) {
             return response()->json([
                 'success' => false,
-                'message' => "Kho chỉ còn {$availableStock} cuốn. Bạn chỉ có thể đặt tối đa {$effectiveMax} cuốn cùng loại theo quy định thư viện.",
+                'message' => "Kho chỉ còn {$availableStock} cuốn. Bạn chỉ có thể đặt tối đa {$effectiveMax} cuốn cùng loại.",
             ], 422);
         }
 
-        // Nếu kho = 0 hoặc không xác định, vẫn giới hạn theo quy định thư viện
-        if ($availableStock <= 0 && (int) $request->quantity > $maxPerBook) {
+        // LUÔN luôn giới hạn theo quy định thư viện (2 cuốn)
+        if ((int) $request->quantity > $maxPerBook) {
             return response()->json([
                 'success' => false,
                 'message' => "Mỗi loại sách chỉ được đặt tối đa {$maxPerBook} cuốn theo quy định thư viện.",
