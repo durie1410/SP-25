@@ -231,6 +231,24 @@ class NotificationService
             return false;
         }
 
+        // Chống gửi trùng: kiểm tra đã gửi thông báo approved cho borrow này chưa (trong vòng 5 phút)
+        if ($reader->user_id) {
+            $recentDuplicate = \DB::table('notification_logs')
+                ->where('user_id', $reader->user_id)
+                ->where('type', 'borrow_approved')
+                ->where('channel', 'database')
+                ->where('sent_at', '>=', now()->subMinutes(5))
+                ->exists();
+
+            if ($recentDuplicate) {
+                Log::info('Duplicate borrow_approved notification suppressed', [
+                    'borrow_id' => $borrow->id,
+                    'user_id' => $reader->user_id,
+                ]);
+                return false;
+            }
+        }
+
         $bookTitles = $borrow->items
             ->map(function ($item) {
                 return optional($item->book)->ten_sach;
@@ -340,21 +358,69 @@ class NotificationService
 
         $userId = $reservation->reader?->user_id ?? $reservation->user_id;
         $recipientEmail = $reservation->reader?->email ?? $reservation->user?->email;
+        $bookTitle = $reservation->book?->ten_sach ?? '';
+        $subject = 'Sách bạn đặt trước đã sẵn sàng';
+
+        // Chống race condition: lock row của reservation khi kiểm tra trùng
+        // Dùng lock share để request 2 phải CHỜ request 1 ghi xong notification_logs
+        // trước khi được kiểm tra trùng
+        $reservationModel = \App\Models\InventoryReservation::lockForUpdate()
+            ->find($reservation->id);
+
+        // Sau khi lock → đọc lại notification_logs (giờ đã thấy notification từ request 1)
+        $recentDuplicate = \DB::table('notification_logs')
+            ->where('user_id', $userId)
+            ->where('type', 'reservation_ready')
+            ->where('channel', 'database')
+            ->where('subject', $subject)
+            ->where('content', 'LIKE', '%' . $bookTitle . '%')
+            ->where('sent_at', '>=', now()->subMinutes(60))
+            ->orderByDesc('id')
+            ->first();
+
+        if ($recentDuplicate) {
+            Log::warning('Duplicate reservation_ready notification BLOCKED', [
+                'reservation_id' => $reservation->id,
+                'user_id' => $userId,
+                'book_title' => $bookTitle,
+                'existing_log_id' => $recentDuplicate->id,
+            ]);
+            return false;
+        }
+
+        Log::info('Sending reservation_ready notification', [
+            'reservation_id' => $reservation->id,
+            'user_id' => $userId,
+            'book_title' => $reservation->book?->ten_sach ?? 'N/A',
+        ]);
 
         $data = [
             'reader_name' => $reservation->reader?->ho_ten ?? $reservation->user?->name ?? 'Bạn',
             'book_title' => $reservation->book?->ten_sach ?? 'Sách',
             'ready_date' => optional($reservation->ready_at)->format('d/m/Y H:i') ?? now()->format('d/m/Y H:i'),
             'expiry_date' => optional($reservation->pickup_date)->format('d/m/Y') ?? now()->addDays(3)->format('d/m/Y'),
+            'reservation_id' => $reservation->id,
         ];
 
         if ($userId) {
-            return $this->sendNotification(
-                $userId,
-                'reservation_ready',
-                $data,
-                ['database', 'email']
+            $user = User::find($userId);
+            $notificationData = $this->prepareNotificationData(
+                (object) [
+                    'subject' => $subject,
+                    'content' => 'Xin chào {{reader_name}}, sách "{{book_title}}" bạn đặt trước đã sẵn sàng. Mời bạn đến nhận trước ngày {{expiry_date}}.',
+                    'type' => 'reservation_ready',
+                    'channel' => 'database',
+                ],
+                $data
             );
+
+            // Chỉ ghi notification_logs cho database notification (1 log duy nhất)
+            $this->sendDatabaseNotification($user, $notificationData);
+
+            // Email chỉ gửi, KHÔNG ghi notification_logs để tránh 2 notification giống nhau
+            $this->sendEmailDirect($user->email, $subject, $data);
+
+            return true;
         }
 
         if ($recipientEmail) {
@@ -489,6 +555,42 @@ class NotificationService
     }
 
     /**
+     * Gửi email trực tiếp không ghi notification_logs riêng
+     * Dùng để tránh 2 notification_logs giống nhau (database + email)
+     */
+    protected function sendEmailDirect($email, $subject, $data)
+    {
+        if (empty($email)) {
+            return false;
+        }
+
+        try {
+            $processedSubject = $this->replacePlaceholders($subject, $data);
+            $processedBody = $this->replacePlaceholders(
+                'Xin chào {{reader_name}}, sách "{{book_title}}" bạn đặt trước đã sẵn sàng. Mời bạn đến nhận trước ngày {{expiry_date}}.',
+                $data
+            );
+
+            Mail::send('emails.simple', [
+                'content' => $processedBody,
+                'subject' => $processedSubject,
+                'data' => $data,
+            ], function ($message) use ($email, $processedSubject) {
+                $message->to($email)->subject($processedSubject);
+            });
+
+            Log::info('Email direct sent', ['email' => $email, 'subject' => $processedSubject]);
+            return true;
+        } catch (Throwable $e) {
+            Log::warning('Email direct failed', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Send database notification
      */
     protected function sendDatabaseNotification($user, $notificationData)
@@ -508,7 +610,12 @@ class NotificationService
     }
 
     /**
-     * Send email notification
+     * Gửi email notification - KHÔNG ghi notification_log khi thành công
+     * vì email đã là thông báo, ghi thêm sẽ bị trùng với database notification
+     */
+
+    /**
+     * Send email notification - KHÔNG ghi notification_log khi thành công
      */
     protected function sendEmailNotification($user, $notificationData)
     {
@@ -583,19 +690,8 @@ class NotificationService
                 return false;
             }
 
-            NotificationLog::create([
-                'user_id' => $user->id,
-                'type' => $notificationData['type'],
-                'channel' => 'email',
-                'recipient' => (string) ($user->email ?? $user->id),
-                'subject' => $notificationData['subject'],
-                'content' => $notificationData['body'],
-                'body' => $notificationData['body'],
-                'priority' => $notificationData['priority'],
-                'status' => 'sent',
-                'metadata' => json_encode($mailDebugContext),
-                'sent_at' => now(),
-            ]);
+            // Không ghi notification_log khi email gửi thành công
+            // vì database notification đã ghi rồi, ghi thêm sẽ bị trùng
 
             Log::info('Email notification sent successfully', array_merge($mailDebugContext, [
                 'user_id' => $user->id,

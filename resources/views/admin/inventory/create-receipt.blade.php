@@ -395,8 +395,8 @@
                         <input type="text" class="form-control" value="{{ auth()->user()->name }}" readonly style="background:#f8fafc;">
             </div>
                     <div>
-                        <label class="form-label">Nhà cung cấp</label>
-                    <input type="text" name="supplier" class="form-control" value="{{ old('supplier') }}" placeholder="Nhập tên nhà cung cấp">
+                        <label class="form-label">Nhà cung cấp <span class="text-danger"></span></label>
+                    <input type="text" name="supplier" class="form-control" value="{{ old('supplier') }}" placeholder="Nhập tên nhà cung cấp" required>
                 </div>
                     <div class="span-2">
                         <label class="form-label">Ghi chú</label>

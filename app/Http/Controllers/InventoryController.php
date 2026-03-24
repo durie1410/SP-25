@@ -13,6 +13,8 @@ use App\Models\BorrowItem;
 use App\Models\User;
 use App\Models\PurchasableBook;
 use App\Exports\InventoryExport;
+use App\Exports\BookStockReportExport;
+use App\Exports\ImportReceiptReportExport;
 use App\Services\FileUploadService;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
@@ -778,7 +780,7 @@ class InventoryController extends Controller
                 'books.*.storage_type' => 'required|in:Kho,Trung bay',
                 'books.*.unit_price' => 'nullable|numeric|min:0',
                 'books.*.notes' => 'nullable|string|max:500',
-                'supplier' => 'nullable|string|max:255',
+                'supplier' => 'required|string|max:255',
                 'notes' => 'nullable|string|max:500',
             ]);
 
@@ -1384,13 +1386,13 @@ class InventoryController extends Controller
             ->where('status', 'approved')
             ->count();
         
-        // Danh sách phiếu nhập kho
+        // Danh sách phiếu nhập kho - phân trang 10 dòng
         $importReceipts = InventoryReceipt::with(['book', 'receiver', 'approver'])
             ->where('storage_type', 'Kho')
             ->where('status', 'approved')
             ->orderBy('receipt_date', 'desc')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(10, ['*'], 'import_page');
         
         // Thống kê theo từng sách - Đồng bộ từ cả quản lý sách và kho
         // Lấy tất cả sách từ bảng books (quản lý sách)
@@ -1477,7 +1479,7 @@ class InventoryController extends Controller
         }
         
         // Lọc và sắp xếp: chỉ hiển thị sách có trong kho (total > 0) và sắp xếp theo tên
-        $booksInStock = $booksInStock
+        $booksInStockFiltered = $booksInStock
             ->filter(function($item) {
                 return $item['total'] > 0;
             })
@@ -1485,6 +1487,20 @@ class InventoryController extends Controller
                 return $item['book']->ten_sach ?? '';
             })
             ->values();
+
+        // Phân trang 10 dòng cho sách
+        $booksPerPage = 10;
+        $booksCurrentPage = request()->get('books_page', 1);
+        $booksTotal = $booksInStockFiltered->count();
+        $booksOffset = ($booksCurrentPage - 1) * $booksPerPage;
+        $booksInStock = new \Illuminate\Pagination\LengthAwarePaginator(
+            $booksInStockFiltered->slice($booksOffset, $booksPerPage)->values(),
+            $booksTotal,
+            $booksPerPage,
+            $booksCurrentPage
+        );
+        $booksInStock->setPageName('books_page');
+        $booksInStock->setPath(request()->url());
         
         // Danh sách ai đang mượn sách từ kho
         // Lấy tất cả Inventory từ kho đang mượn với BorrowItem liên kết
@@ -1691,6 +1707,24 @@ class InventoryController extends Controller
         ];
 
         return view('admin.inventory.report', compact('stats'));
+    }
+
+    /**
+     * Xuất Excel báo cáo số lượng sách theo từng cuốn
+     */
+    public function exportBookStockReport(Request $request)
+    {
+        $filename = 'bao_cao_so_luong_sach_' . now()->format('Y_m_d_H_i_s') . '.xlsx';
+        return Excel::download(new BookStockReportExport(), $filename);
+    }
+
+    /**
+     * Xuất Excel báo cáo phiếu nhập kho
+     */
+    public function exportImportReceiptReport(Request $request)
+    {
+        $filename = 'bao_cao_phieu_nhap_kho_' . now()->format('Y_m_d_H_i_s') . '.xlsx';
+        return Excel::download(new ImportReceiptReportExport(), $filename);
     }
 
     /**

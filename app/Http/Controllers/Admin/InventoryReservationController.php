@@ -100,23 +100,32 @@ class InventoryReservationController extends Controller
 
     public function markAsReady(Request $request, $id)
     {
-        $reservation = InventoryReservation::with(['book', 'reader.user'])->findOrFail($id);
-
-        if ($reservation->status !== 'pending') {
-            return back()->with('error', 'Yêu cầu này không còn ở trạng thái chờ.');
-        }
-
-        if ($reservation->pickup_date && $reservation->pickup_date->lt(now()->startOfDay())) {
-            return back()->with('error', 'Yêu cầu đã quá hạn ngày lấy. Vui lòng xử lý ở thao tác "Quá hạn".');
-        }
-
         $request->validate([
             'admin_note' => 'nullable|string|max:1000',
         ]);
 
+        // Log bắt đầu
+        \Log::info('markAsReady START', ['reservation_id' => $id, 'time' => now()]);
+
+        // Lấy reservation TRƯỚC để check quá hạn (không cần lock vì chỉ đọc)
+        $reservation = InventoryReservation::find($id);
+        if (!$reservation) {
+            return back()->with('error', 'Không tìm thấy yêu cầu đặt trước.');
+        }
+
+        \Log::info('markAsReady - Found reservation', [
+            'id' => $id,
+            'status' => $reservation->status,
+            'book' => $reservation->book_id
+        ]);
+
+        if ($reservation->pickup_date && \Carbon\Carbon::parse($reservation->pickup_date)->lt(now()->startOfDay())) {
+            return back()->with('error', 'Yêu cầu đã quá hạn ngày lấy. Vui lòng xử lý ở thao tác "Quá hạn".');
+        }
+
         DB::beginTransaction();
         try {
-            // Tự chọn 1 bản copy đang có sẵn
+            // Tự chọn 1 bản copy đang có sẵn (lock để không ai khác lấy mất)
             $inventory = Inventory::where('book_id', $reservation->book_id)
                 ->where('status', 'Co san')
                 ->orderBy('id', 'asc')
@@ -125,24 +134,58 @@ class InventoryReservationController extends Controller
 
             if (!$inventory) {
                 DB::rollBack();
+                \Log::info('markAsReady - No inventory', ['id' => $id]);
                 return back()->with('error', 'Không có bản sao nào đang "Có sẵn" để xác nhận đặt trước.');
             }
 
-            $reservation->update([
-                'inventory_id' => $inventory->id,
-                'status' => 'ready',
-                'admin_note' => $request->admin_note,
-                'processed_by' => Auth::id(),
-                'ready_at' => now(),
-            ]);
+            // Kiểm tra status lần 1 trước khi update
+            if ($reservation->status !== 'pending') {
+                DB::rollBack();
+                \Log::info('markAsReady - Status not pending', ['id' => $id, 'status' => $reservation->status]);
+                return back()->with('error', 'Yêu cầu này không còn ở trạng thái chờ.');
+            }
 
-            app(NotificationService::class)->sendReservationReadyNotification($reservation->fresh(['book', 'reader.user', 'user']));
+            \Log::info('markAsReady - About to update', ['id' => $id, 'status_before' => $reservation->status]);
+
+            // UPDATE với điều kiện status = 'pending'
+            // dùng ready_at làm cờ chống trùng: nếu ready_at đã có giá trị → đã xử lý rồi
+            $affected = InventoryReservation::where('id', $id)
+                ->where('status', 'pending')
+                ->whereNull('ready_at')
+                ->update([
+                    'inventory_id' => $inventory->id,
+                    'status' => 'ready',
+                    'admin_note' => $request->admin_note,
+                    'processed_by' => Auth::id(),
+                    'ready_at' => now(),
+                ]);
+
+            \Log::info('markAsReady - Update result', ['id' => $id, 'affected' => $affected]);
+
+            if ($affected === 0) {
+                DB::rollBack();
+                \Log::info('markAsReady - Update affected = 0, rolling back', ['id' => $id]);
+                return back()->with('error', 'Yêu cầu này không còn ở trạng thái chờ (đã được xử lý bởi request khác).');
+            }
 
             DB::commit();
+            \Log::info('markAsReady - Committed', ['id' => $id]);
+
+            // Kiểm tra lại ready_at sau commit — nếu đã có giá trị thì bỏ qua gửi notification
+            $reservation->refresh();
+            if (!$reservation->ready_at) {
+                \Log::info('markAsReady - SKIPPING notification (ready_at is null after refresh)', ['id' => $id]);
+            } else {
+                $reservation->load(['book', 'reader.user', 'user']);
+                \Log::info('markAsReady - SENDING notification', ['id' => $id]);
+                app(NotificationService::class)->sendReservationReadyNotification($reservation);
+            }
+
             return redirect()->route('admin.inventory-reservations.proof', $reservation->id)
                 ->with('success', 'Đã xác nhận: sách sẵn sàng tại quầy. Vui lòng chụp ảnh chứng minh.');
         } catch (\Exception $e) {
             DB::rollBack();
+            \Log::error('markAsReady - Exception', ['id' => $id, 'error' => $e->getMessage()]);
             return back()->with('error', 'Có lỗi khi xử lý: ' . $e->getMessage());
         }
     }
@@ -205,7 +248,7 @@ class InventoryReservationController extends Controller
             return back()->with('error', 'Yêu cầu này không thể hoàn thành.');
         }
 
-        if ($reservation->pickup_date && $reservation->pickup_date->lt(now()->startOfDay())) {
+        if ($reservation->pickup_date && \Carbon\Carbon::parse($reservation->pickup_date)->lt(now()->startOfDay())) {
             return back()->with('error', 'Yêu cầu đã quá hạn ngày lấy. Vui lòng xử lý ở thao tác "Quá hạn".');
         }
 
@@ -426,37 +469,8 @@ class InventoryReservationController extends Controller
         }
 
         if ($isMarkOverdue) {
+            // markAsOverdue() đã gửi 1 notification_log + email bên trong rồi
             $reservation->markAsOverdue($adminNote, Auth::id());
-
-            // Gửi thông báo cho khách khi yêu cầu bị quá hạn nhận sách
-            $userId = $reservation->reader?->user_id ?? $reservation->user_id;
-            if ($userId) {
-                $notification = app(NotificationService::class);
-                $notification->sendNotification(
-                    $userId,
-                    'reservation_overdue',
-                    [
-                        'reader_name' => $reservation->reader?->ho_ten ?? ($reservation->user?->name ?? 'Bạn'),
-                        'book_title' => $reservation->book?->ten_sach ?? 'Sách',
-                        'pickup_date' => $reservation->pickup_date ? $reservation->pickup_date->format('d/m/Y') : now()->format('d/m/Y'),
-                    ],
-                    ['database', 'email']
-                );
-            } else {
-                $recipientEmail = $reservation->reader?->email ?? $reservation->user?->email;
-                if ($recipientEmail) {
-                    app(NotificationService::class)->sendSimpleEmail(
-                        $recipientEmail,
-                        'Yêu cầu đặt trước đã quá hạn',
-                        'Yêu cầu nhận sách "{{book_title}}" của bạn đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu đặt trước mới nếu vẫn còn nhu cầu.',
-                        [
-                            'reader_name' => $reservation->reader?->ho_ten ?? ($reservation->user?->name ?? 'Bạn'),
-                            'book_title' => $reservation->book?->ten_sach ?? 'Sách',
-                            'pickup_date' => $reservation->pickup_date ? $reservation->pickup_date->format('d/m/Y') : now()->format('d/m/Y'),
-                        ]
-                    );
-                }
-            }
 
             return back()->with('success', 'Đã đánh dấu quá hạn cho yêu cầu đặt trước.');
         }

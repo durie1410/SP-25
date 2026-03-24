@@ -224,7 +224,7 @@ class BorrowController extends Controller
                     }
 
                     // Dùng PricingService để tính phí thuê
-                    $hasCard = $reader ? true : false;
+                    $hasCard = $reservation?->reader ? true : false;
                     $fees = \App\Services\PricingService::calculateFees(
                         $book,
                         $inventory,

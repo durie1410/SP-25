@@ -93,8 +93,12 @@ use Illuminate\Support\Str;
 
                 // Chỉ ready và không quá hạn mới có thể Fulfill
                 $hasReadyItems = $group->contains(fn($item) => $item->status === 'ready' && !$isItemOverdue($item));
-                // Chỉ pending hoặc ready (chưa quá hạn) mới có thể hủy - fulfilled/cancelled không hủy được nữa
-                $hasCancellableItems = $group->contains(fn($item) => in_array($item->status, ['pending', 'ready', 'overdue'], true)
+                // Chỉ pending, ready có thể hủy (đã hoàn thành thì không cho hủy)
+                $hasCancellableItems = $group->contains(fn($item) => in_array($item->status, ['pending', 'ready'], true)
+                    && !(
+                        ($item->pickup_date && $item->pickup_date->lt(now()->startOfDay()))
+                        || ($item->status === 'ready' && $item->ready_at && $item->ready_at->lt(now()->subHours(2)))
+                    )
                     && $item->status !== 'cancelled');
             @endphp
 
@@ -170,12 +174,9 @@ use Illuminate\Support\Str;
                         <div style="display: grid; grid-template-columns: 40px repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; align-items: center;">
                             <div>
                                 @if($r->status === 'ready' && !$isOverduePickup)
-                                    <input type="checkbox" name="reservation_ids[]" value="{{ $r->id }}" class="reservation-checkbox fulfill-checkbox group-{{ $groupId }}" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Fulfill">
-                                @elseif(in_array($r->status, ['pending', 'overdue']) && !$isOverduePickup)
-                                    <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox group-{{ $groupId }}" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Hủy">
-                                @elseif($r->status === 'ready' && $isOverduePickup)
-                                    {{-- Ready quá hạn: có thể hủy --}}
-                                    <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox group-{{ $groupId }}" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Hủy">
+                                    <input type="checkbox" name="reservation_ids[]" value="{{ $r->id }}" class="reservation-checkbox fulfill-checkbox cancel-checkbox group-{{ $groupId }}" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Fulfill/Hủy">
+                                @elseif($r->status === 'pending' && !$isOverduePickup)
+                                    <input type="checkbox" name="reservation_ids[]" value="{{ $r->id }}" class="cancel-checkbox group-{{ $groupId }}" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Hủy">
                                 @else
                                     <input type="checkbox" disabled style="width: 18px; height: 18px; opacity: 0.4; cursor: not-allowed;" title="Không thể chọn">
                                 @endif
@@ -215,7 +216,7 @@ use Illuminate\Support\Str;
                             <div>
                                 <div style="font-size: 11px; color: #64748b;">Trạng thái</div>
                                 <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
-                                @if($r->status === 'ready')
+                                @if($r->status === 'ready' && !$isOverduePickup)
                                     <div style="margin-top: 6px;">
                                         @if($r->customer_confirmed_at)
                                             <span class="badge badge-success" style="font-size: 10px;">Khách đã xác nhận</span>
@@ -264,12 +265,6 @@ use Illuminate\Support\Str;
                                         <form method="POST" action="{{ route('admin.inventory-reservations.fulfill', $r->id) }}" style="display:inline;">
                                             @csrf
                                             <button type="submit" class="btn btn-sm btn-primary" style="padding: 4px 8px; font-size: 11px;">Fulfill</button>
-                                        </form>
-                                    @endif
-                                    @if(in_array($r->status, ['overdue']) || ($r->status === 'ready' && $isOverduePickup))
-                                        <form method="POST" action="{{ route('admin.inventory-reservations.cancel', $r->id) }}" style="display:inline;" onsubmit="return confirm('Xác nhận hủy yêu cầu này?');">
-                                            @csrf
-                                            <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 8px; font-size: 11px;">Hủy</button>
                                         </form>
                                     @endif
                                 </div>
@@ -656,7 +651,7 @@ document.addEventListener('DOMContentLoaded', function () {
     cancelButtons.forEach(btn => {
         btn.addEventListener('click', function() {
             const groupId = this.getAttribute('data-group');
-            const checkboxes = document.querySelectorAll('.group-' + groupId + '.cancel-checkbox:checked');
+            const checkboxes = document.querySelectorAll('.cancel-checkbox.group-' + groupId + ':checked');
 
             if (checkboxes.length === 0) {
                 alert('Vui lòng chọn ít nhất 1 cuốn sách để hủy.');
@@ -690,6 +685,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
             document.body.appendChild(form);
             form.submit();
+        });
+    });
+
+    // Chống double-click / triple-click gửi form Ready & Fulfill
+    const readyForms = document.querySelectorAll('form[action*="ready"]');
+    readyForms.forEach(form => {
+        form.addEventListener('submit', function() {
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) btn.disabled = true;
+        });
+    });
+
+    const fulfillForms = document.querySelectorAll('form[action*="fulfill"]');
+    fulfillForms.forEach(form => {
+        form.addEventListener('submit', function() {
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) btn.disabled = true;
         });
     });
 

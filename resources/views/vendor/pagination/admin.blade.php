@@ -33,7 +33,9 @@
                     {{-- Array Of Links --}}
                     @if (is_array($element))
                         @foreach ($element as $page => $url)
-                            @if ($page == $paginator->currentPage())
+                            @if (is_string($page))
+                                {{-- Skip ellipsis "..." elements --}}
+                            @elseif ($page == $paginator->currentPage())
                                 <li class="page-item active" aria-current="page" style="list-style: none;">
                                     <span class="page-link">{{ $page }}</span>
                                 </li>
