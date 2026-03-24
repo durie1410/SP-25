@@ -1,6 +1,7 @@
 /* Pagination Styles */
 .pagination {
     margin-bottom: 0;
+    list-style: none;
 }
 
 .pagination .page-link {

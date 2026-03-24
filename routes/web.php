@@ -707,6 +707,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     // Inventory Report
     Route::get('inventory-report', [InventoryController::class, 'report'])->name('inventory.report')->middleware('permission:view-books');
     Route::post('inventory-report/sync', [InventoryController::class, 'syncInventoryBorrowItems'])->name('inventory.report.sync')->middleware('permission:view-books');
+    Route::get('inventory-report/export-book-stock', [InventoryController::class, 'exportBookStockReport'])->name('inventory.report.export-book-stock')->middleware('permission:view-books');
+    Route::get('inventory-report/export-import-receipt', [InventoryController::class, 'exportImportReceiptReport'])->name('inventory.report.export-import-receipt')->middleware('permission:view-books');
     Route::post('inventory/sync-data', [InventoryController::class, 'syncData'])->name('inventory.sync-data')->middleware('permission:edit-books');
 
     // Inventory Export/Import

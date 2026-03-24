@@ -174,13 +174,67 @@ class InventoryReservation extends Model
         ]);
     }
 
-    public function markAsOverdue(string $reason = null, int $processedById = null): bool
+    public function markAsOverdue(string $reason = null, int $processedById = null, bool $sendNotification = true): bool
     {
-        return $this->update([
-            'status' => 'overdue',
-            'admin_note' => $reason ? ($this->admin_note ? $this->admin_note . "\n" . $reason : $reason) : $this->admin_note,
-            'processed_by' => $processedById ?? auth()->id(),
-        ]);
+        // Ghi nhận ghi chú admin (không đổi status vì 'overdue' không có trong ENUM)
+        $note = $reason ? ($this->admin_note ? $this->admin_note . "\n" . $reason : $reason) : $this->admin_note;
+        if ($note !== $this->admin_note || $processedById) {
+            $this->updateQuietly([
+                'admin_note' => $note,
+                'processed_by' => $processedById ?? auth()->id(),
+            ]);
+        }
+
+        // Gửi thông báo quá hạn cho độc giả (nếu bật)
+        if ($sendNotification) {
+            $this->sendOverdueNotification();
+        }
+
+        return true;
+    }
+
+    /**
+     * Gửi thông báo quá hạn cho độc giả — chỉ 1 notification_log (database), email gửi riêng
+     */
+    protected function sendOverdueNotification(): void
+    {
+        $userId = $this->reader?->user_id ?? $this->user_id;
+        $email  = $this->reader?->email ?? $this->user?->email;
+
+        $data = [
+            'reader_name'  => $this->reader?->ho_ten ?? ($this->user?->name ?? 'Bạn'),
+            'book_title'  => $this->book?->ten_sach ?? 'Sách',
+            'pickup_date' => $this->pickup_date ? $this->pickup_date->format('d/m/Y') : '',
+            'pickup_time' => $this->pickup_time ?? '',
+        ];
+
+        try {
+            $ns = app(\App\Services\NotificationService::class);
+
+            if ($userId) {
+                // Chỉ ghi 1 log cho database notification
+                $ns->sendNotification($userId, 'reservation_overdue', $data, ['database']);
+
+                // Email gửi riêng để không tạo thêm log trùng type
+                if (!empty($email)) {
+                    $ns->sendSimpleEmail(
+                        $email,
+                        'Yêu cầu đặt trước đã quá hạn',
+                        'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.',
+                        $data
+                    );
+                }
+            } elseif ($email) {
+                $ns->sendSimpleEmail(
+                    $email,
+                    'Yêu cầu đặt trước đã quá hạn',
+                    'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.',
+                    $data
+                );
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Failed to send overdue notification for reservation #' . $this->id . ': ' . $e->getMessage());
+        }
     }
 
     public function cancel(string $reason = null, int $processedById = null): bool
@@ -192,7 +246,8 @@ class InventoryReservation extends Model
             'cancelled_at' => now(),
         ]);
 
-        if ($updated && $this->inventory_id) {
+        // Chỉ giải phóng inventory khi chưa tạo borrow (chưa fulfilled)
+        if ($updated && $this->inventory_id && !$this->borrow_id) {
             $this->inventory->update(['status' => 'Co san']);
         }
 

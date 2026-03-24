@@ -18,9 +18,9 @@
                         <input type="hidden" name="reader_id" id="readerId" value="{{ $prefillReader->id ?? '' }}" required>
                         <div id="readerDropdown" class="dropdown-menu w-100" style="display:none; max-height:200px; overflow-y:auto;"></div>
                     </div>
-                    <div id="selectedReader" class="mt-2" style="display: {{ isset($prefillReader) ? 'block' : 'none' }};">
+                    <div id="selectedReader" class="mt-2" style="display: {{ $prefillReader ? 'block' : 'none' }};">
                         <div class="alert alert-info">
-                            <strong>Đã chọn:</strong> <span id="readerName">{{ isset($prefillReader) ? ($prefillReader->ho_ten . ' (' . $prefillReader->so_the_doc_gia . ')') : '' }}</span>
+                            <strong>Đã chọn:</strong> <span id="readerName">{{ $prefillReader ? $prefillReader->ho_ten . ' (' . $prefillReader->so_the_doc_gia . ')' : '' }}</span>
                             <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="clearReader()">Xóa</button>
                         </div>
                     </div>
@@ -305,7 +305,7 @@ document.addEventListener('click', function(e){
 });
 
 // Tự động điền thông tin nếu có prefillReader (trường hợp Fulfill)
-@if(isset($prefillReader))
+@if($prefillReader)
     document.addEventListener('DOMContentLoaded', function() {
         const reader = {
             ho_ten: "{{ $prefillReader->ho_ten }}",
@@ -316,10 +316,10 @@ document.addEventListener('click', function(e){
             so_nha: "{{ $prefillReader->so_nha }}",
             dia_chi: "{{ $prefillReader->dia_chi }}"
         };
-        
+
         document.getElementById('tenNguoiMuon').value = reader.ho_ten || '';
         document.getElementById('soDienThoai').value = reader.so_dien_thoai || '';
-        
+
         // Hiển thị fallback từ dia_chi nếu các trường chi tiết rỗng
         document.getElementById('tinhThanh').value = reader.tinh_thanh || (reader.tinh_thanh === '' ? reader.dia_chi : '');
         document.getElementById('huyen').value = reader.huyen || '';

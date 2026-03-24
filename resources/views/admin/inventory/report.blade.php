@@ -241,11 +241,14 @@
 </div>
 
 <!-- Chi tiết theo từng sách -->
-<div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
-    <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px;">
+<div id="books-stock-section" class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
+    <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px; display: flex; justify-content: space-between; align-items: center;">
         <h5 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
             <i class="fas fa-book" style="color: #22c55e; margin-right: 8px;"></i> Chi Tiết Số Lượng Sách Theo Từng Cuốn
         </h5>
+        <a href="{{ route('admin.inventory.report.export-book-stock') }}" class="btn btn-success btn-sm">
+            <i class="fas fa-file-excel"></i> Xuất Excel
+        </a>
     </div>
     <div class="card-body" style="padding: 25px;">
         <div class="table-responsive">
@@ -268,7 +271,7 @@
                 <tbody>
                     @forelse($stats['books_in_stock'] as $index => $item)
                     <tr>
-                        <td>{{ $index + 1 }}</td>
+                        <td>{{ ($stats['books_in_stock']->currentPage() - 1) * $stats['books_in_stock']->perPage() + $index + 1 }}</td>
                         <td>
                             <strong>{{ $item['book']->ten_sach ?? 'N/A' }}</strong>
                         </td>
@@ -306,15 +309,23 @@
                 </tbody>
             </table>
         </div>
+        @if($stats['books_in_stock']->hasPages())
+        <div style="display: flex; justify-content: center; margin-top: 20px;">
+            {{ $stats['books_in_stock']->appends(request()->except('books_page'))->links('vendor.pagination.bootstrap-4-books') }}
+        </div>
+        @endif
     </div>
 </div>
 
 <!-- Danh sách phiếu nhập -->
-<div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
-    <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px;">
+<div id="import-receipts-section" class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
+    <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px; display: flex; justify-content: space-between; align-items: center;">
         <h5 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
             <i class="fas fa-file-invoice" style="color: #22c55e; margin-right: 8px;"></i> Danh Sách Phiếu Nhập Kho
         </h5>
+        <a href="{{ route('admin.inventory.report.export-import-receipt') }}" class="btn btn-success btn-sm">
+            <i class="fas fa-file-excel"></i> Xuất Excel
+        </a>
     </div>
     <div class="card-body" style="padding: 25px;">
         <div class="table-responsive">
@@ -355,161 +366,11 @@
                 </tbody>
             </table>
         </div>
-    </div>
-</div>
-
-<!-- Danh sách ai đang mượn -->
-<div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
-    <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px; display: flex; justify-content: space-between; align-items: center;">
-        <h5 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
-            <i class="fas fa-user-check" style="color: #22c55e; margin-right: 8px;"></i> Danh Sách Người Đang Mượn Sách Từ Kho
-        </h5>
-        <form action="{{ route('admin.inventory.report.sync') }}" method="POST" style="margin: 0;">
-            @csrf
-            <button type="submit" class="btn btn-sm btn-success" style="background: #22c55e; border: none; padding: 8px 16px; border-radius: 6px; color: white; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" onclick="return confirm('Bạn có chắc chắn muốn đồng bộ hóa dữ liệu? Hành động này sẽ liên kết Inventory với BorrowItem.');">
-                <i class="fas fa-sync-alt"></i> Đồng Bộ Dữ Liệu
-            </button>
-        </form>
-    </div>
-    <div class="card-body" style="padding: 25px;">
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>STT</th>
-                        <th>Người mượn</th>
-                        <th>Số thẻ</th>
-                        <th>Sách</th>
-                        <th>Ngày mượn</th>
-                        <th>Hạn trả</th>
-                        <th>Số ngày mượn</th>
-                        <th>Thủ thư</th>
-                        <th>Trạng thái</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($stats['current_borrows'] as $index => $item)
-                    @php
-                    $borrowItem = $item->borrow_item ?? null;
-                    $isOverdue = $borrowItem && $borrowItem->isOverdue();
-                    $daysOverdue = $borrowItem && $isOverdue ? now()->diffInDays($borrowItem->ngay_hen_tra) : 0;
-                    @endphp
-                    <tr>
-                        <td>{{ $index + 1 }}</td>
-                        <td>
-                            <strong>{{ $item->reader->ho_ten ?? 'N/A' }}</strong>
-                        </td>
-                        <td>{{ $item->reader->so_the_doc_gia ?? 'N/A' }}</td>
-                        <td>{{ $item->book->ten_sach ?? 'N/A' }}</td>
-                        <td>{{ $item->ngay_muon ? (is_string($item->ngay_muon) ? \Carbon\Carbon::parse($item->ngay_muon)->format('d/m/Y') : $item->ngay_muon->format('d/m/Y')) : 'N/A' }}</td>
-                        <td>
-                            @if($item->ngay_hen_tra)
-                            @php
-                            $ngayHenTra = is_string($item->ngay_hen_tra) ? \Carbon\Carbon::parse($item->ngay_hen_tra) : $item->ngay_hen_tra;
-                            @endphp
-                            @if($isOverdue)
-                            <span class="badge badge-danger">{{ $ngayHenTra->format('d/m/Y') }}</span>
-                            @else
-                            {{ $ngayHenTra->format('d/m/Y') }}
-                            @endif
-                            @else
-                            N/A
-                            @endif
-                        </td>
-                        <td>
-                            @if($item->ngay_muon)
-                            @php
-                            $ngayMuon = is_string($item->ngay_muon) ? \Carbon\Carbon::parse($item->ngay_muon) : $item->ngay_muon;
-                            @endphp
-                            {{ $ngayMuon->diffInDays(now()) }} ngày
-                            @else
-                            N/A
-                            @endif
-                        </td>
-                        <td>{{ $item->librarian->name ?? 'N/A' }}</td>
-                        <td>
-                            @if($isOverdue)
-                            <span class="badge badge-danger">Quá hạn ({{ $daysOverdue }} ngày)</span>
-                            @else
-                            <span class="badge badge-warning">Đang mượn</span>
-                            @endif
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="9" class="text-center">Hiện tại không có ai đang mượn sách từ kho</td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
+        @if($stats['import_receipts']->hasPages())
+        <div style="display: flex; justify-content: center; margin-top: 20px;">
+            {{ $stats['import_receipts']->appends(request()->except('import_page'))->links('vendor.pagination.bootstrap-4-receipts') }}
         </div>
-    </div>
-</div>
-
-<!-- Danh sách ai đã trả -->
-<div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 25px;">
-    <div class="card-header" style="border-bottom: 1px solid #e5e7eb; padding-bottom: 15px; margin-bottom: 20px; padding: 20px 25px 15px 25px; display: flex; justify-content: space-between; align-items: center;">
-        <h5 style="font-size: 18px; font-weight: 600; color: #1f2937; margin: 0;">
-            <i class="fas fa-user-check" style="color: #22c55e; margin-right: 8px;"></i> Danh Sách Người Đã Trả Sách (Gần Đây)
-        </h5>
-        <form action="{{ route('admin.inventory.report.sync') }}" method="POST" style="margin: 0;">
-            @csrf
-            <button type="submit" class="btn btn-sm btn-success" style="background: #22c55e; border: none; padding: 8px 16px; border-radius: 6px; color: white; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" onclick="return confirm('Bạn có chắc chắn muốn đồng bộ hóa dữ liệu? Hành động này sẽ liên kết Inventory với BorrowItem (bao gồm cả đã trả).');">
-                <i class="fas fa-sync-alt"></i> Đồng Bộ Dữ Liệu
-            </button>
-        </form>
-    </div>
-    <div class="card-body" style="padding: 25px;">
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>STT</th>
-                        <th>Người trả</th>
-                        <th>Số thẻ</th>
-                        <th>Sách</th>
-                        <th>Ngày mượn</th>
-                        <th>Hạn trả</th>
-                        <th>Ngày trả thực tế</th>
-                        <th>Số ngày mượn</th>
-                        <th>Thủ thư</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($stats['returned_borrows'] as $index => $borrow)
-                    <tr>
-                        <td>{{ $index + 1 }}</td>
-                        <td>
-                            <strong>{{ $borrow->reader->ho_ten ?? 'N/A' }}</strong>
-                        </td>
-                        <td>{{ $borrow->reader->so_the_doc_gia ?? 'N/A' }}</td>
-                        <td>{{ $borrow->book->ten_sach ?? 'N/A' }}</td>
-                        <td>{{ $borrow->ngay_muon ? $borrow->ngay_muon->format('d/m/Y') : 'N/A' }}</td>
-                        <td>{{ $borrow->ngay_hen_tra ? $borrow->ngay_hen_tra->format('d/m/Y') : 'N/A' }}</td>
-                        <td>
-                            @if($borrow->ngay_tra_thuc_te)
-                            <span class="badge badge-success">{{ $borrow->ngay_tra_thuc_te->format('d/m/Y') }}</span>
-                            @else
-                            <span class="badge badge-secondary">N/A</span>
-                            @endif
-                        </td>
-                        <td>
-                            @if($borrow->ngay_muon && $borrow->ngay_tra_thuc_te)
-                            {{ $borrow->ngay_muon->diffInDays($borrow->ngay_tra_thuc_te) }} ngày
-                            @else
-                            N/A
-                            @endif
-                        </td>
-                        <td>{{ $borrow->librarian->name ?? 'N/A' }}</td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="9" class="text-center">Chưa có ai trả sách</td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+        @endif
     </div>
 </div>
 @endsection
