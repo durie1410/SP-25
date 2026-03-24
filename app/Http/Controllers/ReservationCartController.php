@@ -324,6 +324,25 @@ class ReservationCartController extends Controller
             return back()->with('error', "Giờ lấy sách phải trong khoảng {$openHour} - {$closeHour}.");
         }
 
+        // Kiểm tra ngày và giờ lấy không được là quá khứ
+        $firstItem = $cart->items->first();
+        $pickupDate = $firstItem?->pickup_date;
+        if ($pickupDate) {
+            $pickupDateObj = $pickupDate instanceof \Carbon\Carbon ? $pickupDate : \Carbon\Carbon::parse($pickupDate);
+            $now = \Carbon\now();
+            $pickupDateTime = \Carbon\Carbon::parse($pickupDateObj->format('Y-m-d') . ' ' . $pickupTime);
+
+            // Nếu ngày lấy là hôm nay, giờ phải lớn hơn giờ hiện tại + 1 tiếng
+            if ($pickupDateObj->isToday() && $pickupDateTime->isPast()) {
+                return back()->with('error', 'Giờ lấy sách đã qua. Vui lòng chọn ngày và giờ khác.');
+            }
+
+            // Nếu ngày lấy là ngày trước đó
+            if ($pickupDateObj->isPast() && !$pickupDateObj->isToday()) {
+                return back()->with('error', 'Ngày lấy sách đã qua. Vui lòng chọn ngày và giờ khác.');
+            }
+        }
+
         // Cập nhật pickup_time cho tất cả items
         $cart->items()->update(['pickup_time' => $pickupTime]);
 
@@ -651,6 +670,52 @@ class ReservationCartController extends Controller
             'days' => $item->days,
             'item_price' => $item->fresh()->total_price ?? 0,
             'total_price' => $cart->fresh()->total_price ?? 0,
+        ]);
+    }
+
+    public function updatePickupTime(Request $request)
+    {
+        $user = $request->user();
+        $reader = $user?->reader;
+
+        if (!$reader) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn cần đăng ký thông tin độc giả.',
+            ], 422);
+        }
+
+        $request->validate([
+            'pickup_time' => 'required|date_format:H:i',
+        ]);
+
+        $pickupTime = $request->input('pickup_time');
+        $openHour = config('library.open_hour', '08:00');
+        $closeHour = config('library.close_hour', '20:00');
+
+        // Kiểm tra giờ trong khoảng cho phép
+        if ($pickupTime < $openHour || $pickupTime > $closeHour) {
+            return response()->json([
+                'success' => false,
+                'message' => "Giờ lấy sách phải trong khoảng {$openHour} - {$closeHour}.",
+            ], 422);
+        }
+
+        $cart = ReservationCart::where('user_id', $user->id)->first();
+        if (!$cart) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Giỏ không tồn tại.',
+            ], 404);
+        }
+
+        // Cập nhật giờ lấy cho tất cả items trong giỏ
+        $cart->items()->update(['pickup_time' => $pickupTime]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã lưu giờ lấy sách.',
+            'pickup_time' => $pickupTime,
         ]);
     }
 

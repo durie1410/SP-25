@@ -1285,10 +1285,58 @@ function handleItemDateChange(input){
             input.value = '';
             return;
         }
+
+        // Lưu ngày vào database tự động
+        saveDatesToServer(itemId, pickup, ret);
+    }
+
+    // Nếu chọn ngày hôm nay, disable các giờ đã qua
+    if(input.classList.contains('pickup-date') && pickup) {
+        const today = new Date();
+        const pickupDate = parseDateString(pickup);
+        if(pickupDate) {
+            const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const pickupOnly = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate());
+            if(todayOnly.getTime() === pickupOnly.getTime()) {
+                disablePastHours();
+            }
+        }
     }
 
     // Luôn gọi updateItemPriceDisplay để cập nhật UI khi ngày thay đổi
     updateItemPriceDisplay(itemId);
+}
+
+// Lưu ngày vào database tự động
+function saveDatesToServer(itemId, pickupDate, returnDate) {
+    const hourSelect = document.getElementById('pickup-time-hour');
+    const minuteSelect = document.getElementById('pickup-time-minute');
+    const pickupTime = hourSelect && minuteSelect ? hourSelect.value + ':' + minuteSelect.value : null;
+
+    fetch(`/reservation-cart/update-dates/${itemId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+            pickup_date: pickupDate,
+            return_date: returnDate,
+            pickup_time: pickupTime
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.success){
+            console.log('Ngày đã được lưu tự động');
+        } else {
+            console.error('Lỗi khi lưu ngày:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Lỗi khi lưu ngày:', error);
+    });
 }
 
 // Tính toán và cập nhật giá tiền tại FE
@@ -1385,10 +1433,11 @@ function updateReservationQuantityDisplay(itemId, quantity){
     if(!input || !itemCard) return;
 
     const maxQuantity = parseInt(input.dataset.maxQuantity || '2', 10);
+    // Lưu giá trị TRƯỚC KHI thay đổi để revert nếu có lỗi
     const previousValue = parseInt(input.value || '1', 10);
-    const qty = Math.max(1, Math.min(maxQuantity, parseInt(input.value || '1', 10)));
+    const qty = Math.max(1, Math.min(maxQuantity, quantity));
 
-
+    // Cập nhật giá trị
     input.value = qty;
     itemCard.dataset.quantity = qty;
 
@@ -1477,14 +1526,63 @@ function handlePickupTimeChange(){
     const minute = minuteSelect.value;
     const timeStr = hour + ':' + minute;
 
+    // Validate: không cho chọn giờ quá khứ nếu là hôm nay
+    const now = new Date();
+    const currentHour = now.getHours();
+    const selectedHour = parseInt(hour, 10);
+    const minValidHour = currentHour + 2; // Cần ít nhất 2 tiếng buffer
+
+    // Nếu chọn giờ không hợp lệ (đã qua), tự động nhảy đến giờ hợp lệ tiếp theo
+    if (selectedHour < minValidHour) {
+        // Tìm giờ hợp lệ tiếp theo
+        for(let h = minValidHour; h <= 20; h++) {
+            const option = hourSelect.querySelector(`option[value="${String(h).padStart(2, '0')}"]`);
+            if(option && !option.disabled) {
+                hourSelect.value = String(h).padStart(2, '0');
+                break;
+            }
+        }
+    }
+
+    // Lấy giá trị sau khi đã validate
+    const validHour = hourSelect.value;
+    const validMinute = minuteSelect.value;
+    const validTimeStr = validHour + ':' + validMinute;
+
     // Cập nhật cả 2 hidden inputs
     if(hiddenInput){
-        hiddenInput.value = timeStr;
+        hiddenInput.value = validTimeStr;
     }
     if(formInput){
-        formInput.value = timeStr;
+        formInput.value = validTimeStr;
     }
-    // Chỉ cập nhật hidden input, không gọi API
+
+    // Lưu giờ vào database tự động
+    savePickupTimeToServer(validTimeStr);
+}
+
+// Lưu giờ lấy vào database tự động
+function savePickupTimeToServer(pickupTime) {
+    fetch('/reservation-cart/update-pickup-time', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ pickup_time: pickupTime })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.success){
+            console.log('Giờ lấy đã được lưu tự động');
+        } else {
+            console.error('Lỗi khi lưu giờ:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Lỗi khi lưu giờ:', error);
+    });
 }
 
 // Không cần hàm này nữa - không gọi API khi nhập
@@ -1576,6 +1674,30 @@ function validateCartBeforeSubmit(){
             alert('Vui lòng chọn đầy đủ ngày lấy và ngày trả cho các sách đã chọn.');
             return false;
         }
+
+        // Kiểm tra ngày lấy không phải là quá khứ
+        const pickupDate = parseDateString(pickup);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if(pickupDate && pickupDate < today){
+            alert('Ngày lấy sách đã qua. Vui lòng chọn ngày khác.');
+            if(pickupInput) pickupInput.focus();
+            return false;
+        }
+
+        // Nếu là hôm nay, kiểm tra giờ
+        if(pickupDate && pickupDate.getTime() === today.getTime()){
+            const now = new Date();
+            const selectedHour = parseInt(hourSelect.value, 10);
+            const currentHour = now.getHours();
+
+            // Nếu giờ đã chọn nhỏ hơn hoặc bằng giờ hiện tại + 1
+            if(selectedHour <= currentHour + 1){
+                alert('Giờ lấy sách đã qua. Vui lòng chọn giờ khác (phải lớn hơn giờ hiện tại ít nhất 1 tiếng).');
+                return false;
+            }
+        }
     }
 
     // Check agreement
@@ -1599,7 +1721,73 @@ document.addEventListener('DOMContentLoaded', function () {
 
         syncSplitButtonVisibility(checkbox.value, Number(itemCard.dataset.quantity || 1));
     });
+
+    // Disable các giờ đã qua nếu ngày lấy là hôm nay
+    initPickupTimeValidation();
 });
+
+// Khởi tạo validation giờ lấy dựa trên ngày
+function initPickupTimeValidation() {
+    // Kiểm tra xem có item nào có pickup_date là hôm nay không
+    const pickupInputs = document.querySelectorAll('.pickup-date');
+    let hasTodayPickup = false;
+
+    pickupInputs.forEach(pickupInput => {
+        if(pickupInput.value) {
+            const pickupDate = parseDateString(pickupInput.value);
+            if(pickupDate) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if(pickupDate.getTime() === today.getTime()) {
+                    hasTodayPickup = true;
+                }
+            }
+        }
+    });
+
+    // Nếu có item nào đặt ngày hôm nay, disable các giờ đã qua
+    if(hasTodayPickup) {
+        disablePastHours();
+    }
+}
+
+// Disable các giờ đã qua trong select box
+function disablePastHours() {
+    const hourSelect = document.getElementById('pickup-time-hour');
+    if(!hourSelect) return;
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const minValidHour = currentHour + 2; // Cần ít nhất 2 tiếng buffer
+
+    // Nếu đã qua 19h thì disable hết (vì kết thúc lúc 20h)
+    if(currentHour >= 19) {
+        hourSelect.disabled = true;
+        hourSelect.innerHTML = '<option value="">Đã hết giờ hôm nay</option>';
+        return;
+    }
+
+    // Disable các giờ không hợp lệ
+    const options = hourSelect.querySelectorAll('option');
+    options.forEach(option => {
+        const hour = parseInt(option.value, 10);
+        if(hour < minValidHour || hour > 20) {
+            option.disabled = true;
+            option.style.color = '#ccc';
+        }
+    });
+
+    // Chọn giờ hợp lệ đầu tiên
+    for(let h = minValidHour; h <= 20; h++) {
+        const hourStr = String(h).padStart(2, '0');
+        const option = hourSelect.querySelector(`option[value="${hourStr}"]`);
+        if(option && !option.disabled) {
+            hourSelect.value = hourStr;
+            handlePickupTimeChange();
+            break;
+        }
+    }
+}
 
 function showToastMessage(message, type = 'info') {
     // Tạo toast message đơn giản
