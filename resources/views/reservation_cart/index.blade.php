@@ -862,6 +862,7 @@
                                                 max="{{ $maxQuantity }}"
                                                 data-max-quantity="{{ $maxQuantity }}"
                                                 data-item-id="{{ $item->id }}"
+                                                oninput="validateQuantityInput(this, {{ $maxQuantity }})"
                                                 onchange="updateReservationQuantityInput({{ $item->id }})"
                                             >
                                             <button type="button" class="reservation-quantity-btn"
@@ -1434,6 +1435,22 @@ function changeReservationQuantity(itemId, delta){
     updateQuantityOnServer(itemId, nextValue, currentValue);
 }
 
+// Ngăn không cho nhập số lớn hơn maxQuantity
+function validateQuantityInput(input, maxQuantity) {
+    const value = parseInt(input.value || '1', 10);
+
+    // Nếu nhập số lớn hơn max, tự động sửa thành max
+    if(value > maxQuantity) {
+        input.value = maxQuantity;
+        showToastMessage(`Số lượng tối đa là ${maxQuantity} cuốn!`, 'warning');
+    }
+
+    // Nếu nhập số nhỏ hơn 1, tự động sửa thành 1
+    if(value < 1 || input.value === '') {
+        input.value = 1;
+    }
+}
+
 function updateQuantityOnServer(itemId, newQuantity, previousQuantity) {
     const input = document.getElementById(`reservation-quantity-${itemId}`);
     const itemCard = getReservationItemCard(itemId);
@@ -1681,13 +1698,25 @@ function validateCartBeforeSubmit(){
         hiddenInput.value = pickupTime;
     }
 
-    // Kiểm tra ngày
+    // Kiểm tra ngày và số lượng
     for(let i = 0; i < selectedCheckboxes.length; i++){
         const itemId = selectedCheckboxes[i].value;
         const pickupInput = document.querySelector(`.pickup-date[data-item-id="${itemId}"]`);
         const retInput = document.querySelector(`.return-date[data-item-id="${itemId}"]`);
+        const quantityInput = document.querySelector(`#reservation-quantity-${itemId}`);
         const pickup = pickupInput ? pickupInput.value : '';
         const ret = retInput ? retInput.value : '';
+
+        // Kiểm tra số lượng
+        if(quantityInput) {
+            const qty = parseInt(quantityInput.value || '1', 10);
+            const maxQty = parseInt(quantityInput.dataset.maxQuantity || '2', 10);
+            if(qty > maxQty) {
+                alert(`Số lượng sách "${quantityInput.closest('.reservation-item').querySelector('.reservation-item-title')?.textContent || 'này'}" vượt quá giới hạn cho phép!`);
+                quantityInput.focus();
+                return false;
+            }
+        }
 
         if(!pickup || !ret){
             alert('Vui lòng chọn đầy đủ ngày lấy và ngày trả cho các sách đã chọn.');
