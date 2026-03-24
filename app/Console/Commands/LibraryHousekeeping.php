@@ -194,9 +194,18 @@ class LibraryHousekeeping extends Command
                 if ($now->gte($pickupDate->copy()->endOfDay())) {
                     $model = \App\Models\InventoryReservation::with(['book', 'reader.user', 'user', 'inventory'])
                         ->find($reservation->id);
-                    if ($model) {
-                        $model->cancel('Tự động hủy: Đã qua ngày lấy sách mà không nhận.', null);
-                        $sendCancelNotif($model, 'Đã qua ngày lấy sách mà không nhận.');
+                    if ($model && $model->status === 'pending') {
+                        // Chống trùng: đã gửi cancel cho đơn này trong 60 phút → bỏ qua
+                        $alreadyCancelled = \DB::table('notification_logs')
+                            ->where('user_id', $model->reader?->user_id ?? $model->user_id)
+                            ->where('type', 'reservation_cancelled')
+                            ->where('content', 'like', '%' . ($model->book?->ten_sach ?? '') . '%')
+                            ->where('created_at', '>=', $now->copy()->subMinutes(60))
+                            ->exists();
+                        if (!$alreadyCancelled) {
+                            $model->cancel('Tự động hủy: Đã qua ngày lấy sách mà không nhận.', null);
+                            $sendCancelNotif($model, 'Đã qua ngày lấy sách mà không nhận.');
+                        }
                         $autoCancelledNoTime++;
                     }
                 }
@@ -225,9 +234,17 @@ class LibraryHousekeeping extends Command
                 if ($shouldCancel) {
                     $model = \App\Models\InventoryReservation::with(['book', 'reader.user', 'user', 'inventory'])
                         ->find($reservation->id);
-                    if ($model) {
-                        $model->cancel('Tự động hủy: Đã qua ngày/giờ lấy sách mà không nhận.', null);
-                        $sendCancelNotif($model, 'Đã qua ngày/giờ lấy sách mà không nhận.');
+                    if ($model && $model->status === 'ready') {
+                        $alreadyCancelled = \DB::table('notification_logs')
+                            ->where('user_id', $model->reader?->user_id ?? $model->user_id)
+                            ->where('type', 'reservation_cancelled')
+                            ->where('content', 'like', '%' . ($model->book?->ten_sach ?? '') . '%')
+                            ->where('created_at', '>=', $now->copy()->subMinutes(60))
+                            ->exists();
+                        if (!$alreadyCancelled) {
+                            $model->cancel('Tự động hủy: Đã qua ngày/giờ lấy sách mà không nhận.', null);
+                            $sendCancelNotif($model, 'Đã qua ngày/giờ lấy sách mà không nhận.');
+                        }
                         $autoCancelledReady++;
                     }
                 }
@@ -250,9 +267,17 @@ class LibraryHousekeeping extends Command
                 if ($now->gte($pickupDateTime)) {
                     $reservationModel = \App\Models\InventoryReservation::with(['book', 'reader.user', 'user', 'inventory'])
                         ->find($reservation->id);
-                    if ($reservationModel) {
-                        $reservationModel->cancel('Tự động hủy: Đã qua giờ lấy sách mà không nhận.', null);
-                        $sendCancelNotif($reservationModel, 'Đã qua giờ lấy sách mà không nhận.');
+                    if ($reservationModel && $reservationModel->status === 'pending') {
+                        $alreadyCancelled = \DB::table('notification_logs')
+                            ->where('user_id', $reservationModel->reader?->user_id ?? $reservationModel->user_id)
+                            ->where('type', 'reservation_cancelled')
+                            ->where('content', 'like', '%' . ($reservationModel->book?->ten_sach ?? '') . '%')
+                            ->where('created_at', '>=', $now->copy()->subMinutes(60))
+                            ->exists();
+                        if (!$alreadyCancelled) {
+                            $reservationModel->cancel('Tự động hủy: Đã qua giờ lấy sách mà không nhận.', null);
+                            $sendCancelNotif($reservationModel, 'Đã qua giờ lấy sách mà không nhận.');
+                        }
                         $cancelledCount++;
                     }
                 }
@@ -280,12 +305,17 @@ class LibraryHousekeeping extends Command
                     $reservationModel = \App\Models\InventoryReservation::with(['book', 'reader.user', 'user'])
                         ->find($reservation->id);
                     if ($reservationModel) {
-                        // Chỉ cập nhật note/process ở model, không gửi tự động từ model
-                        $reservationModel->markAsOverdue(
-                            'Tự động đánh dấu quá hạn: Đã quá 2 giờ kể từ giờ lấy sách mà khách chưa nhận.',
-                            null,
-                            false
-                        );
+                        // Chống gửi trùng: đã gửi notification_overdue cho đơn này trong 60 phút qua → bỏ qua
+                        $alreadyNotified = \DB::table('notification_logs')
+                            ->where('user_id', $reservationModel->reader?->user_id ?? $reservationModel->user_id)
+                            ->where('type', 'reservation_overdue')
+                            ->where('content', 'like', '%' . ($reservationModel->book?->ten_sach ?? '') . '%')
+                            ->where('created_at', '>=', $now->copy()->subMinutes(60))
+                            ->exists();
+
+                        if ($alreadyNotified) {
+                            continue; // Đã gửi rồi, bỏ qua
+                        }
 
                         // Gửi thông báo quá hạn đúng 1 lần (database + email fallback)
                         $userId = $reservationModel->reader?->user_id ?? $reservationModel->user_id;

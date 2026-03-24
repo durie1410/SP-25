@@ -73,17 +73,6 @@
         overflow: hidden;
     }
 
-    .history-item {
-        display: flex;
-        padding: 20px;
-        border-bottom: 1px solid var(--reserve-border);
-        gap: 20px;
-    }
-
-    .history-item:last-child {
-        border-bottom: none;
-    }
-
     .book-cover {
         width: 80px;
         height: 110px;
@@ -290,6 +279,31 @@
         background: #fef2f2;
         border-color: #f87171;
     }
+
+    .notice-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 600;
+    }
+
+    .notice-inline.warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .notice-inline.danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .notice-inline.success {
+        background: #d1fae5;
+        color: #065f46;
+    }
 </style>
 @endpush
 
@@ -305,7 +319,36 @@
         <p class="page-subtitle">Theo dõi các yêu cầu đặt trước của bạn</p>
     </div>
 
+    <div class="history-card" style="padding: 16px; display: grid; gap: 14px;">
+        @php
+            $groupedReservations = $groupedReservations ?? collect();
+        @endphp
 
+        @forelse($groupedReservations as $group)
+            @php
+                $first = $group->first();
+                $groupOverdue = $group->contains(fn ($item) => $item->is_pickup_overdue);
+                $groupStatus = $groupOverdue
+                    ? 'overdue'
+                    : ($group->contains(fn ($item) => $item->status === 'ready') ? 'ready' : ($first->status ?? 'pending'));
+                $groupTotal = (float) $group->sum(fn ($item) => (float) ($item->total_fee ?? 0));
+                $groupCode = $first->reservation_code ?: ('RL-' . str_pad((string) $first->id, 6, '0', STR_PAD_LEFT));
+                $canConfirmReady = $groupStatus === 'ready'
+                    && !empty($first->reservation_code)
+                    && !$groupOverdue
+                    && !$group->contains(fn($item) => !empty($item->customer_confirmed_at));
+            @endphp
+
+            <div style="border: 1px solid var(--reserve-border); border-radius: 14px; padding: 14px; background: #fff;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
+                    <div>
+                        <span class="reservation-code">Mã đơn: {{ $groupCode }}</span>
+                        <div style="margin-top: 8px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                            <span class="status-badge status-{{ $groupStatus }}">{{ $first->getStatusLabel() }}</span>
+                            <span class="schedule-label">{{ $group->count() }} sách</span>
+                        </div>
+
+                        <div class="schedule-info" style="margin-top: 8px;">
                             <div class="schedule-item">
                                 <span class="schedule-label">Ngày lấy</span>
                                 <span class="schedule-value">{{ $first->pickup_display }}</span>
@@ -328,11 +371,12 @@
                             </div>
                         @endif
                     </div>
+
                     <div class="fee-info">
                         <div class="fee-label">Tổng tiền</div>
                         <div class="fee-value">{{ number_format($groupTotal, 0, ',', '.') }}đ</div>
 
-                        @if($groupStatus === 'ready' && !$groupHasOverdue && !empty($first->reservation_code))
+                        @if($groupStatus === 'ready' && !empty($first->reservation_code))
                             <div class="ready-actions">
                                 @if($canConfirmReady)
                                     <form action="{{ route('reservation-cart.history.confirm-ready', $first->reservation_code) }}" method="POST">
@@ -358,35 +402,40 @@
                             </div>
                         @endif
                     </div>
-                </summary>
+                </div>
 
-                <div style="margin-top:14px; display:grid; gap:12px;">
-                    @foreach($group as $reservation)
-                        <div style="display:flex; gap:14px; border:1px solid var(--reserve-border); border-radius:10px; padding:12px; background:#fff;">
-                            <img src="{{ $reservation->book->image_url ?? asset('images/default-book.png') }}"
-                                 alt="{{ $reservation->book->ten_sach ?? 'Sách' }}"
-                                 class="book-cover">
-                            <div class="book-info">
-                                <h3 class="book-title" style="font-size:16px;">{{ $reservation->book->ten_sach ?? 'N/A' }}</h3>
-                                <p class="book-author">Tác giả: {{ $reservation->book->tac_gia ?? 'Không rõ' }}</p>
-                                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:8px;">
-                                    @php
-                                        $itemIsOverdue = in_array($reservation->status, ['pending', 'ready'], true)
-                                            && (
-                                                ($reservation->pickup_date && $reservation->pickup_date->lt(now()->startOfDay()))
-                                                || ($reservation->status === 'ready' && $reservation->ready_at && $reservation->ready_at->lt(now()->subHours(2)))
-                                            );
-                                        $itemStatus = $itemIsOverdue ? 'overdue' : $reservation->status;
-                                        $itemStatusLabel = $itemIsOverdue ? 'Quá hạn' : $reservation->getStatusLabel();
-                                    @endphp
-                                    <span class="status-badge status-{{ $itemStatus }}">{{ $itemStatusLabel }}</span>
-                                    @if($reservation->inventory_id)
-                                        <span class="reservation-code">Bản sao #{{ $reservation->inventory_id }}</span>
-                                    @endif
-                                    <span class="fee-label">{{ number_format($reservation->total_fee ?? 0, 0, ',', '.') }}đ</span>
+                <details style="margin-top: 12px;">
+                    <summary style="cursor: pointer; color: var(--reserve-primary); font-weight: 600; list-style: none;">
+                        <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
+                        Xem chi tiết ({{ $group->count() }} sách)
+                    </summary>
+                    <div style="margin-top: 12px; display: grid; gap: 10px;">
+                        @foreach($group as $reservation)
+                            <div style="display: flex; gap: 14px; border: 1px solid var(--reserve-border); border-radius: 10px; padding: 12px; background: #fff;">
+                                <img src="{{ $reservation->book?->image_url ?? ($reservation->book && $reservation->book->hinh_anh ? asset('storage/' . $reservation->book->hinh_anh) : 'https://via.placeholder.com/60x80?text=No') }}"
+                                     alt="{{ $reservation->book->ten_sach ?? 'Sách' }}"
+                                     style="width: 60px; height: 80px; object-fit: cover; border-radius: 6px;">
+                                <div class="book-info">
+                                    <h4 style="font-size: 15px; font-weight: 600; margin: 0 0 4px 0; color: var(--reserve-text);">
+                                        {{ $reservation->book->ten_sach ?? 'N/A' }}
+                                    </h4>
+                                    <p style="margin: 0 0 8px 0; font-size: 13px; color: var(--reserve-muted);">
+                                        {{ $reservation->book->tac_gia ?? 'Không rõ' }}
+                                    </p>
+                                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                        <span class="status-badge status-{{ $reservation->status }}">{{ $reservation->getStatusLabel() }}</span>
+                                        @if($reservation->inventory_id)
+                                            <span class="reservation-code">Bản sao #{{ $reservation->inventory_id }}</span>
+                                        @endif
+                                        <span class="fee-label">{{ number_format($reservation->total_fee ?? 0, 0, ',', '.') }}đ</span>
+                                    </div>
                                 </div>
-
-
+                            </div>
+                        @endforeach
+                    </div>
+                </details>
+            </div>
+        @empty
             <div class="empty-state">
                 <div class="empty-icon">📚</div>
                 <p>Bạn chưa có yêu cầu đặt trước nào.</p>
