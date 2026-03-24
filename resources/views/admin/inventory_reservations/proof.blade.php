@@ -55,9 +55,18 @@
                 <div class="mb-2"><strong>Bản sao:</strong> {{ $reservation->inventory?->id ?? 'Chưa gán' }}</div>
             </div>
             <div class="col-md-6">
-                <div class="mb-2"><strong>Ngày lấy:</strong> {{ $reservation->pickup_date ? $reservation->pickup_date->format('d/m/Y') : 'N/A' }}</div>
+                <div class="mb-2"><strong>Ngày lấy:</strong> {{ $reservation->pickup_display }}</div>
+                <div class="mb-2">
+                    <strong>Hạn nhận:</strong>
+                    <span style="{{ $reservation->is_pickup_overdue ? 'color:#dc2626;font-weight:700;' : '' }}">
+                        {{ $reservation->pickup_deadline_display }} (sau 2 giờ)
+                    </span>
+                </div>
                 <div class="mb-2"><strong>Ngày trả:</strong> {{ $reservation->return_date ? $reservation->return_date->format('d/m/Y') : 'N/A' }}</div>
                 <div class="mb-2"><strong>Trạng thái:</strong> {{ $reservation->getStatusLabel() }}</div>
+                @if($reservation->is_pickup_overdue)
+                    <div class="mb-2" style="color:#dc2626;font-weight:700;">⛔ Đã quá hạn nhận sách</div>
+                @endif
             </div>
         </div>
 

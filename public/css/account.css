@@ -637,6 +637,114 @@ body {
     justify-content: center;
 }
 
+.pagination-wrapper nav,
+.pagination-wrapper .pagination {
+    width: 100%;
+}
+
+.pagination-wrapper .pagination {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+}
+
+.pagination-wrapper .pagination li {
+    list-style: none;
+}
+
+.pagination-wrapper .pagination li a,
+.pagination-wrapper .pagination li span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+    background: #fff;
+    color: var(--text-color);
+}
+
+.pagination-wrapper .pagination li a:hover {
+    background: var(--primary-50);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.pagination-wrapper .pagination li.active span,
+.pagination-wrapper .pagination li[aria-current="page"] span {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    border-color: var(--primary-color);
+    color: #fff;
+}
+
+.pagination-wrapper .pagination li.disabled span {
+    color: #94a3b8;
+    background: #f8fafc;
+}
+
+.pagination-wrapper nav,
+.pagination-wrapper .pagination {
+    width: 100%;
+}
+
+.pagination-wrapper .pagination {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+}
+
+.pagination-wrapper .pagination li {
+    list-style: none;
+}
+
+.pagination-wrapper .pagination li a,
+.pagination-wrapper .pagination li span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+    background: #fff;
+    color: var(--text-color);
+}
+
+.pagination-wrapper .pagination li a:hover {
+    background: var(--primary-50);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.pagination-wrapper .pagination li.active span,
+.pagination-wrapper .pagination li[aria-current="page"] span {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    border-color: var(--primary-color);
+    color: #fff;
+}
+
+.pagination-wrapper .pagination li.disabled span {
+    color: #94a3b8;
+    background: #f8fafc;
+}
+
 /* Error Message */
 .error-message {
     color: #d32f2f;

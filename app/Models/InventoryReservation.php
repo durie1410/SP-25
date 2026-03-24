@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Inventory;
 use App\Services\NotificationService;
+use Carbon\Carbon;
 
 class InventoryReservation extends Model
 {
@@ -259,5 +260,73 @@ class InventoryReservation extends Model
     public function getProcessedByName(): ?string
     {
         return $this->processedBy ? $this->processedBy->name : null;
+    }
+
+    public function getPickupDateTimeAttribute(): ?Carbon
+    {
+        if (!$this->pickup_date) {
+            return null;
+        }
+
+        $date = $this->pickup_date instanceof Carbon
+            ? $this->pickup_date->copy()
+            : Carbon::parse($this->pickup_date);
+
+        $time = $this->pickup_time ?: config('library.open_hour', '08:00');
+
+        try {
+            [$hour, $minute] = array_pad(array_map('intval', explode(':', $time)), 2, 0);
+            return $date->setTime($hour, $minute, 0);
+        } catch (\Throwable $e) {
+            return $date->setTime(8, 0, 0);
+        }
+    }
+
+    public function getPickupDeadlineAttribute(): ?Carbon
+    {
+        $pickupDateTime = $this->pickup_date_time;
+
+        if (!$pickupDateTime) {
+            return null;
+        }
+
+        return $pickupDateTime->copy()->addHours(2);
+    }
+
+    public function getIsPickupOverdueAttribute(): bool
+    {
+        if (!in_array($this->status, ['pending', 'ready', 'overdue'], true)) {
+            return false;
+        }
+
+        $deadline = $this->pickup_deadline;
+
+        if (!$deadline) {
+            return false;
+        }
+
+        return now()->gt($deadline);
+    }
+
+    public function getPickupDisplayAttribute(): string
+    {
+        $pickupDateTime = $this->pickup_date_time;
+
+        if (!$pickupDateTime) {
+            return 'N/A';
+        }
+
+        return $pickupDateTime->format('d/m/Y - H:i');
+    }
+
+    public function getPickupDeadlineDisplayAttribute(): string
+    {
+        $deadline = $this->pickup_deadline;
+
+        if (!$deadline) {
+            return 'N/A';
+        }
+
+        return $deadline->format('H:i');
     }
 }

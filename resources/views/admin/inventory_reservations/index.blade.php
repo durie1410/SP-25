@@ -84,18 +84,11 @@ use Illuminate\Support\Str;
                 $groupTotal = $group->sum(fn($item) => (float) ($item->total_fee ?? 0));
                 $groupId = 'group-' . Str::slug($groupCode);
 
-                // Helper function to check if item is overdue
-                $isItemOverdue = fn($item) => in_array($item->status, ['pending', 'ready', 'overdue'], true)
-                    && (
-                        ($item->pickup_date && $item->pickup_date->lt(now()->startOfDay()))
-                        || ($item->status === 'ready' && $item->ready_at && $item->ready_at->lt(now()->subHours(2)))
-                    );
-
-                // Chỉ ready và không quá hạn mới có thể Fulfill
-                $hasReadyItems = $group->contains(fn($item) => $item->status === 'ready' && !$isItemOverdue($item));
-                // Chỉ pending hoặc ready (chưa quá hạn) mới có thể hủy - fulfilled/cancelled không hủy được nữa
-                $hasCancellableItems = $group->contains(fn($item) => in_array($item->status, ['pending', 'ready', 'overdue'], true)
-                    && $item->status !== 'cancelled');
+                // Chỉ ready và chưa quá hạn mới có thể Fulfill
+                $hasReadyItems = $group->contains(fn($item) => $item->status === 'ready' && !$item->is_pickup_overdue);
+                // pending/ready/overdue đều có thể chọn để hủy, trừ khi đã cancelled/fulfilled
+                $hasCancellableItems = $group->contains(fn($item) => in_array($item->status, ['pending', 'ready', 'overdue'], true));
+                $hasOverdueItems = $group->contains(fn($item) => $item->is_pickup_overdue);
             @endphp
 
             <!-- Dòng tổng đơn - Always visible -->
@@ -116,6 +109,9 @@ use Illuminate\Support\Str;
                             @endif
                         </div>
                         <span class="badge badge-secondary">{{ $group->count() }} cuốn</span>
+                        @if($hasOverdueItems)
+                            <span class="badge badge-danger">Đã quá hạn nhận sách</span>
+                        @endif
                     </div>
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <div style="font-weight: 600; color: #0f766e;">
@@ -148,14 +144,7 @@ use Illuminate\Support\Str;
             <div class="accordion-content {{ $groupId }}" style="display: none; margin-bottom: 15px; padding-left: 20px;">
                 @foreach($group as $r)
                     @php
-                        // Kiểm tra quá hạn: pickup_date trong quá khứ HOẶC ready quá 2 giờ
-                        $isOverduePickup = in_array($r->status, ['pending', 'ready'], true)
-                            && (
-                                ($r->pickup_date && $r->pickup_date->lt(now()->startOfDay()))
-                                || ($r->status === 'ready' && $r->ready_at && $r->ready_at->lt(now()->subHours(2)))
-                            );
-
-                        $badgeClass = $isOverduePickup ? 'badge-danger' : match($r->status) {
+                        $badgeClass = $r->is_pickup_overdue ? 'badge-danger' : match($r->status) {
                             'pending' => 'badge-warning',
                             'ready' => 'badge-success',
                             'fulfilled' => 'badge-info',
@@ -164,16 +153,16 @@ use Illuminate\Support\Str;
                             default => 'badge-secondary',
                         };
 
-                        $statusLabel = $isOverduePickup ? 'Quá hạn' : $r->getStatusLabel();
+                        $statusLabel = $r->is_pickup_overdue ? 'Quá hạn nhận sách' : $r->getStatusLabel();
                     @endphp
                     <div class="reservation-item-card" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
                         <div style="display: grid; grid-template-columns: 40px repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; align-items: center;">
                             <div>
-                                @if($r->status === 'ready' && !$isOverduePickup)
+                                @if($r->status === 'ready' && !$r->is_pickup_overdue)
                                     <input type="checkbox" name="reservation_ids[]" value="{{ $r->id }}" class="reservation-checkbox fulfill-checkbox group-{{ $groupId }}" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Fulfill">
-                                @elseif(in_array($r->status, ['pending', 'overdue']) && !$isOverduePickup)
+                                @elseif(in_array($r->status, ['pending', 'overdue']) && !$r->is_pickup_overdue)
                                     <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox group-{{ $groupId }}" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Hủy">
-                                @elseif($r->status === 'ready' && $isOverduePickup)
+                                @elseif($r->status === 'ready' && $r->is_pickup_overdue)
                                     {{-- Ready quá hạn: có thể hủy --}}
                                     <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox group-{{ $groupId }}" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Hủy">
                                 @else
@@ -195,21 +184,16 @@ use Illuminate\Support\Str;
                                 <div style="font-size: 11px; color: #64748b;">{{ $r->reader->so_the_doc_gia ?? 'Khách' }}</div>
                             </div>
                             <div>
-                                <div style="font-size: 11px; color: #64748b;">Lịch</div>
-                                @if($r->pickup_date)
-                                    <div style="font-size: 12px;">
-                                        <div><strong>Lấy:</strong> {{ \Carbon\Carbon::parse($r->pickup_date)->format('d/m/Y') }} @if($r->pickup_time) - {{ $r->pickup_time }} @endif</div>
-                                        <div><strong>Trả:</strong> {{ \Carbon\Carbon::parse($r->return_date)->format('d/m/Y') }}</div>
-                                        @if($r->status === 'ready' && $r->ready_at)
-                                            @php
-                                                $readyHours = now()->diffInMinutes($r->ready_at);
-                                                $readyHoursDisplay = $readyHours < 60 ? $readyHours . ' phút' : round($readyHours / 60, 1) . ' giờ';
-                                            @endphp
-                                            <div style="color: #64748b; font-size: 11px;">Ready: {{ $readyHoursDisplay }}</div>
-                                        @endif
+                                <div style="font-size: 11px; color: #64748b;">Lịch nhận sách</div>
+                                <div style="font-size: 12px;">
+                                    <div><strong>Lấy:</strong> {{ $r->pickup_display }}</div>
+                                    <div><strong>Hạn nhận:</strong> <span style="{{ $r->is_pickup_overdue ? 'color:#dc2626;font-weight:700;' : '' }}">{{ $r->pickup_deadline_display }} (sau 2 giờ)</span></div>
+                                    <div><strong>Trả:</strong> {{ $r->return_date ? \Carbon\Carbon::parse($r->return_date)->format('d/m/Y') : 'N/A' }}</div>
+                                </div>
+                                @if($r->status === 'ready' && $r->ready_at)
+                                    <div style="color: #64748b; font-size: 11px; margin-top: 3px;">
+                                        Ready: {{ $r->ready_at->diffInMinutes(now()) < 60 ? $r->ready_at->diffInMinutes(now()) . ' phút' : round($r->ready_at->diffInMinutes(now()) / 60, 1) . ' giờ' }}
                                     </div>
-                                @else
-                                    <span class="text-muted">N/A</span>
                                 @endif
                             </div>
                             <div>
@@ -235,18 +219,7 @@ use Illuminate\Support\Str;
                             </div>
                             <div>
                                 <div style="font-size: 11px; color: #64748b;">Phí</div>
-                                @php
-                                    $days = 1;
-                                    if($r->pickup_date && $r->return_date) {
-                                        $pickup = \Carbon\Carbon::parse($r->pickup_date);
-                                        $return = \Carbon\Carbon::parse($r->return_date);
-                                        $days = max(1, (int)$pickup->diffInDays($return) + 1);
-                                    }
-                                    // Lấy daily_fee từ sách, mặc định 5000
-                                    $dailyFeeFromBook = (int) ($r->book?->daily_fee ?? 5000);
-                                @endphp
                                 <div style="font-weight: 700; color: #f97316;">{{ number_format($r->total_fee ?? 0, 0, ',', '.') }}đ</div>
-                                <div style="font-size: 10px; color: #64748b;">{{ $days }} ngày × {{ number_format($dailyFeeFromBook, 0, ',', '.') }}đ</div>
                             </div>
                             <div>
                                 <div style="font-size: 11px; color: #64748b;">Thao tác</div>
@@ -254,19 +227,19 @@ use Illuminate\Support\Str;
                                     <a href="{{ route('admin.inventory-reservations.proof', $r->id) }}" class="btn btn-sm btn-outline-primary" style="padding: 4px 8px; font-size: 11px;">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    @if($r->status === 'pending' && !$isOverduePickup)
+                                    @if($r->status === 'pending' && !$r->is_pickup_overdue)
                                         <form method="POST" action="{{ route('admin.inventory-reservations.ready', $r->id) }}" style="display:inline;">
                                             @csrf
                                             <button type="submit" class="btn btn-sm btn-success" style="padding: 4px 8px; font-size: 11px;">Ready</button>
                                         </form>
                                     @endif
-                                    @if($r->status === 'ready' && !$isOverduePickup)
+                                    @if($r->status === 'ready' && !$r->is_pickup_overdue)
                                         <form method="POST" action="{{ route('admin.inventory-reservations.fulfill', $r->id) }}" style="display:inline;">
                                             @csrf
                                             <button type="submit" class="btn btn-sm btn-primary" style="padding: 4px 8px; font-size: 11px;">Fulfill</button>
                                         </form>
                                     @endif
-                                    @if(in_array($r->status, ['overdue']) || ($r->status === 'ready' && $isOverduePickup))
+                                    @if($r->status === 'overdue' || ($r->status === 'ready' && $r->is_pickup_overdue))
                                         <form method="POST" action="{{ route('admin.inventory-reservations.cancel', $r->id) }}" style="display:inline;" onsubmit="return confirm('Xác nhận hủy yêu cầu này?');">
                                             @csrf
                                             <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 8px; font-size: 11px;">Hủy</button>
@@ -286,7 +259,7 @@ use Illuminate\Support\Str;
     </div>
 
     <div style="padding: 16px 20px;">
-        {{ $reservations->appends(request()->query())->links('vendor.pagination.admin') }}
+        {{ $reservations->appends(request()->query())->links('vendor.pagination.default') }}
     </div>
 </div>
 @endsection

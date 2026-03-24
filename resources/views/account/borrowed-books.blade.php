@@ -559,7 +559,35 @@
         
         @if($borrows->total() > 0)
             <div class="pagination-wrapper">
-                {{ $borrows->links() }}
+                <nav aria-label="Phân trang sách đang mượn">
+                    <ul class="pagination">
+                        <li class="{{ $borrows->onFirstPage() ? 'disabled' : '' }}" aria-disabled="{{ $borrows->onFirstPage() ? 'true' : 'false' }}">
+                            @if($borrows->onFirstPage())
+                                <span>&lsaquo;</span>
+                            @else
+                                <a href="{{ $borrows->previousPageUrl() }}" rel="prev">&lsaquo;</a>
+                            @endif
+                        </li>
+
+                        @for($page = 1; $page <= max(1, $borrows->lastPage()); $page++)
+                            <li class="{{ $page === $borrows->currentPage() ? 'active' : '' }}" aria-current="{{ $page === $borrows->currentPage() ? 'page' : 'false' }}">
+                                @if($page === $borrows->currentPage())
+                                    <span>{{ $page }}</span>
+                                @else
+                                    <a href="{{ $borrows->url($page) }}">{{ $page }}</a>
+                                @endif
+                            </li>
+                        @endfor
+
+                        <li class="{{ $borrows->hasMorePages() ? '' : 'disabled' }}" aria-disabled="{{ $borrows->hasMorePages() ? 'false' : 'true' }}">
+                            @if($borrows->hasMorePages())
+                                <a href="{{ $borrows->nextPageUrl() }}" rel="next">&rsaquo;</a>
+                            @else
+                                <span>&rsaquo;</span>
+                            @endif
+                        </li>
+                    </ul>
+                </nav>
             </div>
         @endif
     @else

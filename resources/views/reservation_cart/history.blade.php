@@ -194,11 +194,21 @@
     .pagination {
         display: flex;
         justify-content: center;
+        align-items: center;
         padding: 20px;
         gap: 8px;
+        list-style: none;
+        margin: 0;
+    }
+
+    .pagination li {
+        list-style: none;
     }
 
     .pagination a, .pagination span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         padding: 8px 12px;
         border-radius: 8px;
         text-decoration: none;
@@ -309,21 +319,57 @@
         <p class="page-subtitle">Theo dõi các yêu cầu đặt trước của bạn</p>
     </div>
 
-    <div class="history-card">
+    <div class="history-card" style="padding: 16px; display: grid; gap: 14px;">
+        @php
+            $groupedReservations = $groupedReservations ?? collect();
+        @endphp
 
-                            </span>
+        @forelse($groupedReservations as $group)
+            @php
+                $first = $group->first();
+                $groupOverdue = $group->contains(fn ($item) => $item->is_pickup_overdue);
+                $groupStatus = $groupOverdue
+                    ? 'overdue'
+                    : ($group->contains(fn ($item) => $item->status === 'ready') ? 'ready' : ($first->status ?? 'pending'));
+                $groupTotal = (float) $group->sum(fn ($item) => (float) ($item->total_fee ?? 0));
+                $groupCode = $first->reservation_code ?: ('RL-' . str_pad((string) $first->id, 6, '0', STR_PAD_LEFT));
+                $canConfirmReady = $groupStatus === 'ready'
+                    && !empty($first->reservation_code)
+                    && !$groupOverdue
+                    && !$group->contains(fn($item) => !empty($item->customer_confirmed_at));
+            @endphp
+
+            <div style="border: 1px solid var(--reserve-border); border-radius: 14px; padding: 14px; background: #fff;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
+                    <div>
+                        <span class="reservation-code">Mã đơn: {{ $groupCode }}</span>
+                        <div style="margin-top: 8px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                            <span class="status-badge status-{{ $groupStatus }}">{{ $first->getStatusLabel() }}</span>
                             <span class="schedule-label">{{ $group->count() }} sách</span>
                         </div>
-                        <div class="schedule-info" style="margin-top: 0;">
+
+                        <div class="schedule-info" style="margin-top: 8px;">
                             <div class="schedule-item">
                                 <span class="schedule-label">Ngày lấy</span>
-                                <span class="schedule-value">{{ $first->pickup_date ? \Carbon\Carbon::parse($first->pickup_date)->format('d/m/Y') : 'N/A' }}</span>
+                                <span class="schedule-value">{{ $first->pickup_display }}</span>
+                            </div>
+                            <div class="schedule-item">
+                                <span class="schedule-label">Hạn nhận</span>
+                                <span class="schedule-value {{ $groupOverdue ? 'text-danger' : '' }}">
+                                    {{ $first->pickup_deadline_display }} (sau 2 giờ)
+                                </span>
                             </div>
                             <div class="schedule-item">
                                 <span class="schedule-label">Ngày trả</span>
                                 <span class="schedule-value">{{ $first->return_date ? \Carbon\Carbon::parse($first->return_date)->format('d/m/Y') : 'N/A' }}</span>
                             </div>
                         </div>
+
+                        @if($groupOverdue)
+                            <div style="margin-top: 8px; color: #991b1b; font-weight: 700; font-size: 13px;">
+                                ⛔ Đã quá hạn nhận sách
+                            </div>
+                        @endif
                     </div>
 
                     <div class="fee-info">
@@ -332,13 +378,17 @@
 
                         @if($groupStatus === 'ready' && !empty($first->reservation_code))
                             <div class="ready-actions">
-                                @if(!$group->contains(fn($item) => !empty($item->customer_confirmed_at)))
+                                @if($canConfirmReady)
                                     <form action="{{ route('reservation-cart.history.confirm-ready', $first->reservation_code) }}" method="POST">
                                         @csrf
                                         <button type="submit" class="ready-btn ready-btn-confirm">
                                             <i class="fas fa-check-circle"></i> Xác nhận sẽ đến nhận
                                         </button>
                                     </form>
+                                @elseif($groupOverdue)
+                                    <button type="button" class="ready-btn ready-btn-confirm" disabled style="opacity: .45; cursor: not-allowed;">
+                                        <i class="fas fa-clock"></i> Đã quá hạn nhận sách
+                                    </button>
                                 @else
                                     <span class="status-badge status-ready">Đã xác nhận nhận sách</span>
                                 @endif
@@ -354,44 +404,42 @@
                     </div>
                 </div>
 
-                @if($group->count() > 1 || !empty($first->reservation_code))
-                    <details style="margin-top: 14px;">
-                        <summary style="cursor: pointer; color: var(--reserve-primary); font-weight: 600; list-style: none;">
-                            <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
-                            Xem chi tiết ({{ $group->count() }} sách)
-                        </summary>
-                        <div style="margin-top: 14px; display: grid; gap: 12px;">
-                            @foreach($group as $reservation)
-                                <div style="display: flex; gap: 14px; border: 1px solid var(--reserve-border); border-radius: 10px; padding: 12px; background: #fff;">
-                                    <img src="{{ $reservation->book && $reservation->book->hinh_anh ? asset('storage/' . $reservation->book->hinh_anh) : 'https://via.placeholder.com/60x80?text=No' }}"
-                                         alt="{{ $reservation->book->ten_sach ?? 'Sách' }}"
-                                         style="width: 60px; height: 80px; object-fit: cover; border-radius: 6px;">
-                                    <div class="book-info">
-                                        <h4 style="font-size: 15px; font-weight: 600; margin: 0 0 4px 0; color: var(--reserve-text);">
-                                            {{ $reservation->book->ten_sach ?? 'N/A' }}
-                                        </h4>
-                                        <p style="margin: 0 0 8px 0; font-size: 13px; color: var(--reserve-muted);">
-                                            {{ $reservation->book->tac_gia ?? 'Không rõ' }}
-                                        </p>
-                                        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                                            <span class="status-badge status-{{ $reservation->status }}">{{ $reservation->getStatusLabel() }}</span>
-                                            @if($reservation->inventory_id)
-                                                <span class="reservation-code">Bản sao #{{ $reservation->inventory_id }}</span>
-                                            @endif
-                                            <span class="fee-label">{{ number_format($reservation->total_fee ?? 0, 0, ',', '.') }}đ</span>
-                                        </div>
+                <details style="margin-top: 12px;">
+                    <summary style="cursor: pointer; color: var(--reserve-primary); font-weight: 600; list-style: none;">
+                        <i class="fas fa-chevron-down" style="margin-right: 6px;"></i>
+                        Xem chi tiết ({{ $group->count() }} sách)
+                    </summary>
+                    <div style="margin-top: 12px; display: grid; gap: 10px;">
+                        @foreach($group as $reservation)
+                            <div style="display: flex; gap: 14px; border: 1px solid var(--reserve-border); border-radius: 10px; padding: 12px; background: #fff;">
+                                <img src="{{ $reservation->book?->image_url ?? ($reservation->book && $reservation->book->hinh_anh ? asset('storage/' . $reservation->book->hinh_anh) : 'https://via.placeholder.com/60x80?text=No') }}"
+                                     alt="{{ $reservation->book->ten_sach ?? 'Sách' }}"
+                                     style="width: 60px; height: 80px; object-fit: cover; border-radius: 6px;">
+                                <div class="book-info">
+                                    <h4 style="font-size: 15px; font-weight: 600; margin: 0 0 4px 0; color: var(--reserve-text);">
+                                        {{ $reservation->book->ten_sach ?? 'N/A' }}
+                                    </h4>
+                                    <p style="margin: 0 0 8px 0; font-size: 13px; color: var(--reserve-muted);">
+                                        {{ $reservation->book->tac_gia ?? 'Không rõ' }}
+                                    </p>
+                                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                                        <span class="status-badge status-{{ $reservation->status }}">{{ $reservation->getStatusLabel() }}</span>
+                                        @if($reservation->inventory_id)
+                                            <span class="reservation-code">Bản sao #{{ $reservation->inventory_id }}</span>
+                                        @endif
+                                        <span class="fee-label">{{ number_format($reservation->total_fee ?? 0, 0, ',', '.') }}đ</span>
                                     </div>
                                 </div>
-                            @endforeach
-                        </div>
-                    </details>
-                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </details>
             </div>
         @empty
             <div class="empty-state">
                 <div class="empty-icon">📚</div>
                 <p>Bạn chưa có yêu cầu đặt trước nào.</p>
-                <a href="{{ route('books.index') }}" class="btn btn-primary" style="margin-top: 16px;">
+                <a href="{{ route('books.public') }}" class="btn btn-primary" style="margin-top: 16px;">
                     Khám phá sách
                 </a>
             </div>
@@ -399,7 +447,7 @@
 
         @if($reservations->hasPages())
             <div class="pagination">
-                {{ $reservations->links() }}
+                {{ $reservations->links('vendor.pagination.default') }}
             </div>
         @endif
     </div>
