@@ -412,7 +412,11 @@ class InventoryReservationController extends Controller
             $cancelledCount = 0;
 
             foreach ($reservations as $reservation) {
-                if (!in_array($reservation->status, ['pending', 'ready', 'fulfilled', 'overdue'], true)) {
+                // Fulfilled có inventory_id → đã giao sách cho khách, phải đánh dấu overdue chứ không hủy
+                if ($reservation->status === 'fulfilled' && $reservation->inventory_id) {
+                    throw new \Exception('Yêu cầu #' . $reservation->id . ' đã giao sách cho khách, cần đánh dấu Quá hạn thay vì Hủy.');
+                }
+                if (!in_array($reservation->status, ['pending', 'ready', 'overdue'], true)) {
                     throw new \Exception('Yêu cầu #' . $reservation->id . ' không thể hủy (trạng thái: ' . $reservation->status . ').');
                 }
 
@@ -452,7 +456,10 @@ class InventoryReservationController extends Controller
     {
         $reservation = InventoryReservation::with(['book', 'reader', 'user'])->findOrFail($id);
 
-        if (!in_array($reservation->status, ['pending', 'ready', 'fulfilled', 'overdue'], true)) {
+        if ($reservation->status === 'fulfilled' && $reservation->inventory_id) {
+            return back()->with('error', 'Yêu cầu này đã giao sách cho khách. Cần đánh dấu Quá hạn thay vì Hủy.');
+        }
+        if (!in_array($reservation->status, ['pending', 'ready', 'overdue'], true)) {
             return back()->with('error', 'Yêu cầu này không thể hủy.');
         }
 
