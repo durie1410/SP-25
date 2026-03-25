@@ -59,7 +59,7 @@
                 <div class="mb-2">
                     <strong>Hạn nhận:</strong>
                     <span style="{{ $reservation->is_pickup_overdue ? 'color:#dc2626;font-weight:700;' : '' }}">
-                        {{ $reservation->pickup_deadline_display }} (sau 2 giờ)
+                        {{ $reservation->pickup_deadline_display }}
                     </span>
                 </div>
                 <div class="mb-2"><strong>Ngày trả:</strong> {{ $reservation->return_date ? $reservation->return_date->format('d/m/Y') : 'N/A' }}</div>

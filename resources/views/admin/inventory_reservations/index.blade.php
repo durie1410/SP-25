@@ -186,7 +186,7 @@ use Illuminate\Support\Str;
                                 <div style="font-size: 11px; color: #64748b;">Lịch nhận sách</div>
                                 <div style="font-size: 12px;">
                                     <div><strong>Lấy:</strong> {{ $r->pickup_display }}</div>
-                                    <div><strong>Hạn nhận:</strong> <span style="{{ $r->is_pickup_overdue ? 'color:#dc2626;font-weight:700;' : '' }}">{{ $r->pickup_deadline_display }} (sau 2 giờ)</span></div>
+                                    <div><strong>Hạn nhận:</strong> <span style="{{ $r->is_pickup_overdue ? 'color:#dc2626;font-weight:700;' : '' }}">{{ $r->pickup_deadline_display }}</span></div>
                                     <div><strong>Trả:</strong> {{ $r->return_date ? \Carbon\Carbon::parse($r->return_date)->format('d/m/Y') : 'N/A' }}</div>
                                 </div>
                                 @if($r->status === 'ready' && $r->ready_at)

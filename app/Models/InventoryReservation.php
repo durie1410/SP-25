@@ -339,13 +339,7 @@ class InventoryReservation extends Model
 
     public function getPickupDeadlineAttribute(): ?Carbon
     {
-        $pickupDateTime = $this->pickup_date_time;
-
-        if (!$pickupDateTime) {
-            return null;
-        }
-
-        return $pickupDateTime->copy()->addHours(2);
+        return $this->pickup_date_time;
     }
 
     public function getIsPickupOverdueAttribute(): bool
