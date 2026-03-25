@@ -434,32 +434,75 @@
             color: #111827;
         }
 
+        .history-review-box {
+            margin-top: 18px;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #fffbeb, #fefce8);
+            overflow: hidden;
+        }
+
+        .history-review-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid #fde68a;
+            background: rgba(253, 224, 71, 0.15);
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .history-review-header h4 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 800;
+            color: #92400e;
+        }
+
+        .history-reviewed-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
+            white-space: nowrap;
+        }
+
         .history-review-summary {
+            padding: 16px 18px;
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
 
         .history-review-stars {
-            display: inline-flex;
+            display: flex;
             align-items: center;
             gap: 2px;
-            white-space: nowrap;
-            flex-wrap: nowrap;
-            font-size: 22px;
-            letter-spacing: 2px;
-            color: #f59e0b;
-            width: max-content;
-            max-width: 100%;
+            font-size: 24px;
+            line-height: 1;
         }
+
+        .history-review-stars .star { color: #e5e7eb; }
+        .history-review-stars .star.star-on { color: #f59e0b; }
 
         .history-review-text {
             margin: 0;
-            color: #334155;
+            color: #374151;
             font-size: 14px;
             line-height: 1.7;
             white-space: pre-line;
             font-style: italic;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 10px;
+            border-left: 3px solid #f59e0b;
         }
 
         .history-review-actions {
@@ -470,36 +513,36 @@
         }
 
         .btn-inline-edit {
-            border: none;
-            background: none;
-            padding: 0;
-            color: #2563eb;
-            font-size: 14px;
+            border: 1.5px solid #10b981;
+            border-radius: 10px;
+            padding: 7px 14px;
+            background: #fff;
+            color: #059669;
+            font-size: 13px;
             font-weight: 700;
             cursor: pointer;
-        }
-
-        .btn-inline-edit:hover {
-            color: #1d4ed8;
-            text-decoration: underline;
-        }
-
-        .history-reviewed-badge {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 6px 10px;
-            border-radius: 999px;
+            transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+        }
+
+        .btn-inline-edit:hover {
             background: #ecfdf5;
+            border-color: #059669;
             color: #047857;
+            transform: translateY(-1px);
+        }
+
+        .history-review-edit-meta {
+            color: #9ca3af;
             font-size: 12px;
-            font-weight: 700;
         }
 
         .history-review-helper {
             margin: 0 0 12px;
             font-size: 13px;
-            color: #4b5563;
+            color: #6b7280;
             line-height: 1.55;
         }
 
@@ -507,6 +550,7 @@
             display: flex;
             flex-direction: column;
             gap: 14px;
+            padding: 18px;
         }
 
         .history-review-form.is-hidden {
@@ -516,16 +560,17 @@
         .history-review-label {
             font-size: 13px;
             font-weight: 700;
-            color: #4b5563;
-            margin-bottom: 6px;
+            color: #374151;
+            margin-bottom: 8px;
             display: block;
         }
 
+        /* Star rating: đơn giản row, JS-driven highlighting */
         .history-star-rating {
-            display: inline-flex;
-            flex-direction: row-reverse;
-            justify-content: flex-end;
-            gap: 6px;
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            align-items: center;
         }
 
         .history-star-rating input {
@@ -533,46 +578,71 @@
         }
 
         .history-star-rating label {
-            font-size: 26px;
+            font-size: 30px;
             line-height: 1;
-            color: #d1d5db;
+            color: #e5e7eb;
             cursor: pointer;
             margin: 0;
-            transition: transform 0.2s ease, color 0.2s ease;
+            transition: color 0.15s ease, transform 0.15s ease, text-shadow 0.15s ease;
+            user-select: none;
+            display: inline-block;
         }
 
-        .history-star-rating label:hover,
-        .history-star-rating label:hover ~ label,
-        .history-star-rating input:checked ~ label {
+        .history-star-rating label.star-on,
+        .history-star-rating label.hover-on {
             color: #f59e0b;
-            transform: scale(1.06);
+        }
+
+        .history-star-rating label.star-on {
+            text-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+        }
+
+        .history-star-rating label.hover-on {
+            transform: scale(1.2);
+            text-shadow: 0 0 14px rgba(245, 158, 11, 0.6);
+        }
+
+        /* Read-only stars (summary) */
+        .history-review-stars label {
+            font-size: 24px;
+            color: #e5e7eb;
+            cursor: default;
+            margin: 0 1px;
+        }
+
+        .history-review-stars label.star-on {
+            color: #f59e0b;
         }
 
         .history-review-form textarea {
             width: 100%;
             min-height: 110px;
-            border: 1px solid #d1d5db;
+            border: 1.5px solid #e5e7eb;
             border-radius: 12px;
             padding: 12px 14px;
             resize: vertical;
             font-size: 14px;
             font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .history-review-form textarea:focus {
             outline: none;
-            border-color: #6366f1;
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
         }
 
         .history-review-note {
             margin-top: 16px;
             padding: 14px 16px;
             border-radius: 12px;
-            background: #fff7ed;
-            border: 1px solid #fdba74;
-            color: #9a3412;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
             font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .history-review-error {
@@ -585,26 +655,45 @@
             font-size: 13px;
         }
 
-        .history-review-edit-meta {
-            color: #64748b;
-            font-size: 12px;
-            white-space: nowrap;
-        }
-
         .btn-submit-review {
             align-self: flex-start;
             border: none;
-            border-radius: 10px;
-            padding: 11px 18px;
-            background: linear-gradient(135deg, #ef4444, #be123c);
+            border-radius: 12px;
+            padding: 11px 22px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
             color: #fff;
+            font-size: 14px;
             font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 10px 18px rgba(190, 24, 93, 0.2);
+            box-shadow: 0 6px 16px rgba(245, 158, 11, 0.28);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .btn-submit-review:hover {
             transform: translateY(-1px);
+            box-shadow: 0 10px 20px rgba(245, 158, 11, 0.35);
+        }
+
+        .btn-cancel-edit {
+            align-self: flex-start;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 10px 18px;
+            background: #fff;
+            color: #6b7280;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s, background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-cancel-edit:hover {
+            border-color: #d1d5db;
+            color: #374151;
+            background: #f9fafb;
         }
 
         .price-summary {
@@ -897,9 +986,11 @@
                                 $existingReview = $userReviews->get($item->id);
                                 $canReviewBook = $item->book->hasCompletedBorrowByUser(auth()->id());
                                 $canRerentBook = $item->trang_thai === 'Da tra' || !empty($item->ngay_tra_thuc_te);
+                                // rating: dùng old('rating') nếu validate fail, không thì dùng existing, mặc định 5
                                 $currentRating = (int) old('rating', optional($existingReview)->rating ?? 5);
                                 $activeBorrowItemId = (int) old('borrow_item_id', 0);
-                                $showInlineEdit = !$existingReview || $activeBorrowItemId === (int) $item->id;
+                                // form chỉ hiện khi: chưa đánh giá HOẶC (đã đánh giá + còn hạn + đang edit đúng item)
+                                $showInlineEdit = (!$existingReview) || ($existingReview && $existingReview->canBeEditedBy(auth()->id()) && $activeBorrowItemId === (int) $item->id);
                                 $canEditExistingReview = $existingReview ? $existingReview->canBeEditedBy(auth()->id()) : false;
                             @endphp
                             <img src="{{ $item->book->image_url ?? asset('images/default-book.png') }}"
@@ -979,7 +1070,7 @@
                                 @if($canReviewBook)
                                     <div class="history-review-box">
                                         <div class="history-review-header">
-                                            <h4><i class="fas fa-star" style="color:#f59e0b;"></i> ⭐ Đánh giá của bạn</h4>
+                                            <h4>⭐ Đánh giá của bạn</h4>
                                             @if($existingReview)
                                                 <span class="history-reviewed-badge">
                                                     <i class="fas fa-check-circle"></i> Đã đánh giá
@@ -987,77 +1078,100 @@
                                             @endif
                                         </div>
 
-                                        @if($existingReview)
+                                        {{-- ===== ĐÃ CO DIA GIA (khong cho sua) ===== --}}
+                                        @if($existingReview && !$canEditExistingReview)
                                             <div class="history-review-summary">
                                                 <div class="history-review-stars">
                                                     @for($star = 1; $star <= 5; $star++)
-                                                        {{ $star <= (int) $existingReview->rating ? '★' : '☆' }}
+                                                        <span class="star {{ $star <= (int) $existingReview->rating ? 'star-on' : '' }}">★</span>
                                                     @endfor
                                                 </div>
-
                                                 @if(!empty($existingReview->comment))
-                                                    <p class="history-review-text">"{{ $existingReview->comment }}"</p>
+                                                    <p class="history-review-text">{{ $existingReview->comment }}</p>
                                                 @endif
+                                                <span class="history-review-edit-meta" style="color:#9ca3af; font-size:12px;">Đã hết thời gian sửa đánh giá</span>
+                                            </div>
 
+                                        {{-- ===== CHUA CO / CON HAN SUA → FORM ===== --}}
+                                        @else
+                                            @if($existingReview)
+                                            {{-- Read-only summary (collapsed view) --}}
+                                            <div class="history-review-summary">
+                                                <div class="history-review-stars">
+                                                    @for($star = 1; $star <= 5; $star++)
+                                                        <span class="star {{ $star <= (int) $existingReview->rating ? 'star-on' : '' }}">★</span>
+                                                    @endfor
+                                                </div>
+                                                @if(!empty($existingReview->comment))
+                                                    <p class="history-review-text">{{ $existingReview->comment }}</p>
+                                                @endif
                                                 <div class="history-review-actions">
-                                                    @if($canEditExistingReview)
-                                                        <button type="button" class="btn-inline-edit" onclick="toggleHistoryReviewForm({{ $item->id }}, true)">
-                                                            <i class="fas fa-pen"></i> Sửa đánh giá
-                                                        </button>
-                                                        <span class="history-review-edit-meta">Sửa trước: {{ optional($existingReview->edit_deadline)->format('d/m/Y') }}</span>
-                                                    @else
-                                                        <span class="history-review-edit-meta">Đã hết thời gian sửa đánh giá</span>
-                                                    @endif
+                                                    <button type="button" class="btn-inline-edit" onclick="toggleHistoryReviewForm({{ $item->id }}, true)">
+                                                        <i class="fas fa-pen"></i> Sửa đánh giá
+                                                    </button>
+                                                    <span class="history-review-edit-meta">Sửa trước: {{ optional($existingReview->edit_deadline)->format('d/m/Y') }}</span>
                                                 </div>
                                             </div>
-                                        @endif
-
-                                        <form action="{{ route('books.comments.store', $item->book->id) }}" method="POST" id="history-review-form-{{ $item->id }}" class="history-review-form {{ $showInlineEdit ? '' : 'is-hidden' }}">
-                                            @csrf
-                                            <input type="hidden" name="borrow_item_id" value="{{ $item->id }}">
-
-                                            @if(($errors->has('rating') || $errors->has('content') || $errors->has('borrow_item_id')) && $activeBorrowItemId === (int) $item->id)
-                                                <div class="history-review-error">
-                                                    {{ $errors->first('content') ?: $errors->first('rating') ?: $errors->first('borrow_item_id') }}
-                                                </div>
                                             @endif
 
-                                            <div>
-                                                <span class="history-review-label">{{ $existingReview ? 'Cập nhật số sao của bạn' : 'Chấm sao cho cuốn sách này' }}</span>
-                                                <div class="history-star-rating">
-                                                    @for($star = 5; $star >= 1; $star--)
+                                            {{-- Form (new review OR editing existing) --}}
+                                            <form
+                                                action="{{ route('books.comments.store', $item->book->id) }}"
+                                                method="POST"
+                                                id="history-review-form-{{ $item->id }}"
+                                                class="history-review-form {{ $showInlineEdit ? '' : 'is-hidden' }}">
+
+                                                @csrf
+                                                <input type="hidden" name="borrow_item_id" value="{{ $item->id }}">
+
+                                                @if(($errors->has('rating') || $errors->has('content') || $errors->has('borrow_item_id')) && $activeBorrowItemId === (int) $item->id)
+                                                    <div class="history-review-error">
+                                                        {{ $errors->first('content') ?: $errors->first('rating') ?: $errors->first('borrow_item_id') }}
+                                                    </div>
+                                                @endif
+
+                                                {{-- Hàng sao: luôn 5 sao, value 1→5 --}}
+                                                <div class="history-review-label" style="margin-bottom:10px;">
+                                                    {{ $existingReview ? 'Cập nhật số sao' : 'Chấm sao cho cuốn sách này' }}
+                                                </div>
+                                                <div class="history-star-rating" style="gap:8px;">
+                                                    @for($star = 1; $star <= 5; $star++)
                                                         <input
                                                             type="radio"
                                                             id="rating-{{ $item->id }}-{{ $star }}"
                                                             name="rating"
                                                             value="{{ $star }}"
                                                             {{ $currentRating === $star ? 'checked' : '' }}>
-                                                        <label for="rating-{{ $item->id }}-{{ $star }}" title="{{ $star }} sao">★</label>
+                                                        <label for="rating-{{ $item->id }}-{{ $star }}"
+                                                               data-value="{{ $star }}"
+                                                               class="star-label {{ $star <= $currentRating ? 'star-on' : '' }}">★</label>
                                                     @endfor
                                                 </div>
-                                            </div>
 
-                                            <div>
-                                                <label class="history-review-label" for="review-content-{{ $item->id }}">
-                                                    {{ $existingReview ? 'Cập nhật nhận xét của bạn' : 'Nhận xét của bạn' }}
-                                                </label>
-                                                <textarea
-                                                    id="review-content-{{ $item->id }}"
-                                                    name="content"
-                                                    maxlength="1500"
-                                                    placeholder="{{ $existingReview ? 'Cập nhật cảm nhận của bạn về cuốn sách này...' : 'Chia sẻ cảm nhận của bạn về cuốn sách này...' }}">{{ old('content', $existingReview->comment ?? '') }}</textarea>
-                                            </div>
+                                                <div>
+                                                    <label class="history-review-label" for="review-content-{{ $item->id }}">
+                                                        {{ $existingReview ? 'Cập nhật nhận xét' : 'Nhận xét của bạn' }}
+                                                    </label>
+                                                    <textarea
+                                                        id="review-content-{{ $item->id }}"
+                                                        name="content"
+                                                        maxlength="1500"
+                                                        placeholder="{{ $existingReview ? 'Cập nhật cảm nhận của bạn...' : 'Chia sẻ cảm nhận của bạn...' }}">{{ old('content', $existingReview->comment ?? '') }}</textarea>
+                                                </div>
 
-                                            <div class="history-review-actions">
-                                                <button type="submit" class="btn-submit-review">
-                                                    <i class="fas fa-paper-plane"></i>
-                                                    {{ $existingReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá' }}
-                                                </button>
-                                                @if($existingReview)
-                                                    <button type="button" class="btn-inline-edit" onclick="toggleHistoryReviewForm({{ $item->id }}, false)">Ẩn chỉnh sửa</button>
-                                                @endif
-                                            </div>
-                                        </form>
+                                                <div class="history-review-actions">
+                                                    <button type="submit" class="btn-submit-review">
+                                                        <i class="fas fa-paper-plane"></i>
+                                                        {{ $existingReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá' }}
+                                                    </button>
+                                                    @if($existingReview)
+                                                        <button type="button" class="btn-cancel-edit" onclick="toggleHistoryReviewForm({{ $item->id }}, false)">
+                                                            <i class="fas fa-chevron-up"></i> Ẩn chỉnh sửa
+                                                        </button>
+                                                    @endif
+                                                </div>
+                                            </form>
+                                        @endif
                                     </div>
                                 @else
                                     <div class="history-review-note">
@@ -1281,5 +1395,55 @@
 
             form.classList.add('is-hidden');
         }
+
+        /* Star rating: JS-driven highlighting, simple and reliable */
+        document.querySelectorAll('.history-star-rating').forEach(function(container) {
+            const labels = Array.from(container.querySelectorAll('label'));
+            const inputs = container.querySelectorAll('input[type="radio"]');
+
+            /* Helper: set star-on class for stars 1..N */
+            function setStarsOn(n) {
+                labels.forEach(function(label) {
+                    const val = parseInt(label.getAttribute('data-value'), 10);
+                    if (val <= n) {
+                        label.classList.add('star-on');
+                    } else {
+                        label.classList.remove('star-on');
+                    }
+                });
+            }
+
+            /* Initialize from checked radio */
+            const checkedInput = container.querySelector('input[type="radio"]:checked');
+            setStarsOn(checkedInput ? parseInt(checkedInput.value, 10) : 0);
+
+            /* Hover: fill stars from left to hovered position */
+            labels.forEach(function(label) {
+                label.addEventListener('mouseenter', function() {
+                    const val = parseInt(label.getAttribute('data-value'), 10);
+                    labels.forEach(function(l) {
+                        const v = parseInt(l.getAttribute('data-value'), 10);
+                        if (v <= val) {
+                            l.classList.add('hover-on');
+                        } else {
+                            l.classList.remove('hover-on');
+                        }
+                    });
+                });
+
+                label.addEventListener('mouseleave', function() {
+                    labels.forEach(function(l) {
+                        l.classList.remove('hover-on');
+                    });
+                });
+            });
+
+            /* Click: update checked + star-on */
+            inputs.forEach(function(input) {
+                input.addEventListener('change', function() {
+                    setStarsOn(parseInt(input.value, 10));
+                });
+            });
+        });
     </script>
 @endpush
