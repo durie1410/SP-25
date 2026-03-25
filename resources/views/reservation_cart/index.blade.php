@@ -1773,7 +1773,7 @@ function initPickupTimeValidation() {
     }
 }
 
-// Disable các giờ đã qua trong select box
+// Disable các giờ đã qua trong select box - KHÔNG tự động chọn giờ nào cả
 function disablePastHours() {
     const hourSelect = document.getElementById('pickup-time-hour');
     if(!hourSelect) return;
@@ -1789,7 +1789,7 @@ function disablePastHours() {
         return;
     }
 
-    // Disable các giờ không hợp lệ
+    // Disable các giờ không hợp lệ - CHỈ disable, KHÔNG tự động chọn giờ nào
     const options = hourSelect.querySelectorAll('option');
     options.forEach(option => {
         const hour = parseInt(option.value, 10);
@@ -1798,16 +1798,6 @@ function disablePastHours() {
             option.style.color = '#ccc';
         }
     });
-
-    // Chọn giờ hợp lệ đầu tiên nhưng KHÔNG tự động lưu vào database
-    for(let h = minValidHour; h <= 20; h++) {
-        const hourStr = String(h).padStart(2, '0');
-        const option = hourSelect.querySelector(`option[value="${hourStr}"]`);
-        if(option && !option.disabled) {
-            hourSelect.value = hourStr;
-            break;
-        }
-    }
 }
 
 function showToastMessage(message, type = 'info') {
