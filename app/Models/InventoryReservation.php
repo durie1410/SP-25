@@ -176,23 +176,21 @@ class InventoryReservation extends Model
 
     public function markAsOverdue(string $reason = null, int $processedById = null, bool $sendNotification = true): bool
     {
-        // Ghi nhận ghi chú admin và chuyển trạng thái sang 'overdue'
         $note = $reason ? ($this->admin_note ? $this->admin_note . "\n" . $reason : $reason) : $this->admin_note;
-        \DB::table('inventory_reservations')
+        // Dùng DB::table trực tiếp vì Eloquent update() không hoạt động đúng với ENUM column
+        $updated = \DB::table('inventory_reservations')
             ->where('id', $this->id)
             ->update([
                 'status' => 'overdue',
                 'admin_note' => $note,
                 'processed_by' => $processedById ?? auth()->id(),
             ]);
-        $this->refresh();
 
-        // Gửi thông báo quá hạn cho độc giả (nếu bật)
-        if ($sendNotification) {
+        if ($sendNotification && $updated) {
             $this->sendOverdueNotification();
         }
 
-        return true;
+        return (bool) $updated;
     }
 
     /**
