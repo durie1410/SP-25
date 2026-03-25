@@ -1562,39 +1562,13 @@ function handlePickupTimeChange(){
     const minute = minuteSelect.value;
     const timeStr = hour + ':' + minute;
 
-    // Validate: không cho chọn giờ quá khứ nếu là hôm nay
-    const now = new Date();
-    const currentHour = now.getHours();
-    const selectedHour = parseInt(hour, 10);
-    const minValidHour = currentHour + 2; // Cần ít nhất 2 tiếng buffer
-
-    // Nếu chọn giờ không hợp lệ (đã qua), tự động nhảy đến giờ hợp lệ tiếp theo
-    if (selectedHour < minValidHour) {
-        // Tìm giờ hợp lệ tiếp theo
-        for(let h = minValidHour; h <= 20; h++) {
-            const option = hourSelect.querySelector(`option[value="${String(h).padStart(2, '0')}"]`);
-            if(option && !option.disabled) {
-                hourSelect.value = String(h).padStart(2, '0');
-                break;
-            }
-        }
-    }
-
-    // Lấy giá trị sau khi đã validate
-    const validHour = hourSelect.value;
-    const validMinute = minuteSelect.value;
-    const validTimeStr = validHour + ':' + validMinute;
-
-    // Cập nhật cả 2 hidden inputs
+    // Cập nhật cả 2 hidden inputs — KHÔNG tự động nhảy giờ, KHÔNG tự động lưu
     if(hiddenInput){
-        hiddenInput.value = validTimeStr;
+        hiddenInput.value = timeStr;
     }
     if(formInput){
-        formInput.value = validTimeStr;
+        formInput.value = timeStr;
     }
-
-    // Lưu giờ vào database tự động
-    savePickupTimeToServer(validTimeStr);
 }
 
 // Lưu giờ lấy vào database tự động
@@ -1825,13 +1799,12 @@ function disablePastHours() {
         }
     });
 
-    // Chọn giờ hợp lệ đầu tiên
+    // Chọn giờ hợp lệ đầu tiên nhưng KHÔNG tự động lưu vào database
     for(let h = minValidHour; h <= 20; h++) {
         const hourStr = String(h).padStart(2, '0');
         const option = hourSelect.querySelector(`option[value="${hourStr}"]`);
         if(option && !option.disabled) {
             hourSelect.value = hourStr;
-            handlePickupTimeChange();
             break;
         }
     }

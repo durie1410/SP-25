@@ -45,6 +45,7 @@ class ReservationCartController extends Controller
         return view('reservation_cart.index', compact('cart', 'items'));
     }
 
+    
     public function add(Request $request)
     {
         $user = $request->user();
