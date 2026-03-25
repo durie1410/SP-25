@@ -192,9 +192,12 @@ class LibraryHousekeeping extends Command
             try {
                 $pickupDate = \Carbon\Carbon::parse($reservation->pickup_date)->startOfDay();
                 if ($now->gte($pickupDate->copy()->endOfDay())) {
+                    // Query trực tiếp với điều kiện status='pending' để tránh stale Eloquent cache
                     $model = \App\Models\InventoryReservation::with(['book', 'reader.user', 'user', 'inventory'])
-                        ->find($reservation->id);
-                    if ($model && $model->status === 'pending') {
+                        ->where('id', $reservation->id)
+                        ->where('status', 'pending')
+                        ->first();
+                    if ($model) {
                         // Chống trùng: đã gửi cancel cho đơn này trong 60 phút → bỏ qua
                         $alreadyCancelled = \DB::table('notification_logs')
                             ->where('user_id', $model->reader?->user_id ?? $model->user_id)
@@ -233,9 +236,12 @@ class LibraryHousekeeping extends Command
                     $shouldProcess = $now->gte($pickupDate);
                 }
                 if ($shouldProcess) {
+                    // Query trực tiếp với điều kiện status='ready' để tránh stale Eloquent cache
                     $model = \App\Models\InventoryReservation::with(['book', 'reader.user', 'user', 'inventory'])
-                        ->find($reservation->id);
-                    if ($model && $model->status === 'ready') {
+                        ->where('id', $reservation->id)
+                        ->where('status', 'ready')
+                        ->first();
+                    if ($model) {
                         $userId = $model->reader?->user_id ?? $model->user_id;
                         $bookTitle = $model->book?->ten_sach ?? 'Sách';
 
@@ -305,9 +311,12 @@ class LibraryHousekeeping extends Command
             try {
                 $pickupDateTime = \Carbon\Carbon::parse($reservation->pickup_date . ' ' . $reservation->pickup_time);
                 if ($now->gte($pickupDateTime)) {
+                    // Query DB trực tiếp với điều kiện status='pending' để tránh stale Eloquent cache
                     $reservationModel = \App\Models\InventoryReservation::with(['book', 'reader.user', 'user', 'inventory'])
-                        ->find($reservation->id);
-                    if ($reservationModel && $reservationModel->status === 'pending') {
+                        ->where('id', $reservation->id)
+                        ->where('status', 'pending')
+                        ->first();
+                    if ($reservationModel) {
                         $alreadyCancelled = \DB::table('notification_logs')
                             ->where('user_id', $reservationModel->reader?->user_id ?? $reservationModel->user_id)
                             ->where('type', 'reservation_cancelled')
@@ -343,9 +352,12 @@ class LibraryHousekeeping extends Command
                 $pickupDateTime = \Carbon\Carbon::parse($reservation->pickup_date . ' ' . $reservation->pickup_time);
                 $deadline = $pickupDateTime->copy()->addHours(2);
                 if ($now->gte($deadline)) {
+                    // Query trực tiếp với điều kiện status='fulfilled' để tránh stale Eloquent cache
                     $reservationModel = \App\Models\InventoryReservation::with(['book', 'reader.user', 'user', 'inventory'])
-                        ->find($reservation->id);
-                    if ($reservationModel && $reservationModel->status === 'fulfilled') {
+                        ->where('id', $reservation->id)
+                        ->where('status', 'fulfilled')
+                        ->first();
+                    if ($reservationModel) {
                         $userId = $reservationModel->reader?->user_id ?? $reservationModel->user_id;
                         $bookTitle = $reservationModel->book?->ten_sach ?? 'Sách';
 
@@ -421,9 +433,12 @@ class LibraryHousekeeping extends Command
             try {
                 $pickupDate = \Carbon\Carbon::parse($reservation->pickup_date)->startOfDay();
                 if ($now->gte($pickupDate->copy()->endOfDay())) {
+                    // Query trực tiếp với điều kiện status='fulfilled' để tránh stale Eloquent cache
                     $reservationModel = \App\Models\InventoryReservation::with(['book', 'reader.user', 'user'])
-                        ->find($reservation->id);
-                    if ($reservationModel && $reservationModel->status === 'fulfilled') {
+                        ->where('id', $reservation->id)
+                        ->where('status', 'fulfilled')
+                        ->first();
+                    if ($reservationModel) {
                         $userId = $reservationModel->reader?->user_id ?? $reservationModel->user_id;
                         $bookTitle = $reservationModel->book?->ten_sach ?? 'Sách';
                         $alreadyNotified = empty($bookTitle) ? false : \DB::table('notification_logs')
