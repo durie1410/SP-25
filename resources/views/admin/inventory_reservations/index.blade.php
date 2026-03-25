@@ -86,12 +86,8 @@ use Illuminate\Support\Str;
 
                 // Chỉ ready và chưa quá hạn mới có thể Fulfill
                 $hasReadyItems = $group->contains(fn($item) => $item->status === 'ready' && !$item->is_pickup_overdue);
-                // Chỉ hủy được: pending, ready, overdue, fulfilled KHÔNG có inventory (khách không đến nhận)
-                // Fulfilled CÓ inventory → phải là overdue, KHÔNG hủy được
-                $hasCancellableItems = $group->contains(fn($item) =>
-                    in_array($item->status, ['pending', 'ready', 'overdue'], true)
-                    || ($item->status === 'fulfilled' && !$item->inventory_id)
-                );
+                // pending/ready/fulfilled/overdue đều có thể chọn để hủy, trừ khi đã cancelled
+                $hasCancellableItems = $group->contains(fn($item) => in_array($item->status, ['pending', 'ready', 'fulfilled', 'overdue'], true));
                 $hasOverdueItems = $group->contains(fn($item) => $item->is_pickup_overdue);
             @endphp
 
@@ -164,7 +160,7 @@ use Illuminate\Support\Str;
                             <div>
                                 @if($r->status === 'ready' && !$r->is_pickup_overdue)
                                     <input type="checkbox" name="reservation_ids[]" value="{{ $r->id }}" class="reservation-checkbox fulfill-checkbox cancel-checkbox group-{{ $groupId }}" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Fulfill/Hủy">
-                                @elseif(in_array($r->status, ['pending', 'overdue']) || ($r->status === 'fulfilled' && !$r->inventory_id))
+                                @elseif(in_array($r->status, ['pending', 'fulfilled', 'overdue']))
                                     <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox group-{{ $groupId }}" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Hủy">
                                 @elseif($r->status === 'ready' && $r->is_pickup_overdue)
                                     <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox group-{{ $groupId }}" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Hủy">

@@ -287,8 +287,7 @@ class LibraryHousekeeping extends Command
         }
         $this->info("Inventory reservations auto-cancelled (pending past pickup time): {$cancelledCount}");
 
-        // 2) FULFILLED: quá 2 giờ kể từ pickup_time mà chưa xác nhận trả
-        // Có bản sao → QUÁ HẠN (khách đã nhận sách rồi). Không có bản sao → HỦY (khách không đến nhận)
+        // 2) FULFILLED: quá 2 giờ kể từ pickup_time mà chưa xác nhận trả -> TỰ HỦY + thông báo
         $fulfilledPastTime = \DB::table('inventory_reservations')
             ->where('status', 'fulfilled')
             ->whereNotNull('pickup_date')
@@ -296,7 +295,6 @@ class LibraryHousekeeping extends Command
             ->where('pickup_date', '<=', $today)
             ->get();
 
-        $overdueCount = 0;
         $cancelledCount = 0;
         foreach ($fulfilledPastTime as $reservation) {
             try {
@@ -306,58 +304,24 @@ class LibraryHousekeeping extends Command
                     $reservationModel = \App\Models\InventoryReservation::with(['book', 'reader.user', 'user', 'inventory'])
                         ->find($reservation->id);
                     if ($reservationModel && $reservationModel->status === 'fulfilled') {
-                        $userId = $reservationModel->reader?->user_id ?? $reservationModel->user_id;
-                        $bookTitle = $reservationModel->book?->ten_sach ?? 'Sách';
-
-                        if ($reservationModel->inventory_id) {
-                            // Có bản sao → QUÁ HẠN (khách đã nhận sách nhưng chưa trả / chưa xác nhận)
-                            $alreadyNotified = \DB::table('notification_logs')
-                                ->where('user_id', $userId)
-                                ->where('type', 'reservation_overdue')
-                                ->where('content', 'like', '%' . $bookTitle . '%')
-                                ->where('created_at', '>=', $now->copy()->subMinutes(60))
-                                ->exists();
-                            // Gửi notification nếu chưa gửi; luôn update status nếu chưa đổi
-                            if (!$alreadyNotified) {
-                                $reservationModel->markAsOverdue('Tự động đánh dấu quá hạn: Đã quá 2 giờ kể từ giờ hẹn mà không xác nhận nhận sách.', null);
-                                $overdueCount++;
-                            } else {
-                                // Đã gửi notification rồi (từ lần chạy trước) nhưng status chưa kịp đổi → update ngay
-                                $currentStatus = \DB::table('inventory_reservations')->where('id', $reservationModel->id)->value('status');
-                                if ($currentStatus === 'fulfilled') {
-                                    \DB::table('inventory_reservations')
-                                        ->where('id', $reservationModel->id)
-                                        ->update([
-                                            'status' => 'overdue',
-                                            'admin_note' => $reservationModel->admin_note
-                                                ? $reservationModel->admin_note . "\nTự động đánh dấu quá hạn (cập nhật trạng thái)."
-                                                : 'Tự động đánh dấu quá hạn: Đã quá 2 giờ kể từ giờ hẹn mà không xác nhận nhận sách.',
-                                            'processed_by' => null,
-                                        ]);
-                                }
-                            }
-                        } else {
-                            // Không có bản sao → HỦY (khách không đến nhận)
-                            $alreadyCancelled = \DB::table('notification_logs')
-                                ->where('user_id', $userId)
-                                ->where('type', 'reservation_cancelled')
-                                ->where('content', 'like', '%' . $bookTitle . '%')
-                                ->where('created_at', '>=', $now->copy()->subMinutes(60))
-                                ->exists();
-                            if (!$alreadyCancelled) {
-                                $reservationModel->cancel('Tự động hủy: Đã quá 2 giờ kể từ giờ hẹn mà không đến nhận sách.', null);
-                                $sendCancelNotif($reservationModel, 'Đã quá 2 giờ kể từ giờ hẹn mà không đến nhận sách.');
-                                $cancelledCount++;
-                            }
+                        $alreadyCancelled = \DB::table('notification_logs')
+                            ->where('user_id', $reservationModel->reader?->user_id ?? $reservationModel->user_id)
+                            ->where('type', 'reservation_cancelled')
+                            ->where('content', 'like', '%' . ($reservationModel->book?->ten_sach ?? '') . '%')
+                            ->where('created_at', '>=', $now->copy()->subMinutes(60))
+                            ->exists();
+                        if (!$alreadyCancelled) {
+                            $reservationModel->cancel('Tự động hủy: Đã quá 2 giờ kể từ giờ hẹn mà không xác nhận nhận sách.', null);
+                            $sendCancelNotif($reservationModel, 'Đã quá 2 giờ kể từ giờ hẹn mà không xác nhận nhận sách.');
                         }
+                        $cancelledCount++;
                     }
                 }
             } catch (\Exception $e) {
                 // Bỏ qua lỗi parse ngày giờ
             }
         }
-        $this->info("Inventory reservations marked overdue (fulfilled past 2h, has inventory): {$overdueCount}");
-        $this->info("Inventory reservations auto-cancelled (fulfilled past 2h, no inventory): {$cancelledCount}");
+        $this->info("Inventory reservations auto-cancelled (fulfilled past 2h): {$cancelledCount}");
 
         return 0;
     }
