@@ -412,7 +412,7 @@ class InventoryReservationController extends Controller
             $cancelledCount = 0;
 
             foreach ($reservations as $reservation) {
-                if (!in_array($reservation->status, ['pending', 'ready', 'overdue'], true)) {
+                if (!in_array($reservation->status, ['pending', 'ready', 'fulfilled', 'overdue'], true)) {
                     throw new \Exception('Yêu cầu #' . $reservation->id . ' không thể hủy (trạng thái: ' . $reservation->status . ').');
                 }
 
@@ -452,7 +452,7 @@ class InventoryReservationController extends Controller
     {
         $reservation = InventoryReservation::with(['book', 'reader', 'user'])->findOrFail($id);
 
-        if (!in_array($reservation->status, ['pending', 'ready', 'overdue'], true)) {
+        if (!in_array($reservation->status, ['pending', 'ready', 'fulfilled', 'overdue'], true)) {
             return back()->with('error', 'Yêu cầu này không thể hủy.');
         }
 

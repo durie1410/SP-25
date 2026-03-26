@@ -176,21 +176,21 @@ class InventoryReservation extends Model
 
     public function markAsOverdue(string $reason = null, int $processedById = null, bool $sendNotification = true): bool
     {
-        // Ghi nhận ghi chú admin (không đổi status vì 'overdue' không có trong ENUM)
         $note = $reason ? ($this->admin_note ? $this->admin_note . "\n" . $reason : $reason) : $this->admin_note;
-        if ($note !== $this->admin_note || $processedById) {
-            $this->updateQuietly([
+        // Dùng DB::table trực tiếp vì Eloquent update() không hoạt động đúng với ENUM column
+        $updated = \DB::table('inventory_reservations')
+            ->where('id', $this->id)
+            ->update([
+                'status' => 'overdue',
                 'admin_note' => $note,
                 'processed_by' => $processedById ?? auth()->id(),
             ]);
-        }
 
-        // Gửi thông báo quá hạn cho độc giả (nếu bật)
-        if ($sendNotification) {
+        if ($sendNotification && $updated) {
             $this->sendOverdueNotification();
         }
 
-        return true;
+        return (bool) $updated;
     }
 
     /**
@@ -339,13 +339,7 @@ class InventoryReservation extends Model
 
     public function getPickupDeadlineAttribute(): ?Carbon
     {
-        $pickupDateTime = $this->pickup_date_time;
-
-        if (!$pickupDateTime) {
-            return null;
-        }
-
-        return $pickupDateTime->copy()->addHours(2);
+        return $this->pickup_date_time;
     }
 
     public function getIsPickupOverdueAttribute(): bool

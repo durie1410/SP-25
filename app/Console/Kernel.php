@@ -35,9 +35,9 @@ class Kernel extends ConsoleKernel
                  ->withoutOverlapping()
                  ->runInBackground();
 
-        // Housekeeping: mark overdue loans hourly (and future no-show cleanup)
+        // Housekeeping: mark overdue/cancelled reservations every 5 minutes + send notifications immediately
         $schedule->command('library:housekeeping')
-                 ->hourly()
+                 ->everyFiveMinutes()
                  ->withoutOverlapping()
                  ->runInBackground();
 

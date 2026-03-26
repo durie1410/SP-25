@@ -1565,58 +1565,12 @@ function handlePickupTimeChange(){
     const minute = minuteSelect.value;
     const timeStr = hour + ':' + minute;
 
-    // Validate: chỉ check giờ nếu ngày lấy là HÔM NAY
-    // Lấy pickup date từ pickup-date input đầu tiên có giá trị
-    let isToday = false;
-    const pickupInputs = document.querySelectorAll('.pickup-date');
-    const now = new Date();
-    const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    pickupInputs.forEach(pickupInput => {
-        if(pickupInput.value) {
-            const pickupDate = parseDateString(pickupInput.value);
-            if(pickupDate) {
-                const pickupOnly = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate());
-                if(pickupOnly.getTime() === todayOnly.getTime()) {
-                    isToday = true;
-                }
-            }
-        }
-    });
-
-    // Chỉ validate giờ nếu ngày lấy là hôm nay
-    if(isToday) {
-        const currentHour = now.getHours();
-        const selectedHour = parseInt(hour, 10);
-        const minValidHour = currentHour + 2; // Cần ít nhất 2 tiếng buffer
-
-        // Nếu chọn giờ không hợp lệ (đã qua), tự động nhảy đến giờ hợp lệ tiếp theo
-        if(selectedHour < minValidHour) {
-            for(let h = minValidHour; h <= 20; h++) {
-                const option = hourSelect.querySelector(`option[value="${String(h).padStart(2, '0')}"]`);
-                if(option && !option.disabled) {
-                    hourSelect.value = String(h).padStart(2, '0');
-                    break;
-                }
-            }
-        }
-    }
-
-    // Lấy giá trị sau khi đã validate
-    const validHour = hourSelect.value;
-    const validMinute = minuteSelect.value;
-    const validTimeStr = validHour + ':' + validMinute;
-
-    // Cập nhật cả 2 hidden inputs
     if(hiddenInput){
-        hiddenInput.value = validTimeStr;
+        hiddenInput.value = timeStr;
     }
     if(formInput){
-        formInput.value = validTimeStr;
+        formInput.value = timeStr;
     }
-
-    // Lưu giờ vào database tự động
-    savePickupTimeToServer(validTimeStr);
 }
 
 // Lưu giờ lấy vào database tự động
@@ -1821,7 +1775,7 @@ function initPickupTimeValidation() {
     }
 }
 
-// Disable các giờ đã qua trong select box
+// Disable các giờ đã qua trong select box - KHÔNG tự động chọn giờ nào cả
 function disablePastHours() {
     const hourSelect = document.getElementById('pickup-time-hour');
     if(!hourSelect) return;
@@ -1837,7 +1791,7 @@ function disablePastHours() {
         return;
     }
 
-    // Disable các giờ không hợp lệ
+    // Disable các giờ không hợp lệ - CHỈ disable, KHÔNG tự động chọn giờ nào
     const options = hourSelect.querySelectorAll('option');
     options.forEach(option => {
         const hour = parseInt(option.value, 10);
@@ -1846,17 +1800,6 @@ function disablePastHours() {
             option.style.color = '#ccc';
         }
     });
-
-    // Chọn giờ hợp lệ đầu tiên
-    for(let h = minValidHour; h <= 20; h++) {
-        const hourStr = String(h).padStart(2, '0');
-        const option = hourSelect.querySelector(`option[value="${hourStr}"]`);
-        if(option && !option.disabled) {
-            hourSelect.value = hourStr;
-            handlePickupTimeChange();
-            break;
-        }
-    }
 }
 
 // Restore tất cả giờ (khi user đổi sang ngày khác hôm nay)

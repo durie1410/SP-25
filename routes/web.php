@@ -221,6 +221,10 @@ Route::prefix('reservation-cart')->name('reservation-cart.')->middleware('auth')
     Route::get('/history', [ReservationCartController::class, 'history'])->name('history');
     Route::post('/history/{reservationCode}/confirm-ready', [ReservationCartController::class, 'confirmReadyGroup'])->name('history.confirm-ready');
     Route::post('/history/{reservationCode}/cancel-ready', [ReservationCartController::class, 'cancelReadyGroup'])->name('history.cancel-ready');
+    Route::post('/history/single/{id}/confirm', [ReservationCartController::class, 'confirmSingle'])->name('history.single.confirm');
+    Route::post('/history/single/{id}/cancel', [ReservationCartController::class, 'cancelSingle'])->name('history.single.cancel');
+    Route::post('/history/bulk/confirm', [ReservationCartController::class, 'confirmBulk'])->name('history.bulk.confirm');
+    Route::post('/history/bulk/cancel', [ReservationCartController::class, 'cancelBulk'])->name('history.bulk.cancel');
     // Client actions
     Route::post('/cancel/{id}', [ReservationCartController::class, 'cancelReservation'])->name('cancel');
     Route::get('/detail/{id}', [ReservationCartController::class, 'showReservationDetail'])->name('detail');

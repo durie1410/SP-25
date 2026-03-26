@@ -84,7 +84,11 @@ use Illuminate\Support\Str;
                 $groupTotal = $group->sum(fn($item) => (float) ($item->total_fee ?? 0));
                 $groupId = 'group-' . Str::slug($groupCode);
 
-
+                // Chỉ ready + khách đã xác nhận + chưa quá hạn mới có thể Fulfill
+                $hasReadyItems = $group->contains(fn($item) => $item->status === 'ready' && !$item->is_pickup_overdue && !empty($item->customer_confirmed_at));
+                // pending/ready/fulfilled/overdue đều có thể chọn để hủy, trừ khi đã cancelled
+                $hasCancellableItems = $group->contains(fn($item) => in_array($item->status, ['pending', 'ready', 'fulfilled', 'overdue'], true));
+                $hasOverdueItems = $group->contains(fn($item) => $item->is_pickup_overdue);
             @endphp
 
             <!-- Dòng tổng đơn - Always visible -->
@@ -105,9 +109,26 @@ use Illuminate\Support\Str;
                             @endif
                         </div>
                         <span class="badge badge-secondary">{{ $group->count() }} cuốn</span>
-                        @if($hasOverdueItems)
-                            <span class="badge badge-danger">Đã quá hạn nhận sách</span>
-                        @endif
+                        @php
+                            $adminStatusCounts = $group->groupBy(function($item) {
+                                return $item->is_pickup_overdue ? 'overdue_pickup' : $item->status;
+                            })->map->count();
+                            $adminStatusDisplay = [
+                                'pending'        => ['label' => 'Đang chờ',      'class' => 'badge-warning'],
+                                'ready'          => ['label' => 'Sẵn sàng',      'class' => 'badge-success'],
+                                'fulfilled'      => ['label' => 'Hoàn thành',    'class' => 'badge-info'],
+                                'cancelled'      => ['label' => 'Đã hủy',        'class' => 'badge-danger'],
+                                'overdue'        => ['label' => 'Quá hạn',       'class' => 'badge-danger'],
+                                'overdue_pickup' => ['label' => 'QH nhận sách',  'class' => 'badge-danger'],
+                            ];
+                        @endphp
+                        @foreach($adminStatusCounts as $stKey => $stCount)
+                            @php $stInfo = $adminStatusDisplay[$stKey] ?? ['label' => $stKey, 'class' => 'badge-secondary']; @endphp
+                            <span class="badge {{ $stInfo['class'] }}" style="font-size: 11px;">
+                                {{ $stInfo['label'] }}: {{ $stCount }}
+                            </span>
+                        @endforeach
+                      
                     </div>
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <div style="font-weight: 600; color: #0f766e;">
@@ -140,21 +161,34 @@ use Illuminate\Support\Str;
             <div class="accordion-content {{ $groupId }}" style="display: none; margin-bottom: 15px; padding-left: 20px;">
                 @foreach($group as $r)
                     @php
-                        $badgeClass = $r->is_pickup_overdue ? 'badge-danger' : match($r->status) {
+                        // Chưa có bản sao + quá 2h → coi như đã hủy tự động, không cho tích
+                        $autoWillCancel = !$r->inventory_id && $r->is_pickup_overdue;
+
+                        $badgeClass = $autoWillCancel ? 'badge-danger' : ($r->is_pickup_overdue ? 'badge-danger' : match($r->status) {
                             'pending' => 'badge-warning',
                             'ready' => 'badge-success',
                             'fulfilled' => 'badge-info',
                             'cancelled' => 'badge-danger',
                             'overdue' => 'badge-danger',
                             default => 'badge-secondary',
-                        };
+                        });
 
-                        $statusLabel = $r->is_pickup_overdue ? 'Quá hạn nhận sách' : $r->getStatusLabel();
+                        $statusLabel = $autoWillCancel ? 'Tự động hủy (chưa có bản sao)' : ($r->is_pickup_overdue ? 'Quá hạn nhận sách' : $r->getStatusLabel());
                     @endphp
-                    <div class="reservation-item-card" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 8px;">
+                    <div class="reservation-item-card" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 8px; {{ $r->status === 'fulfilled' ? 'opacity: 0.45; filter: grayscale(0.4);' : '' }}">
                         <div style="display: grid; grid-template-columns: 40px repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; align-items: center;">
                             <div>
-
+                                @if($autoWillCancel)
+                                    {{-- Chưa có bản sao + quá 2h → sẽ tự hủy, không cho tích --}}
+                                    <input type="checkbox" disabled style="width: 18px; height: 18px; opacity: 0.4; cursor: not-allowed;" title="Đơn này sẽ tự động hủy (chưa có bản sao, đã quá 2 giờ)">
+                                @elseif($r->status === 'ready' && !$r->is_pickup_overdue && !empty($r->customer_confirmed_at))
+                                    <input type="checkbox" name="reservation_ids[]" value="{{ $r->id }}" class="reservation-checkbox fulfill-checkbox cancel-checkbox group-{{ $groupId }}" data-customer-confirmed="1" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Fulfill/Hủy">
+                                @elseif($r->status === 'ready' && !$r->is_pickup_overdue && empty($r->customer_confirmed_at))
+                                    <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox fulfill-checkbox group-{{ $groupId }}" data-customer-confirmed="0" style="width: 18px; height: 18px; cursor: pointer;" title="Chỉ tích để Hủy (khách chưa xác nhận)">
+                                @elseif(in_array($r->status, ['pending', 'fulfilled', 'overdue']))
+                                    <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox fulfill-checkbox group-{{ $groupId }}" data-customer-confirmed="0" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Hủy">
+                                @elseif($r->status === 'ready' && $r->is_pickup_overdue)
+                                    <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox fulfill-checkbox group-{{ $groupId }}" data-customer-confirmed="0" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Hủy">
                                 @else
                                     <input type="checkbox" disabled style="width: 18px; height: 18px; opacity: 0.4; cursor: not-allowed;" title="Không thể chọn">
                                 @endif
@@ -177,7 +211,7 @@ use Illuminate\Support\Str;
                                 <div style="font-size: 11px; color: #64748b;">Lịch nhận sách</div>
                                 <div style="font-size: 12px;">
                                     <div><strong>Lấy:</strong> {{ $r->pickup_display }}</div>
-                                    <div><strong>Hạn nhận:</strong> <span style="{{ $r->is_pickup_overdue ? 'color:#dc2626;font-weight:700;' : '' }}">{{ $r->pickup_deadline_display }} (sau 2 giờ)</span></div>
+                                    <div><strong>Hạn nhận:</strong> <span style="{{ $r->is_pickup_overdue ? 'color:#dc2626;font-weight:700;' : '' }}">{{ $r->pickup_deadline_display }}</span></div>
                                     <div><strong>Trả:</strong> {{ $r->return_date ? \Carbon\Carbon::parse($r->return_date)->format('d/m/Y') : 'N/A' }}</div>
                                 </div>
                                 @if($r->status === 'ready' && $r->ready_at)
@@ -189,7 +223,7 @@ use Illuminate\Support\Str;
                             <div>
                                 <div style="font-size: 11px; color: #64748b;">Trạng thái</div>
                                 <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
-                                @if($r->status === 'ready' && !$isOverduePickup)
+                                @if($r->status === 'ready')
                                     <div style="margin-top: 6px;">
                                         @if($r->customer_confirmed_at)
                                             <span class="badge badge-success" style="font-size: 10px;">Khách đã xác nhận</span>
@@ -224,12 +258,21 @@ use Illuminate\Support\Str;
                                         </form>
                                     @endif
                                     @if($r->status === 'ready' && !$r->is_pickup_overdue)
-                                        <form method="POST" action="{{ route('admin.inventory-reservations.fulfill', $r->id) }}" style="display:inline;">
+                                        @if(!empty($r->customer_confirmed_at))
+                                            <form method="POST" action="{{ route('admin.inventory-reservations.fulfill', $r->id) }}" style="display:inline;">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-primary" style="padding: 4px 8px; font-size: 11px;">Fulfill</button>
+                                            </form>
+                                        @else
+                                            <button type="button" class="btn btn-sm btn-secondary" disabled style="padding: 4px 8px; font-size: 11px; opacity: 0.5; cursor: not-allowed;" title="Khách chưa xác nhận sẽ đến lấy sách">Fulfill</button>
+                                        @endif
+                                    @endif
+                                    @if($r->status === 'overdue' || ($r->status === 'ready' && $r->is_pickup_overdue))
+                                        <form method="POST" action="{{ route('admin.inventory-reservations.cancel', $r->id) }}" style="display:inline;" onsubmit="return confirm('Xác nhận hủy yêu cầu này?');">
                                             @csrf
-                                            <button type="submit" class="btn btn-sm btn-primary" style="padding: 4px 8px; font-size: 11px;">Fulfill</button>
+                                            <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 8px; font-size: 11px;">Hủy</button>
                                         </form>
                                     @endif
-
                                 </div>
                             </div>
                         </div>
@@ -579,6 +622,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            // Kiểm tra có sách nào chưa được khách xác nhận không
+            const unconfirmed = Array.from(checkboxes).filter(cb => cb.dataset.customerConfirmed !== '1');
+            if (unconfirmed.length > 0) {
+                alert('Có ' + unconfirmed.length + ' cuốn sách chưa được khách xác nhận sẽ đến lấy.\nChỉ được Fulfill những cuốn khách đã xác nhận.');
+                return;
+            }
+
             if (!confirm('Fulfill ' + checkboxes.length + ' cuốn sách đã chọn?')) {
                 return;
             }
@@ -614,7 +664,7 @@ document.addEventListener('DOMContentLoaded', function () {
     cancelButtons.forEach(btn => {
         btn.addEventListener('click', function() {
             const groupId = this.getAttribute('data-group');
-            const checkboxes = document.querySelectorAll('.cancel-checkbox.group-' + groupId + ':checked');
+            const checkboxes = document.querySelectorAll('.group-' + groupId + '.cancel-checkbox:checked');
 
             if (checkboxes.length === 0) {
                 alert('Vui lòng chọn ít nhất 1 cuốn sách để hủy.');
@@ -648,23 +698,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
             document.body.appendChild(form);
             form.submit();
-        });
-    });
-
-    // Chống double-click / triple-click gửi form Ready & Fulfill
-    const readyForms = document.querySelectorAll('form[action*="ready"]');
-    readyForms.forEach(form => {
-        form.addEventListener('submit', function() {
-            const btn = form.querySelector('button[type="submit"]');
-            if (btn) btn.disabled = true;
-        });
-    });
-
-    const fulfillForms = document.querySelectorAll('form[action*="fulfill"]');
-    fulfillForms.forEach(form => {
-        form.addEventListener('submit', function() {
-            const btn = form.querySelector('button[type="submit"]');
-            if (btn) btn.disabled = true;
         });
     });
 

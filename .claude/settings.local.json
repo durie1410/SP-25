@@ -14,7 +14,18 @@
       "Bash(taskkill /PID 77440 /F)",
       "Bash(powershell -Command \"Stop-Process -Id 77964 -Force; Stop-Process -Id 77440 -Force\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8080/admin/books/create)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/admin/books/create)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/admin/books/create)",
+      "Bash(dir \"c:\\\\laragon\\\\www\\\\quanlythuviennn\\\\bootstrap\\\\cache\")",
+      "Bash(curl -I http://127.0.0.1:8000/admin/books/create)",
+      "Bash(curl -s http://127.0.0.1:8000/admin/books)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/admin)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/admin/books)",
+      "Bash(dir \"c:\\\\laragon\\\\www\\\\quanlythuviennn\\\\public\")",
+      "Bash(curl -s -L -v http://127.0.0.1:8000/admin/books/create)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/test-direct)",
+      "Bash(del \"c:\\\\laragon\\\\www\\\\quanlythuviennn\\\\app\\\\Http\\\\Controllers\\\\TestController.php\")",
+      "Read(//c/laragon/www/quanlythuviennn/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/admin/test-inside-admin)"
     ]
   }
 }

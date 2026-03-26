@@ -354,76 +354,104 @@
                         <p class="borrow-card-note">Phiếu mượn #{{ $borrow->id }} · Theo dõi lịch trả và trạng thái xử lý</p>
                         <div class="book-meta">
                             @php
-                                $firstItem = $borrow->borrowItems->first();
-                                // Đảm bảo ngay_hen_tra là Carbon object để tính toán
-                                if ($firstItem && $firstItem->ngay_hen_tra && !($firstItem->ngay_hen_tra instanceof \Carbon\Carbon)) {
-                                    $firstItem->ngay_hen_tra = \Carbon\Carbon::parse($firstItem->ngay_hen_tra);
-                                }
-                                $hasOverdue = $firstItem ? $firstItem->isOverdue() : false;
-                                
-                                // Xử lý hiển thị trạng thái: nếu đã được duyệt (Cho duyet + don_hang_moi) thì hiển thị "Đã được duyệt"
+                                $hasOverdue = $borrow->borrowItems->contains(fn($i) => $i->isOverdue());
+
+                                // Trạng thái vận chuyển tổng đơn (dùng cho nút hành động)
                                 if ($borrow->trang_thai === 'Cho duyet' && $borrow->trang_thai_chi_tiet === \App\Models\Borrow::STATUS_DON_HANG_MOI) {
                                     $statusLabel = 'Đã được duyệt';
                                     $statusColor = 'success';
                                 } else {
-                                $statusConfig = config('borrow_status.statuses.' . $borrow->trang_thai_chi_tiet, []);
-                                $statusLabel = $statusConfig['label'] ?? $borrow->trang_thai_chi_tiet;
-                                $statusColor = $statusConfig['color'] ?? 'secondary';
+                                    $statusConfig = config('borrow_status.statuses.' . $borrow->trang_thai_chi_tiet, []);
+                                    $statusLabel = $statusConfig['label'] ?? $borrow->trang_thai_chi_tiet;
+                                    $statusColor = $statusConfig['color'] ?? 'secondary';
                                 }
+
+                                // Map trạng thái từng cuốn sách
+                                $itemStatusMap = [
+                                    'Dang muon' => ['label' => 'Đang mượn',  'color' => 'primary'],
+                                    'Da tra'    => ['label' => 'Đã trả',     'color' => 'success'],
+                                    'Qua han'   => ['label' => 'Quá hạn',    'color' => 'danger'],
+                                    'Cho duyet' => ['label' => 'Chờ duyệt',  'color' => 'warning'],
+                                    'Huy'       => ['label' => 'Đã hủy',     'color' => 'secondary'],
+                                    'Hong'      => ['label' => 'Hỏng',       'color' => 'warning'],
+                                    'Mat sach'  => ['label' => 'Mất sách',   'color' => 'danger'],
+                                ];
                             @endphp
-                            <div class="borrow-meta-inline">
+
+                            {{-- Trạng thái vận chuyển/xử lý tổng đơn --}}
+                            <div class="borrow-meta-inline" style="margin-bottom:8px;">
                                 <span class="borrow-status-pill borrow-status-{{ $statusColor }}">
-                                    {{ $statusLabel }}
+                                    🚚 {{ $statusLabel }}
                                 </span>
-                                @if($hasOverdue)
-                                    <span class="borrow-meta-chip">⚠️ Quá hạn</span>
-                                @else
-                                    <span class="borrow-meta-chip">⏳ Đang lưu hành</span>
-                                @endif
                             </div>
+
+                            {{-- Ngày mượn --}}
                             <div class="borrow-meta-grid">
                                 <div class="borrow-meta-row">
                                     <span class="borrow-meta-row-label">Ngày mượn</span>
                                     <span class="borrow-meta-row-value">
-                                @php
-                                    $ngayMuon = $borrow->ngay_muon;
-                                    if ($ngayMuon && !($ngayMuon instanceof \Carbon\Carbon)) {
-                                        $ngayMuon = \Carbon\Carbon::parse($ngayMuon);
-                                    }
-                                @endphp
-                                {{ $ngayMuon ? $ngayMuon->format('d/m/Y') : $borrow->created_at->format('d/m/Y') }}
-                                    </span>
-                                </div>
-                            @if($firstItem)
-                                <div class="borrow-meta-row">
-                                    <span class="borrow-meta-row-label">Hạn trả</span>
-                                    <span class="borrow-meta-row-value {{ $hasOverdue ? 'text-danger' : '' }}">
-                                    @php
-                                        $ngayHenTra = $firstItem->ngay_hen_tra;
-                                        if ($ngayHenTra && !($ngayHenTra instanceof \Carbon\Carbon)) {
-                                            $ngayHenTra = \Carbon\Carbon::parse($ngayHenTra);
-                                        }
-                                    @endphp
-                                    {{ $ngayHenTra ? $ngayHenTra->format('d/m/Y') : 'Chưa xác định' }}
+                                        @php
+                                            $ngayMuon = $borrow->ngay_muon;
+                                            if ($ngayMuon && !($ngayMuon instanceof \Carbon\Carbon)) {
+                                                $ngayMuon = \Carbon\Carbon::parse($ngayMuon);
+                                            }
+                                        @endphp
+                                        {{ $ngayMuon ? $ngayMuon->format('d/m/Y') : $borrow->created_at->format('d/m/Y') }}
                                     </span>
                                 </div>
                             </div>
-                            @if($hasOverdue)
-                                @php
-                                    $ngayHenTraForDiff = $firstItem->ngay_hen_tra;
-                                    if ($ngayHenTraForDiff && !($ngayHenTraForDiff instanceof \Carbon\Carbon)) {
-                                        $ngayHenTraForDiff = \Carbon\Carbon::parse($ngayHenTraForDiff);
-                                    }
-                                    $daysOverdue = $ngayHenTraForDiff ? \Carbon\Carbon::today()->diffInDays($ngayHenTraForDiff) : 0;
-                                @endphp
-                                <p class="borrow-card-hint danger"><strong>Quá hạn:</strong> {{ $daysOverdue }} ngày</p>
-                            @endif
-                            @if($firstItem->so_lan_gia_han > 0)
-                                <div class="borrow-meta-stack">
-                                    <span class="borrow-meta-pill">🔁 Gia hạn {{ $firstItem->so_lan_gia_han }}/2 lần</span>
+
+                            {{-- Danh sách từng cuốn với trạng thái riêng --}}
+                            @if($borrow->borrowItems->count() > 0)
+                                <div class="borrow-items-per-book" style="margin-top:10px;">
+                                    @foreach($borrow->borrowItems as $item)
+                                        @php
+                                            $itemSt = $itemStatusMap[$item->trang_thai] ?? ['label' => $item->trang_thai, 'color' => 'secondary'];
+                                            $itemDue = $item->ngay_hen_tra;
+                                            if ($itemDue && !($itemDue instanceof \Carbon\Carbon)) {
+                                                $itemDue = \Carbon\Carbon::parse($itemDue);
+                                            }
+                                            $itemOverdue = $item->isOverdue();
+                                            $itemDaysOverdue = ($itemOverdue && $itemDue) ? \Carbon\Carbon::today()->diffInDays($itemDue) : 0;
+                                        @endphp
+                                        <div class="borrow-item-book-row" style="display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:1px solid #f0f0f0;">
+                                            {{-- Ảnh nhỏ --}}
+                                            <div style="flex-shrink:0; width:36px; height:48px; border-radius:4px; overflow:hidden; background:#eee;">
+                                                @if($item->book && $item->book->hinh_anh)
+                                                    <img src="{{ $item->book->image_url ?? asset('images/default-book.png') }}" alt="" style="width:100%; height:100%; object-fit:cover;">
+                                                @else
+                                                    <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:16px;">📖</div>
+                                                @endif
+                                            </div>
+                                            {{-- Thông tin --}}
+                                            <div style="flex:1; min-width:0;">
+                                                <div style="font-size:13px; font-weight:600; color:#222; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                    {{ $item->book->ten_sach ?? 'Sách không xác định' }}
+                                                </div>
+                                                <div style="margin-top:3px; display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
+                                                    <span class="borrow-status-pill borrow-status-{{ $itemSt['color'] }}" style="font-size:11px; padding:2px 8px;">
+                                                        {{ $itemSt['label'] }}
+                                                    </span>
+                                                    @if($itemDue)
+                                                        <span style="font-size:11px; color:{{ $itemOverdue ? '#dc3545' : '#666' }};">
+                                                            Hạn: {{ $itemDue->format('d/m/Y') }}
+                                                            @if($itemOverdue)
+                                                                <strong>(Quá {{ $itemDaysOverdue }} ngày)</strong>
+                                                            @endif
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                @if(($item->so_lan_gia_han ?? 0) > 0)
+                                                    <div style="margin-top:3px;">
+                                                        <span class="borrow-meta-pill" style="font-size:11px;">🔁 Gia hạn {{ $item->so_lan_gia_han }}/2 lần</span>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
                                 </div>
                             @endif
-                            @endif
+
                             @if($borrow->ngay_yeu_cau_tra_sach)
                                 @php
                                     $ngayYeuCauTra = $borrow->ngay_yeu_cau_tra_sach;
@@ -461,9 +489,14 @@
                         @if($borrow->borrowItems && $borrow->borrowItems->count() > 0)
                             <button type="button" class="btn-view-book" onclick="showBorrowDetail({{ $borrow->id }})">Xem chi tiết</button>
                             @php
-                                $firstItemCanExtend = $firstItem && $firstItem->trang_thai === 'Dang muon' && !$hasOverdue && (($firstItem->so_lan_gia_han ?? 0) < 2);
+                                // Kiểm tra có cuốn nào đang mượn chưa quá hạn và chưa gia hạn tối đa
+                                $canExtendItem = $borrow->borrowItems->first(fn($i) =>
+                                    $i->trang_thai === 'Dang muon' && !$i->isOverdue() && ($i->so_lan_gia_han ?? 0) < 2
+                                );
+                                $allMaxExtended = $borrow->borrowItems->where('trang_thai', 'Dang muon')->isNotEmpty()
+                                    && $borrow->borrowItems->where('trang_thai', 'Dang muon')->every(fn($i) => ($i->so_lan_gia_han ?? 0) >= 2);
                             @endphp
-                            @if($firstItemCanExtend)
+                            @if($canExtendItem)
                                 @if($borrow->customer_extension_requested)
                                     <p style="margin-top: 8px; font-size: 12px; color: #0d6efd;">
                                         🔁 Bạn đã gửi yêu cầu gia hạn (+{{ $borrow->customer_extension_days ?? 5 }} ngày). Vui lòng chờ thư viện duyệt.
@@ -477,7 +510,7 @@
                                         </button>
                                     </form>
                                 @endif
-                            @elseif($firstItem && $firstItem->so_lan_gia_han >= 2)
+                            @elseif($allMaxExtended)
                                 <p class="borrow-card-hint info">Đã gia hạn tối đa 2 lần, không thể gia hạn thêm.</p>
                             @elseif($hasOverdue)
                                 <p class="borrow-card-hint danger">Sách đã quá hạn, vui lòng hoàn trả hoặc liên hệ thư viện để xử lý.</p>
