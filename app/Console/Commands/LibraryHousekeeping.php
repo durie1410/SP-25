@@ -157,23 +157,18 @@ class LibraryHousekeeping extends Command
                 $recipientEmail = $model->reader?->email ?? $model->user?->email;
 
                 if ($userId) {
-                    $notificationService->sendNotification($userId, 'reservation_cancelled', $data, ['database']);
-
-                    if (!empty($recipientEmail)) {
-                        $notificationService->sendSimpleEmail(
-                            $recipientEmail,
-                            'Yêu cầu đặt trước đã bị hủy',
-                            'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã bị hủy. Lý do: {{reason}}.',
-                            $data
-                        );
-                    }
-                } elseif (!empty($recipientEmail)) {
+                    $notificationService->sendNotification($userId, 'reservation_cancelled', $data, ['database', 'email']);
+                }
+                if (!empty($recipientEmail)) {
                     $notificationService->sendSimpleEmail(
                         $recipientEmail,
                         'Yêu cầu đặt trước đã bị hủy',
                         'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã bị hủy. Lý do: {{reason}}.',
                         $data
                     );
+                }
+                if (!$userId && empty($recipientEmail)) {
+                    $this->warn("Reservation #{$model->id}: không có thông tin liên hệ để gửi thông báo hủy.");
                 }
             } catch (\Throwable $e) {
                 $this->warn("FAIL sendCancelNotif for #{$model->id}: " . $e->getMessage());
@@ -198,7 +193,9 @@ class LibraryHousekeeping extends Command
                         ->where('status', 'pending')
                         ->first();
                     if ($model) {
-                        // Chống trùng: đã gửi cancel cho đơn này trong 60 phút → bỏ qua
+                        // Luôn hủy status trước
+                        $model->cancel('Tự động hủy: Đã qua ngày lấy sách mà không nhận.', null);
+                        // Gửi thông báo (chống trùng trong 60 phút)
                         $alreadyCancelled = \DB::table('notification_logs')
                             ->where('user_id', $model->reader?->user_id ?? $model->user_id)
                             ->where('type', 'reservation_cancelled')
@@ -206,7 +203,6 @@ class LibraryHousekeeping extends Command
                             ->where('created_at', '>=', $now->copy()->subMinutes(60))
                             ->exists();
                         if (!$alreadyCancelled) {
-                            $model->cancel('Tự động hủy: Đã qua ngày lấy sách mà không nhận.', null);
                             $sendCancelNotif($model, 'Đã qua ngày lấy sách mà không nhận.');
                         }
                         $autoCancelledNoTime++;
@@ -247,6 +243,20 @@ class LibraryHousekeeping extends Command
 
                         if ($model->inventory_id) {
                             // Có bản sao → QUÁ HẠN
+                            \DB::table('inventory_reservations')
+                                ->where('id', $model->id)
+                                ->update([
+                                    'status' => 'overdue',
+                                    'admin_note' => 'Tự động đánh dấu quá hạn: Đã qua ngày/giờ lấy sách mà không xác nhận nhận.',
+                                    'updated_at' => $now,
+                                ]);
+                            $data = [
+                                'reader_name' => $model->reader?->ho_ten ?? ($model->user?->name ?? 'Bạn'),
+                                'book_title' => $bookTitle ?: 'Sách',
+                                'pickup_date' => $model->pickup_date ? $model->pickup_date->format('d/m/Y') : '',
+                                'pickup_time' => $model->pickup_time ?? '',
+                            ];
+                            // Gửi thông báo (chống trùng trong 60 phút)
                             $alreadyNotified = empty($bookTitle) ? false : \DB::table('notification_logs')
                                 ->where('user_id', $userId)
                                 ->where('type', 'reservation_overdue')
@@ -254,31 +264,29 @@ class LibraryHousekeeping extends Command
                                 ->where('created_at', '>=', $now->copy()->subMinutes(60))
                                 ->exists();
                             if (!$alreadyNotified) {
-                                \DB::table('inventory_reservations')
-                                    ->where('id', $model->id)
-                                    ->update([
-                                        'status' => 'overdue',
-                                        'admin_note' => 'Tự động đánh dấu quá hạn: Đã qua ngày/giờ lấy sách mà không xác nhận nhận.',
-                                    ]);
-                                $data = [
-                                    'reader_name' => $model->reader?->ho_ten ?? ($model->user?->name ?? 'Bạn'),
-                                    'book_title' => $bookTitle ?: 'Sách',
-                                    'pickup_date' => $model->pickup_date ? $model->pickup_date->format('d/m/Y') : '',
-                                    'pickup_time' => $model->pickup_time ?? '',
-                                ];
                                 if ($userId) {
-                                    $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database']);
-                                    $email = $model->reader?->email ?? $model->user?->email;
-                                    if ($email) {
-                                        $notificationService->sendSimpleEmail($email, 'Yêu cầu đặt trước đã quá hạn', 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.', $data);
-                                    }
-                                } elseif ($email = $model->reader?->email ?? $model->user?->email) {
+                                    $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database', 'email']);
+                                }
+                                $email = $model->reader?->email ?? $model->user?->email;
+                                if ($email) {
                                     $notificationService->sendSimpleEmail($email, 'Yêu cầu đặt trước đã quá hạn', 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.', $data);
+                                }
+                                if (!$userId && !($model->reader?->email ?? $model->user?->email)) {
+                                    $this->warn("Reservation #{$model->id}: không có thông tin liên hệ để gửi thông báo quá hạn.");
                                 }
                             }
                             $autoOverdueReady++;
                         } else {
-                            // Không có bản sao → HỦY
+                            // Không có bản sao → HỦY sau 2 giờ kể từ giờ hẹn
+                            $noInvDeadline = !empty($reservation->pickup_time)
+                                ? \Carbon\Carbon::parse($reservation->pickup_date . ' ' . $reservation->pickup_time)->addHours(2)
+                                : \Carbon\Carbon::parse($reservation->pickup_date)->endOfDay();
+                            if (!$now->gte($noInvDeadline)) {
+                                continue; // Chưa đủ 2 giờ, bỏ qua
+                            }
+                            // Luôn hủy status trước
+                            $model->cancel('Tự động hủy: Chưa có bản sao được gán và đã quá 2 giờ kể từ giờ hẹn.', null);
+                            // Gửi thông báo (chống trùng trong 60 phút)
                             $alreadyCancelled = empty($bookTitle) ? false : \DB::table('notification_logs')
                                 ->where('user_id', $userId)
                                 ->where('type', 'reservation_cancelled')
@@ -286,8 +294,7 @@ class LibraryHousekeeping extends Command
                                 ->where('created_at', '>=', $now->copy()->subMinutes(60))
                                 ->exists();
                             if (!$alreadyCancelled) {
-                                $model->cancel('Tự động hủy: Đã qua ngày/giờ lấy sách mà không nhận.', null);
-                                $sendCancelNotif($model, 'Đã qua ngày/giờ lấy sách mà không nhận.');
+                                $sendCancelNotif($model, 'Chưa có bản sao được gán và đã quá 2 giờ kể từ giờ hẹn.');
                             }
                             $autoCancelledReady++;
                         }
@@ -310,13 +317,20 @@ class LibraryHousekeeping extends Command
         foreach ($pendingPastTime as $reservation) {
             try {
                 $pickupDateTime = \Carbon\Carbon::parse($reservation->pickup_date . ' ' . $reservation->pickup_time);
-                if ($now->gte($pickupDateTime)) {
+                // Nếu chưa có bản sao → chờ thêm 2 giờ mới hủy
+                $cancelDeadline = is_null($reservation->inventory_id)
+                    ? $pickupDateTime->copy()->addHours(2)
+                    : $pickupDateTime;
+                if ($now->gte($cancelDeadline)) {
                     // Query DB trực tiếp với điều kiện status='pending' để tránh stale Eloquent cache
                     $reservationModel = \App\Models\InventoryReservation::with(['book', 'reader.user', 'user', 'inventory'])
                         ->where('id', $reservation->id)
                         ->where('status', 'pending')
                         ->first();
                     if ($reservationModel) {
+                        // Luôn hủy status trước
+                        $reservationModel->cancel('Tự động hủy: Đã qua giờ lấy sách mà không nhận.', null);
+                        // Gửi thông báo (chống trùng trong 60 phút)
                         $alreadyCancelled = \DB::table('notification_logs')
                             ->where('user_id', $reservationModel->reader?->user_id ?? $reservationModel->user_id)
                             ->where('type', 'reservation_cancelled')
@@ -324,7 +338,6 @@ class LibraryHousekeeping extends Command
                             ->where('created_at', '>=', $now->copy()->subMinutes(60))
                             ->exists();
                         if (!$alreadyCancelled) {
-                            $reservationModel->cancel('Tự động hủy: Đã qua giờ lấy sách mà không nhận.', null);
                             $sendCancelNotif($reservationModel, 'Đã qua giờ lấy sách mà không nhận.');
                         }
                         $cancelledCount++;
@@ -362,7 +375,23 @@ class LibraryHousekeeping extends Command
                         $bookTitle = $reservationModel->book?->ten_sach ?? 'Sách';
 
                         if ($reservationModel->inventory_id) {
-                            // Có bản sao → QUÁ HẠN
+                            // Có bản sao → QUÁ HẠN: luôn cập nhật status trước
+                            \DB::table('inventory_reservations')
+                                ->where('id', $reservationModel->id)
+                                ->update([
+                                    'status' => 'overdue',
+                                    'admin_note' => $reservationModel->admin_note
+                                        ? $reservationModel->admin_note . "\nTự động đánh dấu quá hạn: Đã quá 2 giờ kể từ giờ hẹn mà không xác nhận nhận sách."
+                                        : 'Tự động đánh dấu quá hạn: Đã quá 2 giờ kể từ giờ hẹn mà không xác nhận nhận sách.',
+                                    'updated_at' => $now,
+                                ]);
+                            $data = [
+                                'reader_name' => $reservationModel->reader?->ho_ten ?? ($reservationModel->user?->name ?? 'Bạn'),
+                                'book_title' => $bookTitle ?: 'Sách',
+                                'pickup_date' => $reservationModel->pickup_date ? $reservationModel->pickup_date->format('d/m/Y') : '',
+                                'pickup_time' => $reservationModel->pickup_time ?? '',
+                            ];
+                            // Gửi thông báo (chống trùng trong 60 phút)
                             $alreadyNotified = empty($bookTitle) ? false : \DB::table('notification_logs')
                                 ->where('user_id', $userId)
                                 ->where('type', 'reservation_overdue')
@@ -370,35 +399,22 @@ class LibraryHousekeeping extends Command
                                 ->where('created_at', '>=', $now->copy()->subMinutes(60))
                                 ->exists();
                             if (!$alreadyNotified) {
-                                // Update status bằng DB::table (tránh Eloquent update ENUM lỗi)
-                                \DB::table('inventory_reservations')
-                                    ->where('id', $reservationModel->id)
-                                    ->update([
-                                        'status' => 'overdue',
-                                        'admin_note' => $reservationModel->admin_note
-                                            ? $reservationModel->admin_note . "\nTự động đánh dấu quá hạn: Đã quá 2 giờ kể từ giờ hẹn mà không xác nhận nhận sách."
-                                            : 'Tự động đánh dấu quá hạn: Đã quá 2 giờ kể từ giờ hẹn mà không xác nhận nhận sách.',
-                                    ]);
-                                // Gửi notification
-                                $data = [
-                                    'reader_name' => $reservationModel->reader?->ho_ten ?? ($reservationModel->user?->name ?? 'Bạn'),
-                                    'book_title' => $bookTitle ?: 'Sách',
-                                    'pickup_date' => $reservationModel->pickup_date ? $reservationModel->pickup_date->format('d/m/Y') : '',
-                                    'pickup_time' => $reservationModel->pickup_time ?? '',
-                                ];
                                 if ($userId) {
-                                    $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database']);
-                                    $email = $reservationModel->reader?->email ?? $reservationModel->user?->email;
-                                    if ($email) {
-                                        $notificationService->sendSimpleEmail($email, 'Yêu cầu đặt trước đã quá hạn', 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.', $data);
-                                    }
-                                } elseif ($email = $reservationModel->reader?->email ?? $reservationModel->user?->email) {
+                                    $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database', 'email']);
+                                }
+                                $email = $reservationModel->reader?->email ?? $reservationModel->user?->email;
+                                if ($email) {
                                     $notificationService->sendSimpleEmail($email, 'Yêu cầu đặt trước đã quá hạn', 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.', $data);
+                                }
+                                if (!$userId && !($reservationModel->reader?->email ?? $reservationModel->user?->email)) {
+                                    $this->warn("Reservation #{$reservationModel->id}: không có thông tin liên hệ để gửi thông báo quá hạn.");
                                 }
                             }
                             $overdueCount++;
                         } else {
-                            // Không có bản sao → HỦY
+                            // Không có bản sao → HỦY: luôn hủy status trước
+                            $reservationModel->cancel('Tự động hủy: Đã quá 2 giờ kể từ giờ hẹn mà không đến nhận sách.', null);
+                            // Gửi thông báo (chống trùng trong 60 phút)
                             $alreadyCancelled = empty($bookTitle) ? false : \DB::table('notification_logs')
                                 ->where('user_id', $userId)
                                 ->where('type', 'reservation_cancelled')
@@ -406,7 +422,6 @@ class LibraryHousekeeping extends Command
                                 ->where('created_at', '>=', $now->copy()->subMinutes(60))
                                 ->exists();
                             if (!$alreadyCancelled) {
-                                $reservationModel->cancel('Tự động hủy: Đã quá 2 giờ kể từ giờ hẹn mà không đến nhận sách.', null);
                                 $sendCancelNotif($reservationModel, 'Đã quá 2 giờ kể từ giờ hẹn mà không đến nhận sách.');
                             }
                             $cancelledCount++;
@@ -441,6 +456,21 @@ class LibraryHousekeeping extends Command
                     if ($reservationModel) {
                         $userId = $reservationModel->reader?->user_id ?? $reservationModel->user_id;
                         $bookTitle = $reservationModel->book?->ten_sach ?? 'Sách';
+                        // Luôn cập nhật status trước
+                        \DB::table('inventory_reservations')
+                            ->where('id', $reservationModel->id)
+                            ->update([
+                                'status' => 'overdue',
+                                'admin_note' => 'Tự động đánh dấu quá hạn: Đã qua ngày hẹn nhận sách mà không nhận.',
+                                'updated_at' => $now,
+                            ]);
+                        $data = [
+                            'reader_name' => $reservationModel->reader?->ho_ten ?? ($reservationModel->user?->name ?? 'Bạn'),
+                            'book_title' => $bookTitle,
+                            'pickup_date' => $reservationModel->pickup_date ? $reservationModel->pickup_date->format('d/m/Y') : '',
+                            'pickup_time' => '',
+                        ];
+                        // Gửi thông báo (chống trùng trong 60 phút)
                         $alreadyNotified = empty($bookTitle) ? false : \DB::table('notification_logs')
                             ->where('user_id', $userId)
                             ->where('type', 'reservation_overdue')
@@ -448,28 +478,15 @@ class LibraryHousekeeping extends Command
                             ->where('created_at', '>=', $now->copy()->subMinutes(60))
                             ->exists();
                         if (!$alreadyNotified) {
-                            // Update status bằng DB::table
-                            \DB::table('inventory_reservations')
-                                ->where('id', $reservationModel->id)
-                                ->update([
-                                    'status' => 'overdue',
-                                    'admin_note' => 'Tự động đánh dấu quá hạn: Đã qua ngày hẹn nhận sách mà không nhận.',
-                                ]);
-                            // Gửi notification
-                            $data = [
-                                'reader_name' => $reservationModel->reader?->ho_ten ?? ($reservationModel->user?->name ?? 'Bạn'),
-                                'book_title' => $bookTitle,
-                                'pickup_date' => $reservationModel->pickup_date ? $reservationModel->pickup_date->format('d/m/Y') : '',
-                                'pickup_time' => '',
-                            ];
                             if ($userId) {
-                                $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database']);
-                                $email = $reservationModel->reader?->email ?? $reservationModel->user?->email;
-                                if ($email) {
-                                    $notificationService->sendSimpleEmail($email, 'Yêu cầu đặt trước đã quá hạn', 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.', $data);
-                                }
-                            } elseif ($email = $reservationModel->reader?->email ?? $reservationModel->user?->email) {
+                                $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database', 'email']);
+                            }
+                            $email = $reservationModel->reader?->email ?? $reservationModel->user?->email;
+                            if ($email) {
                                 $notificationService->sendSimpleEmail($email, 'Yêu cầu đặt trước đã quá hạn', 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.', $data);
+                            }
+                            if (!$userId && !($reservationModel->reader?->email ?? $reservationModel->user?->email)) {
+                                $this->warn("Reservation #{$reservationModel->id}: không có thông tin liên hệ để gửi thông báo quá hạn.");
                             }
                         }
                         $noTimeCount++;

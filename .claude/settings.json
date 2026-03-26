@@ -7,7 +7,16 @@
       "Bash(powershell -Command \":*)",
       "Bash(powershell -Command \"Remove-Item ''C:\\\\laragon\\\\www\\\\quanlythuviennn\\\\public\\\\storage'' -Force -Recurse; php ''C:\\\\laragon\\\\www\\\\quanlythuviennn\\\\artisan'' storage:link\")",
       "Bash(php -r \":*)",
-      "Bash(php artisan:*)"
+      "Bash(php artisan:*)",
+      "Bash(git -C C:/laragon/www/quanlythuviennn add app/Http/Controllers/ReservationCartController.php resources/views/reservation_cart/index.blade.php database/migrations/2026_03_25_110117_add_overdue_to_inventory_reservations_status.php run_schedule.bat run_schedule.vbs start_scheduler.bat)",
+      "Bash(git -C:*)",
+      "Bash(php C:/laragon/www/quanlythuviennn/artisan tinker --execute=\"echo \\\\App\\\\Models\\\\NotificationLog::where\\(''type'', ''reservation_overdue''\\)->orderByDesc\\(''id''\\)->limit\\(5\\)->get\\([''id'',''user_id'',''type'',''subject'',''content'',''created_at'']\\)->toJson\\(JSON_PRETTY_PRINT\\);\")",
+      "Bash(php C:/laragon/www/quanlythuviennn/artisan tinker --execute=\":*)",
+      "Bash(php C:/laragon/www/quanlythuviennn/artisan tinker --execute=\"echo \\\\App\\\\Models\\\\InventoryReservation::where\\(''status'',''overdue''\\)->whereDate\\(''created_at'',''2026-03-25''\\)->get\\([''id'',''user_id'',''book_id'',''status'',''pickup_date'',''inventory_id'']\\)->toJson\\(JSON_PRETTY_PRINT\\);\")",
+      "Bash(php C:/laragon/www/quanlythuviennn/artisan tinker --execute=\"echo \\\\App\\\\Models\\\\NotificationLog::where\\(''user_id'',44\\)->whereDate\\(''created_at'',''2026-03-25''\\)->get\\([''id'',''type'',''subject'',''content'',''created_at'']\\)->toJson\\(JSON_PRETTY_PRINT\\);\")",
+      "Bash(php C:/laragon/www/quanlythuviennn/artisan tinker --execute=\"echo \\\\App\\\\Models\\\\Reader::where\\(''user_id'',44\\)->first\\([''id'',''ho_ten'',''email'',''user_id'']\\)->toJson\\(JSON_PRETTY_PRINT\\);\")",
+      "Bash(php C:/laragon/www/quanlythuviennn/artisan tinker --execute=\"echo \\\\App\\\\Models\\\\User::find\\(44,[''id'',''email'',''name'']\\)->toJson\\(JSON_PRETTY_PRINT\\);\")",
+      "Bash(php C:/laragon/www/quanlythuviennn/artisan tinker --execute=\"echo \\\\App\\\\Models\\\\NotificationLog::where\\(''user_id'',44\\)->where\\(''type'',''reservation_overdue''\\)->get\\([''id'',''type'',''subject'',''content'',''created_at'']\\)->toJson\\(JSON_PRETTY_PRINT\\);\")"
     ]
   }
 }

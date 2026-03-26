@@ -210,30 +210,30 @@ class BorrowController extends Controller
                         $days = max(1, $pickup->diffInDays($ret));
                     }
 
-                    // Lấy giá sách và tính phí thuê bằng PricingService
-                    $book = $reservation->book;
-                    $inventory = $reservation->inventory;
+                    // Dùng total_fee đã lưu từ khi đặt trước, không tính lại
+                    $rentalFee = (float) $reservation->total_fee;
 
-                    // Nếu không có inventory, tạo tạm để tính phí
-                    if (!$inventory) {
-                        $inventory = new \App\Models\Inventory([
-                            'condition' => 'Trung binh',
-                            'status' => 'San sang',
-                            'gia' => $book?->gia ?? 0,
-                        ]);
+                    // Nếu vì lý do nào đó total_fee = 0, fallback sang PricingService
+                    if ($rentalFee <= 0) {
+                        $book = $reservation->book;
+                        $inventory = $reservation->inventory;
+                        if (!$inventory) {
+                            $inventory = new \App\Models\Inventory([
+                                'condition' => 'Trung binh',
+                                'status' => 'San sang',
+                                'gia' => $book?->gia ?? 0,
+                            ]);
+                        }
+                        $hasCard = $reservation?->reader ? true : false;
+                        $fees = \App\Services\PricingService::calculateFees(
+                            $book,
+                            $inventory,
+                            $borrow->ngay_muon,
+                            $reservation->return_date ?? \Carbon\Carbon::parse($borrow->ngay_muon)->addDays(14),
+                            $hasCard
+                        );
+                        $rentalFee = $fees['tien_thue'];
                     }
-
-                    // Dùng PricingService để tính phí thuê
-                    $hasCard = $reservation?->reader ? true : false;
-                    $fees = \App\Services\PricingService::calculateFees(
-                        $book,
-                        $inventory,
-                        $borrow->ngay_muon,
-                        $reservation->return_date ?? \Carbon\Carbon::parse($borrow->ngay_muon)->addDays(14),
-                        $hasCard
-                    );
-
-                    $rentalFee = $fees['tien_thue'];
 
                     // Tạo dòng sách mượn (không tiền cọc, không tiền ship)
                     \App\Models\BorrowItem::create([

@@ -487,8 +487,70 @@ class ReservationCartController extends Controller
         return view('reservation_cart.history', compact('reservations', 'groupedReservations'));
     }
 
-    public function confirmReadyGroup(Request $request, string $reservationCode)
+    public function confirmBulk(Request $request)
     {
+        $user = $request->user();
+        $ids = array_filter(explode(',', $request->input('ids', '')));
+        if (empty($ids)) return back()->with('error', 'Chưa chọn sách nào.');
+
+        $confirmed = InventoryReservation::whereIn('id', $ids)
+            ->where('user_id', $user->id)
+            ->where('status', 'ready')
+            ->whereNull('customer_confirmed_at')
+            ->get();
+
+        if ($confirmed->isEmpty()) return back()->with('error', 'Không có sách ready nào được chọn để xác nhận.');
+
+        foreach ($confirmed as $r) {
+            $r->update(['customer_confirmed_at' => now()]);
+        }
+        return back()->with('success', 'Đã xác nhận ' . $confirmed->count() . ' sách sẽ đến nhận.');
+    }
+
+    public function cancelBulk(Request $request)
+    {
+        $user = $request->user();
+        $ids = array_filter(explode(',', $request->input('ids', '')));
+        if (empty($ids)) return back()->with('error', 'Chưa chọn sách nào.');
+
+        $toCancel = InventoryReservation::whereIn('id', $ids)
+            ->where('user_id', $user->id)
+            ->whereIn('status', ['ready', 'pending'])
+            ->get();
+
+        if ($toCancel->isEmpty()) return back()->with('error', 'Không có sách nào có thể hủy.');
+
+        foreach ($toCancel as $r) {
+            $r->cancel('Khách hủy từ lịch sử đặt trước.', auth()->id());
+        }
+        return back()->with('success', 'Đã hủy ' . $toCancel->count() . ' sách.');
+    }
+
+    public function confirmSingle(Request $request, int $id)
+    {
+        $user = $request->user();
+        $reservation = InventoryReservation::where('id', $id)
+            ->where('user_id', $user->id)
+            ->where('status', 'ready')
+            ->firstOrFail();
+
+        $reservation->update(['customer_confirmed_at' => now()]);
+        return back()->with('success', 'Đã xác nhận sẽ đến nhận sách "' . ($reservation->book->ten_sach ?? '') . '".');
+    }
+
+    public function cancelSingle(Request $request, int $id)
+    {
+        $user = $request->user();
+        $reservation = InventoryReservation::where('id', $id)
+            ->where('user_id', $user->id)
+            ->whereIn('status', ['ready', 'pending'])
+            ->firstOrFail();
+
+        $reservation->cancel('Khách hủy từng cuốn tại lịch sử đặt trước.', auth()->id());
+        return back()->with('success', 'Đã hủy sách "' . ($reservation->book->ten_sach ?? '') . '".');
+    }
+
+    public function confirmReadyGroup(Request $request, string $reservationCode)    {
         $user = $request->user();
         $reader = $user?->reader;
 
@@ -525,18 +587,18 @@ class ReservationCartController extends Controller
 
         $reservations = InventoryReservation::where('user_id', $user->id)
             ->where('reservation_code', $reservationCode)
-            ->where('status', 'ready')
+            ->whereIn('status', ['ready', 'pending'])
             ->get();
 
         if ($reservations->isEmpty()) {
-            return back()->with('error', 'Không tìm thấy đơn sẵn sàng để hủy.');
+            return back()->with('error', 'Không tìm thấy đơn có thể hủy.');
         }
 
         foreach ($reservations as $reservation) {
             $reservation->cancel('Khách xác nhận không đến nhận sách.', auth()->id());
         }
 
-        return back()->with('success', 'Đã hủy đơn sẵn sàng theo yêu cầu của bạn.');
+        return back()->with('success', 'Đã hủy đơn theo yêu cầu của bạn.');
     }
 
     public function updateQuantity(Request $request, $itemId)
