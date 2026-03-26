@@ -1292,7 +1292,8 @@ function handleItemDateChange(input){
         saveDatesToServer(itemId, pickup, ret);
     }
 
-    // Nếu chọn ngày hôm nay, disable các giờ đã qua
+    // Nếu chọn ngày hôm nay → disable giờ đã qua
+    // Nếu chọn ngày khác → restore tất cả giờ (reset lỗi)
     if(input.classList.contains('pickup-date') && pickup) {
         const today = new Date();
         const pickupDate = parseDateString(pickup);
@@ -1301,6 +1302,8 @@ function handleItemDateChange(input){
             const pickupOnly = new Date(pickupDate.getFullYear(), pickupDate.getMonth(), pickupDate.getDate());
             if(todayOnly.getTime() === pickupOnly.getTime()) {
                 disablePastHours();
+            } else {
+                restoreAllHours();
             }
         }
     }
@@ -1562,7 +1565,6 @@ function handlePickupTimeChange(){
     const minute = minuteSelect.value;
     const timeStr = hour + ':' + minute;
 
-    // Cập nhật cả 2 hidden inputs — KHÔNG tự động nhảy giờ, KHÔNG tự động lưu
     if(hiddenInput){
         hiddenInput.value = timeStr;
     }
@@ -1798,6 +1800,35 @@ function disablePastHours() {
             option.style.color = '#ccc';
         }
     });
+}
+
+// Restore tất cả giờ (khi user đổi sang ngày khác hôm nay)
+function restoreAllHours() {
+    const hourSelect = document.getElementById('pickup-time-hour');
+    if(!hourSelect) return;
+
+    // Restore select box
+    hourSelect.disabled = false;
+
+    // Rebuild all hour options (8h - 20h)
+    let optionsHtml = '';
+    for(let h = 8; h <= 20; h++) {
+        const hourStr = String(h).padStart(2, '0');
+        optionsHtml += `<option value="${hourStr}">${h}h</option>`;
+    }
+    hourSelect.innerHTML = optionsHtml;
+
+    // Chọn giờ mặc định 8h
+    hourSelect.value = '08';
+
+    // Cập nhật hidden inputs
+    const hiddenInput = document.getElementById('pickup-time-hidden');
+    const formInput = document.getElementById('pickup-time-form');
+    if(hiddenInput) hiddenInput.value = '08:00';
+    if(formInput) formInput.value = '08:00';
+
+    // Lưu giờ mới vào database
+    savePickupTimeToServer('08:00');
 }
 
 function showToastMessage(message, type = 'info') {
