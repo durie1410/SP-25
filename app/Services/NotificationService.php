@@ -853,40 +853,10 @@ class NotificationService
                 Log::warning('Simple email reported transport failures', array_merge($mailDebugContext, [
                     'failures' => $failures,
                 ]));
-
-                NotificationLog::create([
-                    'user_id' => null,
-                    'type' => 'simple_email_test',
-                    'channel' => 'email',
-                    'recipient' => (string) $email,
-                    'subject' => $processedSubject,
-                    'content' => $processedContent,
-                    'body' => $processedContent,
-                    'priority' => 'normal',
-                    'status' => 'failed',
-                    'error_message' => 'Mail transport returned failures: ' . implode(', ', $failures),
-                    'metadata' => json_encode(array_merge($mailDebugContext, ['failures' => $failures])),
-                ]);
-
                 return false;
             }
 
             Log::info('Simple email sent successfully', $mailDebugContext);
-
-            NotificationLog::create([
-                'user_id' => null,
-                'type' => 'simple_email_test',
-                'channel' => 'email',
-                'recipient' => (string) $email,
-                'subject' => $processedSubject,
-                'content' => $processedContent,
-                'body' => $processedContent,
-                'priority' => 'normal',
-                'status' => 'sent',
-                'metadata' => json_encode($mailDebugContext),
-                'sent_at' => now(),
-            ]);
-
             return true;
         } catch (Throwable $e) {
             Log::error('Simple email notification failed', [
@@ -894,23 +864,7 @@ class NotificationService
                 'subject' => $subject,
                 'error' => $e->getMessage(),
                 'exception' => get_class($e),
-                'mail_config' => $this->getMailDebugContext($email, $subject),
             ]);
-
-            NotificationLog::create([
-                'user_id' => null,
-                'type' => 'simple_email_test',
-                'channel' => 'email',
-                'recipient' => (string) $email,
-                'subject' => $subject,
-                'content' => $content,
-                'body' => $content,
-                'priority' => 'normal',
-                'status' => 'failed',
-                'error_message' => $e->getMessage(),
-                'metadata' => json_encode($this->getMailDebugContext($email, $subject)),
-            ]);
-
             return false;
         }
     }

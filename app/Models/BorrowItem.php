@@ -85,8 +85,8 @@ class BorrowItem extends Model
             $ngayHenTra = Carbon::parse($ngayHenTra);
         }
 
-        return $ngayHenTra->diffInDays($today, false);
-        // Nếu >=0: còn hạn, <0: quá hạn
+        return $today->diffInDays($ngayHenTra, false);
+        // Dương = còn hạn, 0 = hết hạn hôm nay, âm = quá hạn
     }
 
 

@@ -7,7 +7,7 @@
     <div>
         <h1 class="page-title">
             <i class="fas fa-trash"></i>
-            Yêu cầu xóa sách
+            Yêu cầu xóa sách / Báo hỏng
         </h1>
         <p class="page-subtitle">Nhân viên gửi yêu cầu, Admin duyệt hoặc từ chối</p>
     </div>
@@ -22,11 +22,16 @@
     </div>
 
     <form method="GET" action="{{ route('admin.inventory.delete-requests.index') }}" style="padding: 20px; display:flex; gap:10px; flex-wrap: wrap;">
-        <select name="status" class="form-select" style="min-width: 220px;">
+        <select name="status" class="form-select" style="min-width: 180px;">
             <option value="">-- Tất cả trạng thái --</option>
             <option value="pending" {{ request('status')==='pending' ? 'selected' : '' }}>Chờ duyệt</option>
             <option value="approved" {{ request('status')==='approved' ? 'selected' : '' }}>Đã duyệt</option>
             <option value="rejected" {{ request('status')==='rejected' ? 'selected' : '' }}>Từ chối</option>
+        </select>
+        <select name="type" class="form-select" style="min-width: 180px;">
+            <option value="">-- Tất cả loại --</option>
+            <option value="damage" {{ request('type')==='damage' ? 'selected' : '' }}>Báo hỏng</option>
+            <option value="delete" {{ request('type')==='delete' ? 'selected' : '' }}>Xóa sách</option>
         </select>
         <button class="btn btn-primary" type="submit"><i class="fas fa-filter"></i> Lọc</button>
         <a class="btn btn-secondary" href="{{ route('admin.inventory.delete-requests.index') }}"><i class="fas fa-redo"></i> Reset</a>
@@ -37,6 +42,7 @@
             <thead>
                 <tr>
                     <th>ID</th>
+                    <th>Loại</th>
                     <th>Sách</th>
                     <th>Người yêu cầu</th>
                     <th>Lý do</th>
@@ -47,17 +53,33 @@
             </thead>
             <tbody>
                 @forelse($requests as $req)
+                    @php
+                        $isDamage = $req->reason && str_starts_with($req->reason, '[BAO HONG]');
+                        $reasonClean = $isDamage ? trim(substr($req->reason, 11)) : $req->reason;
+                        $bookName = $req->book?->ten_sach ?? $req->inventory?->book?->ten_sach ?? 'Sách đã bị xóa';
+                    @endphp
                     <tr>
                         <td><span class="badge badge-info">{{ $req->id }}</span></td>
                         <td>
-                            <div style="font-weight: 600; color: var(--text-primary);">{{ $req->book->ten_sach ?? 'N/A' }}</div>
+                            @if($isDamage)
+                                <span class="badge badge-warning">
+                                    <i class="fas fa-exclamation-triangle"></i> Báo hỏng
+                                </span>
+                            @else
+                                <span class="badge badge-danger">
+                                    <i class="fas fa-trash"></i> Xóa sách
+                                </span>
+                            @endif
+                        </td>
+                        <td>
+                            <div style="font-weight: 600; color: var(--text-primary);">{{ $bookName }}</div>
                             <div style="font-size: 12px; color: #888;">#{{ $req->book_id }}</div>
                         </td>
                         <td>
                             <div style="font-weight: 600;">{{ $req->requester->name ?? 'N/A' }}</div>
                             <div style="font-size: 12px; color: #888;">#{{ $req->requested_by }}</div>
                         </td>
-                        <td style="max-width: 360px;">{{ $req->reason ?? '-' }}</td>
+                        <td style="max-width: 300px;">{{ $reasonClean ?: '-' }}</td>
                         <td>
                             @if($req->status==='pending')
                                 <span class="badge badge-warning">Chờ duyệt</span>
@@ -73,15 +95,17 @@
                         <td>
                             @if(auth()->user()->isAdmin())
                                 @if($req->status==='pending')
+                                    {{-- Duyệt --}}
                                     <form method="POST" action="{{ route('admin.inventory.delete-requests.approve', $req->id) }}" style="display:inline;">
                                         @csrf
-                                        <button class="btn btn-sm btn-success" type="submit" onclick="return confirm('Duyệt và xóa sách này?');">
+                                        <button class="btn btn-sm btn-success" type="submit" onclick="return confirm('{{ $isDamage ? 'Xử lý báo hỏng này?' : 'Duyệt và xóa sách này?' }}');">
                                             <i class="fas fa-check"></i> Duyệt
                                         </button>
                                     </form>
+                                    {{-- Từ chối --}}
                                     <form method="POST" action="{{ route('admin.inventory.delete-requests.reject', $req->id) }}" style="display:inline; margin-left:6px;">
                                         @csrf
-                                        <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Từ chối yêu cầu xóa?');">
+                                        <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Từ chối yêu cầu này?');">
                                             <i class="fas fa-times"></i> Từ chối
                                         </button>
                                     </form>
@@ -95,7 +119,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="text-center" style="padding: 30px; color:#888;">Chưa có yêu cầu nào</td>
+                        <td colspan="8" class="text-center" style="padding: 30px; color:#888;">Chưa có yêu cầu nào</td>
                     </tr>
                 @endforelse
             </tbody>

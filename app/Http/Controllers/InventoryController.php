@@ -295,10 +295,14 @@ class InventoryController extends Controller
         
         $inventories = Inventory::with(['creator', 'transactions.performer', 'receipt'])
             ->where('book_id', $book_id)
+            ->whereNotIn('status', ['Hong', 'Mat'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(5);
 
-        // Lấy tất cả transactions của tất cả inventory items
+        // Lấy tất cả inventory IDs cho thống kê (không phân trang)
+        $allForStats = Inventory::where('book_id', $book_id)
+            ->whereNotIn('status', ['Hong', 'Mat'])
+            ->get();
         $inventoryIds = $inventories->pluck('id');
         $allTransactions = InventoryTransaction::with(['performer', 'inventory'])
             ->whereIn('inventory_id', $inventoryIds)
@@ -309,14 +313,14 @@ class InventoryController extends Controller
         $receiptIds = $inventories->pluck('receipt_id')->filter()->unique();
         $totalReceipts = $receiptIds->count();
         
-        // Tính toán thống kê
+        // Tính toán thống kê (dùng $allForStats để đếm đầy đủ)
         $stats = [
-            'total' => $inventories->count(),
-            'in_kho' => $inventories->where('storage_type', 'Kho')->count(),
-            'on_display' => $inventories->where('storage_type', 'Trung bay')->count(),
-            'available' => $inventories->where('status', 'Co san')->count(),
-            'borrowed' => $inventories->where('status', 'Dang muon')->count(),
-            'remaining' => $inventories->where('storage_type', 'Kho')->count() - $inventories->where('storage_type', 'Kho')->where('status', 'Dang muon')->count(),
+            'total' => $allForStats->count(),
+            'in_kho' => $allForStats->where('storage_type', 'Kho')->count(),
+            'on_display' => $allForStats->where('storage_type', 'Trung bay')->count(),
+            'available' => $allForStats->where('status', 'Co san')->count(),
+            'borrowed' => $allForStats->where('status', 'Dang muon')->count(),
+            'remaining' => $allForStats->where('storage_type', 'Kho')->count() - $allForStats->where('storage_type', 'Kho')->where('status', 'Dang muon')->count(),
             'damaged' => $inventories->filter(function($inv) {
                 return $inv->status == 'Hong' || $inv->condition == 'Hong';
             })->count(),

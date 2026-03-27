@@ -157,9 +157,11 @@ class LibraryHousekeeping extends Command
                 $recipientEmail = $model->reader?->email ?? $model->user?->email;
 
                 if ($userId) {
-                    $notificationService->sendNotification($userId, 'reservation_cancelled', $data, ['database', 'email']);
-                }
-                if (!empty($recipientEmail)) {
+                    // Chỉ gửi database notification - KHÔNG gửi email ở đây
+                    // để tránh trùng lặp (sendNotification đã gửi cả 2 kênh nếu để ['database','email'])
+                    $notificationService->sendNotification($userId, 'reservation_cancelled', $data, ['database']);
+                } elseif (!empty($recipientEmail)) {
+                    // Chỉ gửi email khi không có user_id (không có tài khoản)
                     $notificationService->sendSimpleEmail(
                         $recipientEmail,
                         'Yêu cầu đặt trước đã bị hủy',
@@ -265,14 +267,14 @@ class LibraryHousekeeping extends Command
                                 ->exists();
                             if (!$alreadyNotified) {
                                 if ($userId) {
-                                    $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database', 'email']);
-                                }
-                                $email = $model->reader?->email ?? $model->user?->email;
-                                if ($email) {
-                                    $notificationService->sendSimpleEmail($email, 'Yêu cầu đặt trước đã quá hạn', 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.', $data);
-                                }
-                                if (!$userId && !($model->reader?->email ?? $model->user?->email)) {
-                                    $this->warn("Reservation #{$model->id}: không có thông tin liên hệ để gửi thông báo quá hạn.");
+                                    // Chỉ gửi database notification 1 lần duy nhất
+                                    $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database']);
+                                } else {
+                                    // Chỉ gửi email khi không có user_id
+                                    $email = $model->reader?->email ?? $model->user?->email;
+                                    if ($email) {
+                                        $notificationService->sendSimpleEmail($email, 'Yêu cầu đặt trước đã quá hạn', 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.', $data);
+                                    }
                                 }
                             }
                             $autoOverdueReady++;
@@ -400,14 +402,13 @@ class LibraryHousekeeping extends Command
                                 ->exists();
                             if (!$alreadyNotified) {
                                 if ($userId) {
-                                    $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database', 'email']);
-                                }
-                                $email = $reservationModel->reader?->email ?? $reservationModel->user?->email;
-                                if ($email) {
-                                    $notificationService->sendSimpleEmail($email, 'Yêu cầu đặt trước đã quá hạn', 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.', $data);
-                                }
-                                if (!$userId && !($reservationModel->reader?->email ?? $reservationModel->user?->email)) {
-                                    $this->warn("Reservation #{$reservationModel->id}: không có thông tin liên hệ để gửi thông báo quá hạn.");
+                                    // Chỉ gửi database notification 1 lần duy nhất
+                                    $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database']);
+                                } else {
+                                    $email = $reservationModel->reader?->email ?? $reservationModel->user?->email;
+                                    if ($email) {
+                                        $notificationService->sendSimpleEmail($email, 'Yêu cầu đặt trước đã quá hạn', 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.', $data);
+                                    }
                                 }
                             }
                             $overdueCount++;
@@ -479,14 +480,13 @@ class LibraryHousekeeping extends Command
                             ->exists();
                         if (!$alreadyNotified) {
                             if ($userId) {
-                                $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database', 'email']);
-                            }
-                            $email = $reservationModel->reader?->email ?? $reservationModel->user?->email;
-                            if ($email) {
-                                $notificationService->sendSimpleEmail($email, 'Yêu cầu đặt trước đã quá hạn', 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.', $data);
-                            }
-                            if (!$userId && !($reservationModel->reader?->email ?? $reservationModel->user?->email)) {
-                                $this->warn("Reservation #{$reservationModel->id}: không có thông tin liên hệ để gửi thông báo quá hạn.");
+                                // Chỉ gửi database notification 1 lần duy nhất
+                                $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database']);
+                            } else {
+                                $email = $reservationModel->reader?->email ?? $reservationModel->user?->email;
+                                if ($email) {
+                                    $notificationService->sendSimpleEmail($email, 'Yêu cầu đặt trước đã quá hạn', 'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.', $data);
+                                }
                             }
                         }
                         $noTimeCount++;

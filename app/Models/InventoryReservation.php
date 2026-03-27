@@ -194,46 +194,26 @@ class InventoryReservation extends Model
     }
 
     /**
-     * Gửi thông báo quá hạn cho độc giả — chỉ 1 notification_log (database), email gửi riêng
+     * Gửi thông báo quá hạn — CHỈ 1 lần duy nhất (database notification)
      */
     protected function sendOverdueNotification(): void
     {
         $userId = $this->reader?->user_id ?? $this->user_id;
-        $email  = $this->reader?->email ?? $this->user?->email;
 
-        $data = [
-            'reader_name'  => $this->reader?->ho_ten ?? ($this->user?->name ?? 'Bạn'),
-            'book_title'  => $this->book?->ten_sach ?? 'Sách',
-            'pickup_date' => $this->pickup_date ? $this->pickup_date->format('d/m/Y') : '',
-            'pickup_time' => $this->pickup_time ?? '',
-        ];
-
-        try {
-            $ns = app(\App\Services\NotificationService::class);
-
-            if ($userId) {
-                // Chỉ ghi 1 log cho database notification
-                $ns->sendNotification($userId, 'reservation_overdue', $data, ['database']);
-
-                // Email gửi riêng để không tạo thêm log trùng type
-                if (!empty($email)) {
-                    $ns->sendSimpleEmail(
-                        $email,
-                        'Yêu cầu đặt trước đã quá hạn',
-                        'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.',
-                        $data
-                    );
-                }
-            } elseif ($email) {
-                $ns->sendSimpleEmail(
-                    $email,
-                    'Yêu cầu đặt trước đã quá hạn',
-                    'Xin chào {{reader_name}}, yêu cầu đặt trước sách "{{book_title}}" đã quá hạn ngày lấy ({{pickup_date}}). Vui lòng tạo yêu cầu mới nếu vẫn cần.',
-                    $data
-                );
+        // Chỉ gửi database notification - KHÔNG gửi email riêng để tránh trùng lặp
+        if ($userId) {
+            try {
+                $data = [
+                    'reader_name'  => $this->reader?->ho_ten ?? ($this->user?->name ?? 'Bạn'),
+                    'book_title'   => $this->book?->ten_sach ?? 'Sách',
+                    'pickup_date'  => $this->pickup_date ? $this->pickup_date->format('d/m/Y') : '',
+                    'pickup_time'  => $this->pickup_time ?? '',
+                ];
+                app(\App\Services\NotificationService::class)
+                    ->sendNotification($userId, 'reservation_overdue', $data, ['database']);
+            } catch (\Exception $e) {
+                \Log::warning('Failed to send overdue notification for reservation #' . $this->id . ': ' . $e->getMessage());
             }
-        } catch (\Exception $e) {
-            \Log::warning('Failed to send overdue notification for reservation #' . $this->id . ': ' . $e->getMessage());
         }
     }
 

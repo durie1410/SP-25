@@ -116,7 +116,7 @@ public function update(Request $request, $id)
     }
 
     // Số ngày còn lại (dương = còn hạn, 0 = hết hạn hôm nay, âm = quá hạn)
-    $borrowItem->days_remaining = $dueDate ? ($dueDate->diffInDays($today, false) * -1) : null;
+    $borrowItem->days_remaining = $dueDate ? $today->diffInDays($dueDate, false) : null;
 
     return view('admin.borrowsitem.show', compact('borrowItem', 'borrowDate', 'dueDate', 'displayTienThue', 'displayTienPhat'));
 }

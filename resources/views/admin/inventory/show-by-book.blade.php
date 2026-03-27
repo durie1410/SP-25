@@ -3,6 +3,64 @@
 @section('title', 'Chi Tiết Sách Trong Kho - LibNet Admin')
 
 @section('content')
+
+<!-- Modal Báo hỏng -->
+<div class="modal-overlay" id="damageModalOverlay" onclick="closeDamageModal()"></div>
+<div class="modal-box" id="damageModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:9999; background:#fff; border-radius:14px; width:480px; max-width:95vw; box-shadow:0 25px 60px rgba(0,0,0,0.25); overflow:hidden;">
+    <form method="POST" action="{{ route('admin.inventory.delete-requests.store') }}">
+        @csrf
+        <input type="hidden" name="book_id" value="{{ $book->id }}">
+        <input type="hidden" name="inventory_id" id="damage_inventory_id">
+        <div style="background:var(--primary-gradient); padding:20px 24px; display:flex; justify-content:space-between; align-items:center;">
+            <h5 style="margin:0; color:#fff; display:flex; align-items:center; gap:10px;">
+                <i class="fas fa-exclamation-triangle"></i> Báo hỏng sách
+            </h5>
+            <button type="button" onclick="closeDamageModal()" style="background:none; border:none; color:#fff; font-size:22px; cursor:pointer;">&times;</button>
+        </div>
+        <div style="padding:24px;">
+            <p id="damage_book_info" style="margin-bottom:15px; color:var(--text-secondary);"></p>
+            <div class="form-group" style="margin-bottom:0;">
+                <label style="font-weight:600; margin-bottom:6px; display:block; color:var(--text-primary);">Lý do hỏng <span class="text-danger">*</span></label>
+                <textarea name="reason" id="damage_reason" class="form-control" rows="3"
+                          placeholder="Mô tả tình trạng hỏng (VD: Rách bìa, ướt, mất trang...)"
+                          required maxlength="1000"></textarea>
+                <small class="form-text text-muted">Tối đa 1000 ký tự.</small>
+            </div>
+        </div>
+        <div style="padding:16px 24px; border-top:1px solid var(--border-color); display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" onclick="closeDamageModal()" class="btn btn-secondary">Hủy</button>
+            <button type="submit" class="btn btn-warning">
+                <i class="fas fa-paper-plane"></i> Gửi báo hỏng
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function openDamageModal(inventoryId, barcode) {
+    document.getElementById('damage_inventory_id').value = inventoryId;
+    document.getElementById('damage_book_info').innerHTML =
+        '<strong>Mã vạch:</strong> <code>' + barcode + '</code>';
+    document.getElementById('damage_reason').value = '';
+    document.getElementById('damageModal').style.display = 'block';
+    document.getElementById('damageModalOverlay').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeDamageModal() {
+    document.getElementById('damageModal').style.display = 'none';
+    document.getElementById('damageModalOverlay').style.display = 'none';
+    document.body.style.overflow = '';
+}
+</script>
+
+<style>
+.modal-overlay {
+    display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+    background:rgba(0,0,0,0.5); z-index:9998;
+}
+</style>
+
 <!-- Page Header -->
 <div class="page-header">
     <div>
@@ -359,7 +417,7 @@
     <div class="card-header">
         <h3 class="card-title">
             <i class="fas fa-list"></i>
-            Danh sách quyển sách ({{ $inventories->count() }} quyển)
+            Danh sách quyển sách ({{ $inventories->total() }} quyển)
         </h3>
         <div style="display: flex; gap: 10px;">
             <span class="badge badge-info">
@@ -479,24 +537,22 @@
                                        title="Sửa">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <form action="{{ route('admin.inventory.destroy', $inventory->id) }}" 
-                                          method="POST" 
-                                          class="d-inline"
-                                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa quyển sách này?{{ $inventories->count() == 1 ? "\\n\\n⚠️ CẢNH BÁO: Đây là quyển sách cuối cùng! Sách này cũng sẽ bị xóa khỏi quản lý sách!" : "" }}');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" 
-                                                class="btn btn-sm btn-danger" 
-                                                title="Xóa{{ $inventories->count() == 1 ? " (sẽ xóa cả sách khỏi quản lý sách)" : "" }}">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </form>
+                                    <button type="button"
+                                            class="btn btn-sm btn-danger"
+                                            title="Báo hỏng"
+                                            onclick="openDamageModal({{ $inventory->id }}, '{{ $inventory->barcode }}')"
+                                            {{ $inventory->status == 'Dang muon' ? 'disabled' : '' }}>
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
+        </div>
+        <div style="padding: 20px;">
+            {{ $inventories->appends(request()->query())->links('vendor.pagination.admin') }}
         </div>
     @else
         <div style="text-align: center; padding: 60px 20px;">

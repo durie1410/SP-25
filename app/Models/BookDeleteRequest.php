@@ -11,6 +11,7 @@ class BookDeleteRequest extends Model
 
     protected $fillable = [
         'book_id',
+        'inventory_id',
         'requested_by',
         'approved_by',
         'status',
@@ -23,6 +24,11 @@ class BookDeleteRequest extends Model
     public function book()
     {
         return $this->belongsTo(Book::class);
+    }
+
+    public function inventory()
+    {
+        return $this->belongsTo(Inventory::class);
     }
 
     public function requester()
