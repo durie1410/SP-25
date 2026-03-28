@@ -358,6 +358,7 @@ class InventoryReservationController extends Controller
                     'borrow_id' => $borrow->id,
                     'processed_by' => auth()->id(),
                     'fulfilled_at' => now(),
+                    'inventory_id' => null, // Xóa inventory_id để schedule không đánh overdue
                 ]);
             }
 
