@@ -194,13 +194,12 @@ class InventoryReservation extends Model
     }
 
     /**
-     * Gửi thông báo quá hạn — CHỈ 1 lần duy nhất (database notification)
+     * Gửi thông báo quá hạn — database + email
      */
     protected function sendOverdueNotification(): void
     {
         $userId = $this->reader?->user_id ?? $this->user_id;
 
-        // Chỉ gửi database notification - KHÔNG gửi email riêng để tránh trùng lặp
         if ($userId) {
             try {
                 $data = [
@@ -210,7 +209,7 @@ class InventoryReservation extends Model
                     'pickup_time'  => $this->pickup_time ?? '',
                 ];
                 app(\App\Services\NotificationService::class)
-                    ->sendNotification($userId, 'reservation_overdue', $data, ['database']);
+                    ->sendNotification($userId, 'reservation_overdue', $data, ['database', 'email']);
             } catch (\Exception $e) {
                 \Log::warning('Failed to send overdue notification for reservation #' . $this->id . ': ' . $e->getMessage());
             }

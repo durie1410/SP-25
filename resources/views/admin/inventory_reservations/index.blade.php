@@ -86,8 +86,8 @@ use Illuminate\Support\Str;
 
                 // Chỉ ready + khách đã xác nhận + chưa quá hạn mới có thể Fulfill
                 $hasReadyItems = $group->contains(fn($item) => $item->status === 'ready' && !$item->is_pickup_overdue && !empty($item->customer_confirmed_at));
-                // pending/ready/fulfilled/overdue đều có thể chọn để hủy, trừ khi đã cancelled
-                $hasCancellableItems = $group->contains(fn($item) => in_array($item->status, ['pending', 'ready', 'fulfilled', 'overdue'], true));
+                // Chỉ pending và ready mới có thể hủy, nhưng loại trừ pending đã quá giờ hẹn (sẽ tự hủy)
+                $hasCancellableItems = $group->contains(fn($item) => $item->status === 'ready' || ($item->status === 'pending' && !$item->is_pickup_overdue));
                 $hasOverdueItems = $group->contains(fn($item) => $item->is_pickup_overdue);
             @endphp
 
@@ -149,7 +149,7 @@ use Illuminate\Support\Str;
                                 <i class="fas fa-times"></i> Hủy
                             </button>
                         @else
-                            <button type="button" class="btn btn-sm btn-secondary" disabled style="opacity: 0.4; cursor: not-allowed;" title="Đơn đã hoàn thành hoặc đã hủy">
+                            <button type="button" class="btn btn-sm btn-secondary" disabled style="opacity: 0.4; cursor: not-allowed;" title="Không có đơn nào có thể hủy">
                                 <i class="fas fa-times"></i> Hủy
                             </button>
                         @endif
@@ -175,7 +175,7 @@ use Illuminate\Support\Str;
 
                         $statusLabel = $autoWillCancel ? 'Tự động hủy (chưa có bản sao)' : ($r->is_pickup_overdue ? 'Quá hạn nhận sách' : $r->getStatusLabel());
                     @endphp
-                    <div class="reservation-item-card" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 8px; {{ $r->status === 'fulfilled' ? 'opacity: 0.45; filter: grayscale(0.4);' : '' }}">
+                    <div class="reservation-item-card" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 8px; {{ $autoWillCancel || in_array($r->status, ['fulfilled', 'overdue', 'cancelled']) ? 'opacity: 0.45; filter: grayscale(0.4);' : '' }}">
                         <div style="display: grid; grid-template-columns: 40px repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; align-items: center;">
                             <div>
                                 @if($autoWillCancel)
@@ -185,9 +185,7 @@ use Illuminate\Support\Str;
                                     <input type="checkbox" name="reservation_ids[]" value="{{ $r->id }}" class="reservation-checkbox fulfill-checkbox cancel-checkbox group-{{ $groupId }}" data-customer-confirmed="1" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Fulfill/Hủy">
                                 @elseif($r->status === 'ready' && !$r->is_pickup_overdue && empty($r->customer_confirmed_at))
                                     <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox fulfill-checkbox group-{{ $groupId }}" data-customer-confirmed="0" style="width: 18px; height: 18px; cursor: pointer;" title="Chỉ tích để Hủy (khách chưa xác nhận)">
-                                @elseif(in_array($r->status, ['pending', 'fulfilled', 'overdue']))
-                                    <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox fulfill-checkbox group-{{ $groupId }}" data-customer-confirmed="0" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Hủy">
-                                @elseif($r->status === 'ready' && $r->is_pickup_overdue)
+                                @elseif($r->status === 'pending')
                                     <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox fulfill-checkbox group-{{ $groupId }}" data-customer-confirmed="0" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Hủy">
                                 @else
                                     <input type="checkbox" disabled style="width: 18px; height: 18px; opacity: 0.4; cursor: not-allowed;" title="Không thể chọn">
@@ -266,12 +264,6 @@ use Illuminate\Support\Str;
                                         @else
                                             <button type="button" class="btn btn-sm btn-secondary" disabled style="padding: 4px 8px; font-size: 11px; opacity: 0.5; cursor: not-allowed;" title="Khách chưa xác nhận sẽ đến lấy sách">Fulfill</button>
                                         @endif
-                                    @endif
-                                    @if($r->status === 'overdue' || ($r->status === 'ready' && $r->is_pickup_overdue))
-                                        <form method="POST" action="{{ route('admin.inventory-reservations.cancel', $r->id) }}" style="display:inline;" onsubmit="return confirm('Xác nhận hủy yêu cầu này?');">
-                                            @csrf
-                                            <button type="submit" class="btn btn-sm btn-danger" style="padding: 4px 8px; font-size: 11px;">Hủy</button>
-                                        </form>
                                     @endif
                                 </div>
                             </div>

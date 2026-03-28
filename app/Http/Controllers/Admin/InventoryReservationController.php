@@ -261,10 +261,6 @@ class InventoryReservationController extends Controller
             if ($nowTime < $openHour || $nowTime > $closeHour) {
                 return back()->with('error', "Chỉ được phát sách trong giờ {$openHour} - {$closeHour}.");
             }
-
-            if ($nowTime < $targetTime) {
-                return back()->with('error', "Chưa đến giờ lấy sách đã hẹn ({$targetTime}).");
-            }
         }
 
         // Chuyển hướng sang trang tạo phiếu mượn kèm dữ liệu pre-fill

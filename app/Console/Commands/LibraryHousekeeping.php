@@ -157,9 +157,7 @@ class LibraryHousekeeping extends Command
                 $recipientEmail = $model->reader?->email ?? $model->user?->email;
 
                 if ($userId) {
-                    // Chỉ gửi database notification - KHÔNG gửi email ở đây
-                    // để tránh trùng lặp (sendNotification đã gửi cả 2 kênh nếu để ['database','email'])
-                    $notificationService->sendNotification($userId, 'reservation_cancelled', $data, ['database']);
+                    $notificationService->sendNotification($userId, 'reservation_cancelled', $data, ['database', 'email']);
                 } elseif (!empty($recipientEmail)) {
                     // Chỉ gửi email khi không có user_id (không có tài khoản)
                     $notificationService->sendSimpleEmail(
@@ -267,8 +265,7 @@ class LibraryHousekeeping extends Command
                                 ->exists();
                             if (!$alreadyNotified) {
                                 if ($userId) {
-                                    // Chỉ gửi database notification 1 lần duy nhất
-                                    $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database']);
+                                    $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database', 'email']);
                                 } else {
                                     // Chỉ gửi email khi không có user_id
                                     $email = $model->reader?->email ?? $model->user?->email;
@@ -402,8 +399,7 @@ class LibraryHousekeeping extends Command
                                 ->exists();
                             if (!$alreadyNotified) {
                                 if ($userId) {
-                                    // Chỉ gửi database notification 1 lần duy nhất
-                                    $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database']);
+                                    $notificationService->sendNotification($userId, 'reservation_overdue', $data, ['database', 'email']);
                                 } else {
                                     $email = $reservationModel->reader?->email ?? $reservationModel->user?->email;
                                     if ($email) {
