@@ -6,8 +6,8 @@ use App\Models\Reader;
 use App\Models\BorrowItem;
 use App\Models\Borrow;
 use App\Models\Fine;
-use App\Models\Inventory;
 use App\Services\PricingService;
+use App\Services\FileUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -32,11 +32,17 @@ class ReturnController extends Controller
 
         if ($request->filled('reader_id')) {
             $selectedReader = Reader::with(['user'])->findOrFail($request->reader_id);
-            $borrowItems = BorrowItem::with(['book', 'borrow', 'inventory'])
-                ->whereHas('borrow', function($q) use ($selectedReader) {
+            $borrowItems = BorrowItem::with(['book', 'borrow', 'inventory', 'pendingFines'])
+                ->whereHas('borrow', function ($q) use ($selectedReader) {
                     $q->where('reader_id', $selectedReader->id);
                 })
-                ->where('trang_thai', 'Dang muon')
+                ->where(function ($q) {
+                    $q->where('trang_thai', 'Dang muon')
+                        ->orWhereHas('pendingFines', function ($fineQuery) {
+                            $fineQuery->where('status', 'pending');
+                        });
+                })
+                ->orderByDesc('id')
                 ->get();
         }
 
@@ -54,13 +60,16 @@ class ReturnController extends Controller
             'items.*.id' => 'required|exists:borrow_items,id',
             'items.*.selected' => 'nullable|in:1',
             'items.*.condition' => 'nullable|in:binh_thuong,hong_nhe,hong_nang,mat_sach',
+            'proof_images' => 'nullable|array',
+            'proof_images.*' => 'nullable|array|max:6',
+            'proof_images.*.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
         ]);
 
         $reader = Reader::findOrFail($request->reader_id);
         $returnDate = now();
         $processedBorrows = [];
+        $action = $request->input('action', 'return');
 
-        // Lọc các item được chọn
         $selectedItems = collect($request->items)->filter(function ($it) {
             return isset($it['selected']) && (string) $it['selected'] === '1';
         })->values();
@@ -75,26 +84,59 @@ class ReturnController extends Controller
             foreach ($selectedItems as $itemData) {
                 $item = BorrowItem::with(['book', 'inventory', 'borrow'])->findOrFail($itemData['id']);
 
-                // đảm bảo item thuộc đúng độc giả và đang mượn
                 if (!$item->borrow || (int) $item->borrow->reader_id !== (int) $reader->id) {
                     throw new \Exception('Sách không thuộc khách đã chọn.');
                 }
+
+                $existingProofImages = is_array($item->return_proof_images)
+                    ? $item->return_proof_images
+                    : (is_string($item->return_proof_images) ? json_decode($item->return_proof_images, true) : []);
+                $existingProofImages = is_array($existingProofImages) ? $existingProofImages : [];
+
+                $uploadedProofImages = [];
+                foreach ($request->file("proof_images.{$item->id}", []) as $proofFile) {
+                    if (!$proofFile) {
+                        continue;
+                    }
+
+                    $upload = FileUploadService::uploadImage($proofFile, 'return_proofs', [
+                        'max_size' => 4096,
+                        'resize' => true,
+                        'width' => 1400,
+                        'height' => 1400,
+                        'disk' => 'public',
+                    ]);
+
+                    if (!empty($upload['path'])) {
+                        $uploadedProofImages[] = $upload['path'];
+                    }
+                }
+
+                $returnProofImages = array_values(array_unique(array_merge($existingProofImages, $uploadedProofImages)));
+
+                if ($action === 'attach_proof') {
+                    $item->update([
+                        'return_proof_images' => $returnProofImages,
+                    ]);
+                    continue;
+                }
+
                 if ($item->trang_thai !== 'Dang muon') {
-                    continue; // tránh trả trùng
+                    continue;
                 }
 
                 $condition = $itemData['condition'] ?? 'binh_thuong';
-                
-                // 1. Tính phạt quá hạn
+
                 $lateFine = 0;
-                if ($item->ngay_hen_tra && Carbon::parse($item->ngay_hen_tra)->startOfDay() < $returnDate->startOfDay()) {
+                if ($item->ngay_hen_tra && Carbon::parse($item->ngay_hen_tra)->startOfDay() < $returnDate->copy()->startOfDay()) {
                     $lateFine = PricingService::calculateLateReturnFine($item->ngay_hen_tra, $returnDate, 1);
                 }
 
-                // 2. Tính phạt hư hỏng/mất
                 $damageFine = 0;
                 $inventoryStatus = 'Co san';
                 $itemStatus = 'Da tra';
+                $nextCondition = null;
+                $inventoryNote = null;
 
                 if ($condition !== 'binh_thuong') {
                     $bookPrice = $item->book->gia ?? 0;
@@ -105,32 +147,58 @@ class ReturnController extends Controller
                         $damageFine = PricingService::calculateLostBookFine($bookPrice, $bookType, $startCondition);
                         $inventoryStatus = 'Mat';
                         $itemStatus = 'Mat sach';
-                        if ($item->book) $item->book->decrement('so_luong');
+                        $inventoryNote = 'Khách báo mất sách khi trả.';
+                        if ($item->book) {
+                            $item->book->decrement('so_luong');
+                        }
+                    } elseif ($condition === 'hong_nhe') {
+                        $baseDamageFine = PricingService::calculateDamagedBookFine($bookPrice, $bookType, $startCondition);
+                        $damageFine = (int) round($baseDamageFine * 0.5);
+                        $inventoryStatus = 'Co san';
+                        $itemStatus = 'Hong';
+                        $nextCondition = $this->downgradeInventoryCondition($startCondition);
+                        $inventoryNote = 'Sách hỏng nhẹ khi trả, đã hạ condition và nhập về kho.';
                     } else {
                         $damageFine = PricingService::calculateDamagedBookFine($bookPrice, $bookType, $startCondition);
                         $inventoryStatus = 'Hong';
                         $itemStatus = 'Hong';
+                        $nextCondition = 'Hong';
+                        $inventoryNote = 'Sách hỏng nặng khi trả, chuyển trạng thái hỏng trong kho.';
                     }
                 }
 
-                // 2B. Phí gia hạn: tiền thuê cơ bản đã thanh toán khi mượn, lúc trả chỉ thu thêm phần gia hạn (nếu có)
-                // Policy: 5.000đ/ngày * 5 ngày/lần * số lần gia hạn
                 $extensionFee = (int) ($item->so_lan_gia_han ?? 0) * 5 * 5000;
 
-                // 3. Cập nhật BorrowItem
                 $item->update([
                     'trang_thai' => $itemStatus,
                     'ngay_tra_thuc_te' => $returnDate->toDateString(),
                     'tinh_trang_sach_cuoi' => $condition,
+                    'return_proof_images' => $returnProofImages,
                     'tien_phat' => $lateFine + $damageFine,
                 ]);
 
-                // 4. Cập nhật Inventory
                 if ($item->inventory) {
-                    $item->inventory->update(['status' => $inventoryStatus]);
+                    $payload = [
+                        'status' => $inventoryStatus,
+                    ];
+
+                    if ($inventoryStatus !== 'Mat') {
+                        $payload['storage_type'] = 'Kho';
+                    }
+
+                    if (!empty($nextCondition)) {
+                        $payload['condition'] = $nextCondition;
+                    }
+
+                    if (!empty($inventoryNote)) {
+                        $oldNotes = trim((string) ($item->inventory->notes ?? ''));
+                        $suffix = '[' . now()->format('d/m/Y H:i') . '] ' . $inventoryNote;
+                        $payload['notes'] = $oldNotes ? ($oldNotes . "\n" . $suffix) : $suffix;
+                    }
+
+                    $item->inventory->update($payload);
 
                     if ($inventoryStatus === 'Co san') {
-                        
                         $nextReservation = \App\Models\InventoryReservation::where('book_id', $item->book_id)
                             ->where('status', 'pending')
                             ->orderBy('created_at', 'asc')
@@ -149,7 +217,6 @@ class ReturnController extends Controller
                     }
                 }
 
-                // 5. Tạo các bản ghi Fine pending
                 if ($lateFine > 0) {
                     Fine::create([
                         'borrow_id' => $item->borrow_id,
@@ -157,7 +224,7 @@ class ReturnController extends Controller
                         'reader_id' => $reader->id,
                         'amount' => $lateFine,
                         'type' => 'late_return',
-                        'description' => "Phạt trễ hạn sách: " . ($item->book?->ten_sach ?? 'Không xác định'),
+                        'description' => 'Phạt trễ hạn sách: ' . ($item->book?->ten_sach ?? 'Không xác định'),
                         'status' => 'pending',
                         'due_date' => $returnDate->toDateString(),
                         'created_by' => auth()->id() ?? 1,
@@ -165,20 +232,26 @@ class ReturnController extends Controller
                 }
 
                 if ($damageFine > 0) {
+                    $damageLabel = match ($condition) {
+                        'hong_nhe' => 'hỏng nhẹ',
+                        'hong_nang' => 'hỏng nặng',
+                        'mat_sach' => 'mất',
+                        default => 'hỏng',
+                    };
+
                     Fine::create([
                         'borrow_id' => $item->borrow_id,
                         'borrow_item_id' => $item->id,
                         'reader_id' => $reader->id,
                         'amount' => $damageFine,
                         'type' => $condition === 'mat_sach' ? 'lost_book' : 'damaged_book',
-                        'description' => "Phạt " . ($condition === 'mat_sach' ? 'mất' : 'hỏng') . " sách: " . ($item->book?->ten_sach ?? 'Không xác định'),
+                        'description' => "Phạt {$damageLabel} sách: " . ($item->book?->ten_sach ?? 'Không xác định'),
                         'status' => 'pending',
                         'due_date' => $returnDate->toDateString(),
                         'created_by' => auth()->id() ?? 1,
                     ]);
                 }
 
-                // 5B. Tạo Fine (other) cho phí gia hạn (nếu có)
                 if ($extensionFee > 0) {
                     Fine::create([
                         'borrow_id' => $item->borrow_id,
@@ -186,7 +259,7 @@ class ReturnController extends Controller
                         'reader_id' => $reader->id,
                         'amount' => $extensionFee,
                         'type' => 'other',
-                        'description' => "Phí gia hạn mượn (" . ((int) ($item->so_lan_gia_han ?? 0)) . " lần) - Sách: " . ($item->book?->ten_sach ?? 'Không xác định'),
+                        'description' => 'Phí gia hạn mượn (' . ((int) ($item->so_lan_gia_han ?? 0)) . ' lần) - Sách: ' . ($item->book?->ten_sach ?? 'Không xác định'),
                         'status' => 'pending',
                         'due_date' => $returnDate->toDateString(),
                         'created_by' => auth()->id() ?? 1,
@@ -196,27 +269,46 @@ class ReturnController extends Controller
                 $processedBorrows[$item->borrow_id] = $item->borrow_id;
             }
 
-            // 6. Kiểm tra và cập nhật trạng thái Borrow (Option A)
-            foreach ($processedBorrows as $borrowId) {
-                $borrow = Borrow::with('items')->find($borrowId);
-                if ($borrow) {
-                    $borrow->recalculateTotals();
-                    
-                    // Nếu tất cả items đã trả/hỏng/mất -> chuyển trạng thái borrow
-                    $remainingItems = $borrow->items()->where('trang_thai', 'Dang muon')->count();
-                    if ($remainingItems === 0) {
-                        $borrow->update(['trang_thai' => 'Da tra']);
+            if ($action !== 'attach_proof') {
+                foreach ($processedBorrows as $borrowId) {
+                    $borrow = Borrow::with('items')->find($borrowId);
+                    if ($borrow) {
+                        $borrow->recalculateTotals();
+
+                        $remainingItems = $borrow->items()->where('trang_thai', 'Dang muon')->count();
+                        if ($remainingItems === 0) {
+                            $borrow->update(['trang_thai' => 'Da tra']);
+                        }
                     }
                 }
             }
 
             DB::commit();
-            return redirect()->route('admin.fine-payments.index', ['reader_id' => $reader->id])
-                ->with('success', 'Đã ghi nhận trả sách. Vui lòng thực hiện thanh toán các khoản phát sinh (phạt/trễ hạn/gia hạn) nếu có.');
 
+            if ($action === 'attach_proof') {
+                return redirect()->route('admin.returns.index', ['reader_id' => $reader->id])
+                    ->with('success', 'Đã cập nhật ảnh minh chứng trả sách.');
+            }
+
+            return redirect()->route('admin.fine-payments.index', ['reader_id' => $reader->id])
+                ->with('success', 'Đã ghi nhận trả sách và ảnh chứng minh. Vui lòng thanh toán các khoản phát sinh nếu có.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Lỗi xử lý trả sách: ' . $e->getMessage());
         }
+    }
+
+    private function downgradeInventoryCondition(?string $condition): string
+    {
+        $current = trim((string) $condition);
+
+        return match ($current) {
+            'Moi' => 'Tot',
+            'Tot' => 'Trung binh',
+            'Trung binh' => 'Cu',
+            'Cu' => 'Cu',
+            'Hong' => 'Hong',
+            default => 'Trung binh',
+        };
     }
 }

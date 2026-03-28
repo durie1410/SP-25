@@ -105,6 +105,107 @@
                             </table>
                         </div>
 
+                        {{-- Ảnh minh chứng từ đặt trước / khi trả sách --}}
+                        <div class="fine-proof-section mt-4">
+                            <div class="fine-proof-title">
+                                <i class="fas fa-camera"></i> Ảnh minh chứng mượn / trả sách
+                            </div>
+                            <p class="fine-proof-note">
+                                Ảnh được lấy từ yêu cầu đặt trước (ảnh nhận sách) và từ màn hình trả sách (ảnh trả lại).
+                                Dùng để đối chiếu trước khi xác nhận thanh toán phạt.
+                            </p>
+
+                            <div class="fine-proof-list">
+                                @foreach($fines as $fine)
+                                    @php
+                                        $item = $fine->borrowItem;
+                                        $book = optional($item)->book;
+
+                                        // Ảnh từ đặt trước
+                                        $reservationProofs = collect($item?->reservation?->getProofImages() ?? [])->map(function ($img) {
+                                            if (!$img) {
+                                                return null;
+                                            }
+                                            if (preg_match('/^https?:\/\//i', $img)) {
+                                                return $img;
+                                            }
+                                            $normalized = ltrim(str_replace(['\\', 'storage/'], ['/', ''], (string) $img), '/');
+                                            return asset('storage/' . $normalized);
+                                        })->filter()->values()->all();
+
+                                        // Ảnh chứng minh khi trả sách
+                                        $rawReturnProofs = is_array($item->return_proof_images ?? null)
+                                            ? $item->return_proof_images
+                                            : (is_string($item->return_proof_images ?? null) ? json_decode($item->return_proof_images, true) : []);
+                                        $rawReturnProofs = is_array($rawReturnProofs) ? $rawReturnProofs : [];
+
+                                        $returnProofs = collect($rawReturnProofs)->map(function ($img) {
+                                            if (!$img) {
+                                                return null;
+                                            }
+                                            if (preg_match('/^https?:\/\//i', $img)) {
+                                                return $img;
+                                            }
+                                            $normalized = ltrim(str_replace(['\\', 'storage/'], ['/', ''], (string) $img), '/');
+                                            return asset('storage/' . $normalized);
+                                        })->filter()->values()->all();
+
+                                        $hasAnyProof = !empty($reservationProofs) || !empty($returnProofs);
+                                    @endphp
+
+                                    <div class="fine-proof-row">
+                                        <div class="fine-proof-book">
+                                            <div class="fine-proof-thumb">
+                                                @if($book && $book->hinh_anh)
+                                                    <img src="{{ $book->image_url ?? asset('images/default-book.png') }}" alt="">
+                                                @else
+                                                    <span>📘</span>
+                                                @endif
+                                            </div>
+                                            <div>
+                                                <div class="fine-proof-book-name">{{ $book->ten_sach ?? 'N/A' }}</div>
+                                                <div class="fine-proof-book-meta">
+                                                    Phiếu #{{ $fine->borrow_id }} · Fine #{{ $fine->id }}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="fine-proof-images">
+                                            @if($hasAnyProof)
+                                                @if(!empty($reservationProofs))
+                                                    <div class="fine-proof-group">
+                                                        <div class="fine-proof-group-label">Ảnh khi nhận sách</div>
+                                                        <div class="fine-proof-grid">
+                                                            @foreach($reservationProofs as $url)
+                                                                <a href="{{ $url }}" target="_blank">
+                                                                    <img src="{{ $url }}" alt="Ảnh nhận sách">
+                                                                </a>
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                @endif
+
+                                                @if(!empty($returnProofs))
+                                                    <div class="fine-proof-group">
+                                                        <div class="fine-proof-group-label">Ảnh khi trả sách</div>
+                                                        <div class="fine-proof-grid">
+                                                            @foreach($returnProofs as $url)
+                                                                <a href="{{ $url }}" target="_blank">
+                                                                    <img src="{{ $url }}" alt="Ảnh trả sách">
+                                                                </a>
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                @endif
+                                            @else
+                                                <span class="text-muted">Chưa có ảnh minh chứng cho khoản phạt này.</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+
                         @if($fines->hasPages())
                             <div class="mt-3">
                                 {{ $fines->appends(request()->query())->links() }}
@@ -383,6 +484,105 @@
 .momo-meta {
     font-size: 12px;
     color: #475569;
+}
+
+.fine-proof-section {
+    margin-top: 18px;
+}
+
+.fine-proof-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fine-proof-note {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 12px;
+}
+
+.fine-proof-list {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.fine-proof-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr);
+    gap: 16px;
+    padding: 14px 16px;
+    border-top: 1px solid #e2e8f0;
+    align-items: flex-start;
+}
+
+.fine-proof-row:first-child {
+    border-top: none;
+}
+
+.fine-proof-book {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.fine-proof-thumb {
+    width: 48px;
+    height: 64px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+}
+
+.fine-proof-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.fine-proof-book-name {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.fine-proof-book-meta {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.fine-proof-images {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fine-proof-group-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    margin-bottom: 4px;
+}
+
+.fine-proof-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.fine-proof-grid img {
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid #e2e8f0;
 }
 
 @media (max-width: 1100px) {

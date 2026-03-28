@@ -82,7 +82,7 @@
                     @if(empty($borrowItems) || count($borrowItems) === 0)
                         <div class="alert alert-info mb-0">Khách hiện không có quyển nào đang mượn.</div>
                     @else
-                        <form method="POST" action="{{ route('admin.returns.process') }}" id="returnForm">
+                        <form method="POST" action="{{ route('admin.returns.process') }}" id="returnForm" enctype="multipart/form-data">
                             @csrf
                             <input type="hidden" name="reader_id" value="{{ $selectedReader->id }}" />
 
@@ -93,6 +93,7 @@
                                     <span>Phiếu</span>
                                     <span>Hẹn trả</span>
                                     <span>Tình trạng</span>
+                                    <span>Ảnh trả sách</span>
                                     <span>Phí gia hạn</span>
                                     <span>Phạt dự kiến</span>
                                 </div>
@@ -104,32 +105,83 @@
                                             $bookType = $item->book->loai_sach ?? 'binh_thuong';
                                             $startCondition = $item->inventory->condition ?? 'Trung binh';
                                             $damageFineDamaged = \App\Services\PricingService::calculateDamagedBookFine($bookPrice, $bookType, $startCondition);
+                                            $damageFineLight = (int) round($damageFineDamaged * 0.5);
                                             $damageFineLost = \App\Services\PricingService::calculateLostBookFine($bookPrice, $bookType, $startCondition);
                                             $extensionFee = ((int) ($item->so_lan_gia_han ?? 0)) * 5 * 5000;
+                                            $pendingFineAmount = (int) round((float) $item->pendingFines->sum('amount'));
+                                            $isAwaitingPayment = $item->trang_thai !== 'Dang muon' && $pendingFineAmount > 0;
                                         @endphp
-                                        <div class="returns-row">
+                                        <div class="returns-row {{ $isAwaitingPayment ? 'returns-row--awaiting-payment' : '' }}">
                                             <div class="text-center">
-                                                <input type="checkbox" class="form-check-input js-select-item" name="items[{{ $i }}][selected]" value="1" data-index="{{ $i }}">
+                                                <input type="checkbox" class="form-check-input js-select-item" name="items[{{ $i }}][selected]" value="1" data-index="{{ $i }}" {{ $isAwaitingPayment ? 'disabled' : '' }}>
                                                 <input type="hidden" name="items[{{ $i }}][id]" value="{{ $item->id }}">
                                             </div>
                                             <div>
                                                 <div class="book-name">{{ $item->book->ten_sach ?? '---' }}</div>
                                                 <div class="book-meta">ID item: {{ $item->id }}</div>
+                                                @if($isAwaitingPayment)
+                                                    <div class="book-meta text-danger fw-semibold mt-1">Đã nhận sách, chờ thanh toán phạt: {{ number_format($pendingFineAmount) }}₫</div>
+                                                @endif
                                             </div>
                                             <div class="returns-pill">#{{ $item->borrow_id }}</div>
                                             <div class="returns-date">{{ $due }}</div>
                                             <div>
-                                                <select class="form-select form-select-sm js-condition"
-                                                        name="items[{{ $i }}][condition]"
-                                                        data-damage-binh-thuong="0"
-                                                        data-damage-hong="{{ (int) $damageFineDamaged }}"
-                                                        data-damage-mat="{{ (int) $damageFineLost }}"
-                                                        disabled>
-                                                    <option value="binh_thuong">Bình thường</option>
-                                                    <option value="hong_nhe">Hỏng nhẹ</option>
-                                                    <option value="hong_nang">Hỏng nặng</option>
-                                                    <option value="mat_sach">Mất sách</option>
-                                                </select>
+                                                @if($isAwaitingPayment)
+                                                    <span class="badge bg-warning text-dark">Đã nhận sách</span>
+                                                @else
+                                                    <select class="form-select form-select-sm js-condition"
+                                                            name="items[{{ $i }}][condition]"
+                                                            data-damage-binh-thuong="0"
+                                                            data-damage-hong-nhe="{{ (int) $damageFineLight }}"
+                                                            data-damage-hong="{{ (int) $damageFineDamaged }}"
+                                                            data-damage-mat="{{ (int) $damageFineLost }}"
+                                                            disabled>
+                                                        <option value="binh_thuong">Bình thường</option>
+                                                        <option value="hong_nhe">Hỏng nhẹ</option>
+                                                        <option value="hong_nang">Hỏng nặng</option>
+                                                        <option value="mat_sach">Mất sách</option>
+                                                    </select>
+                                                @endif
+                                            </div>
+                                            <div class="returns-proof">
+                                                @if($isAwaitingPayment)
+                                                    @php
+                                                        $proofs = is_array($item->return_proof_images ?? null)
+                                                            ? $item->return_proof_images
+                                                            : (is_string($item->return_proof_images) ? json_decode($item->return_proof_images, true) : []);
+                                                        $proofs = is_array($proofs) ? $proofs : [];
+                                                    @endphp
+                                                    @if(!empty($proofs))
+                                                        <div class="proof-grid">
+                                                            @foreach($proofs as $proof)
+                                                                @php
+                                                                    $proofUrl = preg_match('/^https?:\/\//i', $proof)
+                                                                        ? $proof
+                                                                        : asset('storage/' . ltrim(str_replace(['\\', 'storage/'], ['/', ''], $proof), '/'));
+                                                                @endphp
+                                                                <a href="{{ $proofUrl }}" target="_blank">
+                                                                    <img src="{{ $proofUrl }}" alt="Ảnh trả sách">
+                                                                </a>
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        <span class="text-muted">Chưa có ảnh</span>
+                                                    @endif
+                                                    <div class="proof-actions">
+                                                        <label class="proof-upload">
+                                                            <input type="file" name="proof_images[{{ $item->id }}][]" accept="image/*" multiple>
+                                                            <span>Tải thêm</span>
+                                                        </label>
+                                                        <button type="submit" class="btn btn-sm btn-outline-primary" name="action" value="attach_proof">
+                                                            Lưu ảnh
+                                                        </button>
+                                                    </div>
+                                                @else
+                                                    <label class="proof-upload">
+                                                        <input type="file" name="proof_images[{{ $item->id }}][]" accept="image/*" multiple>
+                                                        <span>Tải ảnh</span>
+                                                    </label>
+                                                @endif
                                             </div>
                                             <div class="returns-fee">
                                                 @php
@@ -141,7 +193,11 @@
                                                 @endif
                                             </div>
                                             <div class="returns-fine">
-                                                <span class="js-fine" data-item-id="{{ $item->id }}" data-due="{{ $item->ngay_hen_tra }}">0</span>₫
+                                                @if($isAwaitingPayment)
+                                                    <span class="text-danger">{{ number_format($pendingFineAmount) }}₫</span>
+                                                @else
+                                                    <span class="js-fine" data-item-id="{{ $item->id }}" data-due="{{ $item->ngay_hen_tra }}">0</span>₫
+                                                @endif
                                             </div>
                                         </div>
                                     @endforeach
@@ -188,6 +244,10 @@
 
 @push('styles')
 <style>
+.returns-row--awaiting-payment {
+    background: #fff7ed;
+}
+
 .returns-page {
     display: flex;
     flex-direction: column;
@@ -305,7 +365,7 @@
 .returns-table-head,
 .returns-row {
     display: grid;
-    grid-template-columns: 70px minmax(0, 2fr) 90px 110px 160px 130px 140px;
+    grid-template-columns: 70px minmax(0, 2fr) 90px 110px 160px minmax(160px, 1.2fr) 130px 140px;
     gap: 12px;
     padding: 12px 16px;
     align-items: center;
@@ -355,6 +415,43 @@
 .returns-fine {
     font-weight: 700;
     color: #ef4444;
+}
+
+.returns-proof .proof-upload {
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #0f766e;
+    cursor: pointer;
+}
+
+.returns-proof .proof-upload input {
+    display: none;
+}
+
+.returns-proof .proof-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    align-items: center;
+}
+
+.returns-proof .proof-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.returns-proof .proof-grid img {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
 }
 
 .returns-actions-row {
@@ -495,7 +592,10 @@
         if(val === 'mat_sach'){
             return parseInt(conditionEl.dataset.damageMat || '0', 10);
         }
-        if(val === 'hong_nhe' || val === 'hong_nang'){
+        if(val === 'hong_nhe'){
+            return parseInt(conditionEl.dataset.damageHongNhe || '0', 10);
+        }
+        if(val === 'hong_nang'){
             return parseInt(conditionEl.dataset.damageHong || '0', 10);
         }
         return 0;

@@ -38,6 +38,7 @@ class BorrowItem extends Model
         'inventorie_id',
         'tien_phat',
         'tinh_trang_sach_cuoi',
+        'return_proof_images',
         'ghi_chu',
         'anh_bia_truoc',
         'anh_bia_sau',
@@ -55,6 +56,7 @@ class BorrowItem extends Model
         'tien_coc' => 'decimal:2',
         'tien_coc_da_thu' => 'decimal:2',
         'tien_coc_da_hoan' => 'decimal:2',
+        'return_proof_images' => 'array',
     ];
 
 
