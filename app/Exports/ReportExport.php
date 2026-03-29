@@ -294,7 +294,16 @@ class ReportExport implements FromArray, ShouldAutoSize, WithStyles
                     'size' => 12
                 ]
             ],
-
+   '67:112' => [
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                ],
+            ],
+               'C67:C112' => [
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_LEFT,
+                ],
+            ],
             115 => [
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -316,13 +325,13 @@ class ReportExport implements FromArray, ShouldAutoSize, WithStyles
             ],
 
             // ✅ thêm riêng
-            '117:152' => [
+            '117:157' => [
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
                 ],
             ],
             // ✅ ghi đè lại: tên sách + tác giả căn trái
-            'D117:D152' => [
+            'D117:' => [
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_LEFT,
                 ],
