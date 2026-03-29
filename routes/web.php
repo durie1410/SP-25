@@ -791,6 +791,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('reports/export-csv', [ReportController::class, 'exportCSV'])->name('reports.export.csv');
     Route::get('reports/export-pdf', [ReportController::class, 'exportPDF'])->name('reports.export.pdf');
     Route::get('reports/export-excel', [ReportController::class, 'exportExcel'])->name('reports.export.excel');
+    Route::get('reports/export-pdf', [ReportController::class, 'exportPDF'])->name('reports/export-pdf');
     //duyet dki
     Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
 

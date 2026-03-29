@@ -187,10 +187,12 @@ public function exportExcel()
 }
 public function exportPDF()
 {
+    $stats = app(DashboardController::class)->getStats();
+    $books = Book::all();
     $borrows = Borrow::with('reader')->get();
 
-    $pdf = Pdf::loadView('admin.reports.pdf', compact('borrows'));
+    $pdf = Pdf::loadView('admin.reports.pdf', compact('stats', 'books', 'borrows'));
 
-    return $pdf->download('borrow_report.pdf');
+    return $pdf->download('baocao.pdf');
 }
 }
