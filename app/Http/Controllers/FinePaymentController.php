@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BookDeleteRequest;
 use App\Models\Borrow;
+use App\Models\BorrowItem;
 use App\Models\BorrowPayment;
 use App\Models\Fine;
 use App\Models\Reader;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -43,8 +46,13 @@ class FinePaymentController extends Controller
                 'paid_date' => now(),
             ]);
 
+            $finalizeResult = $this->finalizeReturnedItemsAfterFinePayment(
+                $pendingFines->pluck('borrow_item_id')->filter()->unique()->values()->all()
+            );
+
             DB::commit();
-            return back()->with('success', 'Đã xác nhận thanh toán phạt bằng tiền mặt thành công.');
+            return back()->with('success', 'Đã xác nhận thanh toán phạt bằng tiền mặt thành công. ' .
+                $this->buildFinalizeSummaryMessage($finalizeResult));
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error payCash fine: ' . $e->getMessage());
@@ -160,8 +168,13 @@ class FinePaymentController extends Controller
                 'paid_date' => now(),
             ]);
 
+            $finalizeResult = $this->finalizeReturnedItemsAfterFinePayment(
+                $pendingFines->pluck('borrow_item_id')->filter()->unique()->values()->all()
+            );
+
             DB::commit();
-            return back()->with('success', 'Đã thanh toán tất cả khoản phạt của độc giả bằng tiền mặt.');
+            return back()->with('success', 'Đã thanh toán tất cả khoản phạt của độc giả bằng tiền mặt. ' .
+                $this->buildFinalizeSummaryMessage($finalizeResult));
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error payCashByReader: ' . $e->getMessage());
@@ -360,6 +373,14 @@ class FinePaymentController extends Controller
                     return response()->json(['message' => 'Missing reader_id'], 200);
                 }
 
+                $pendingBorrowItemIds = Fine::where('reader_id', $readerId)
+                    ->where('status', 'pending')
+                    ->whereNotNull('borrow_item_id')
+                    ->pluck('borrow_item_id')
+                    ->unique()
+                    ->values()
+                    ->all();
+
                 // Update tất cả BorrowPayment cùng transaction_code
                 BorrowPayment::where('transaction_code', $orderId)
                     ->update([
@@ -374,6 +395,9 @@ class FinePaymentController extends Controller
                         'paid_date' => now(),
                     ]);
 
+                $finalizeResult = $this->finalizeReturnedItemsAfterFinePayment($pendingBorrowItemIds);
+                Log::info('Finalize returned items after fine_reader payment', $finalizeResult);
+
                 DB::commit();
                 return response()->json(['message' => 'Success']);
             }
@@ -381,6 +405,14 @@ class FinePaymentController extends Controller
             // fine theo borrow
             $borrowId = $extraData['borrow_id'] ?? null;
             if ($borrowId) {
+                $pendingBorrowItemIds = Fine::where('borrow_id', $borrowId)
+                    ->where('status', 'pending')
+                    ->whereNotNull('borrow_item_id')
+                    ->pluck('borrow_item_id')
+                    ->unique()
+                    ->values()
+                    ->all();
+
                 BorrowPayment::where('borrow_id', $borrowId)
                     ->where('transaction_code', $orderId)
                     ->update([
@@ -395,6 +427,9 @@ class FinePaymentController extends Controller
                         'paid_date' => now(),
                     ]);
 
+                $finalizeResult = $this->finalizeReturnedItemsAfterFinePayment($pendingBorrowItemIds);
+                Log::info('Finalize returned items after fine_borrow payment', $finalizeResult);
+
                 DB::commit();
                 return response()->json(['message' => 'Success']);
             }
@@ -406,5 +441,89 @@ class FinePaymentController extends Controller
             Log::error('MOMO IPN Error: ' . $e->getMessage());
             return response()->json(['message' => 'Error'], 200);
         }
+    }
+
+    /**
+     * Sau khi thanh toán phạt trả sách:
+     * - Sách bình thường => đưa về kho.
+     * - Sách hỏng/mất => tạo yêu cầu duyệt xóa (nếu chưa có).
+     */
+    private function finalizeReturnedItemsAfterFinePayment(array $borrowItemIds): array
+    {
+        if (empty($borrowItemIds)) {
+            return [
+                'returned_to_stock' => 0,
+                'moved_to_delete_review' => 0,
+            ];
+        }
+
+        $result = [
+            'returned_to_stock' => 0,
+            'moved_to_delete_review' => 0,
+        ];
+
+        $items = BorrowItem::with(['inventory', 'book'])
+            ->whereIn('id', $borrowItemIds)
+            ->whereNotNull('ngay_tra_thuc_te')
+            ->get();
+
+        foreach ($items as $item) {
+            if (!$item->inventory || !$item->book) {
+                continue;
+            }
+
+            $condition = trim((string) ($item->tinh_trang_sach_cuoi ?? ''));
+
+            if ($condition === 'binh_thuong') {
+                $item->inventory->update([
+                    'status' => 'Co san',
+                    'storage_type' => 'Kho',
+                ]);
+                $result['returned_to_stock']++;
+                continue;
+            }
+
+            if (!in_array($condition, ['hong_nhe', 'hong_nang', 'mat_sach'], true)) {
+                continue;
+            }
+
+            $alreadyPending = BookDeleteRequest::where('inventory_id', $item->inventory->id)
+                ->where('status', 'pending')
+                ->exists();
+
+            if ($alreadyPending) {
+                continue;
+            }
+
+            $conditionLabel = match ($condition) {
+                'hong_nhe' => 'hỏng nhẹ',
+                'hong_nang' => 'hỏng nặng',
+                'mat_sach' => 'mất sách',
+                default => 'hư hỏng',
+            };
+
+            BookDeleteRequest::create([
+                'book_id' => $item->book_id,
+                'inventory_id' => $item->inventory->id,
+                'requested_by' => Auth::id() ?? 1,
+                'status' => 'pending',
+                'reason' => '[AUTO TRA SACH] Sách ' . $conditionLabel . ' sau khi đã thanh toán trả sách.',
+            ]);
+            $result['moved_to_delete_review']++;
+        }
+
+        return $result;
+    }
+
+    private function buildFinalizeSummaryMessage(array $result): string
+    {
+        $returnedToStock = (int) ($result['returned_to_stock'] ?? 0);
+        $movedToDeleteReview = (int) ($result['moved_to_delete_review'] ?? 0);
+
+        if ($returnedToStock === 0 && $movedToDeleteReview === 0) {
+            return 'Không có sách nào cần cập nhật thêm sau thanh toán.';
+        }
+
+        return "Đã đưa {$returnedToStock} sách về kho, {$movedToDeleteReview} sách sang duyệt xóa.";
     }
 }

@@ -1021,6 +1021,37 @@
                                     @endif
                                 </div>
 
+                                @php
+                                    $finalCondition = trim((string) ($item->tinh_trang_sach_cuoi ?? ''));
+                                    $hasPendingFine = $item->fines()->where('status', 'pending')->exists();
+                                    $hasPendingDeleteRequest = false;
+
+                                    if ($item->inventory) {
+                                        $hasPendingDeleteRequest = \App\Models\BookDeleteRequest::where('inventory_id', $item->inventory->id)
+                                            ->where('status', 'pending')
+                                            ->exists();
+                                    }
+                                @endphp
+                                @if(!empty($item->ngay_tra_thuc_te))
+                                    <div style="margin-top: 8px;">
+                                        @if($finalCondition === 'binh_thuong')
+                                            @if($hasPendingFine)
+                                                <span class="status-badge status-Cho-duyet">⏳ Chờ thanh toán để chuyển về kho</span>
+                                            @else
+                                                <span class="status-badge status-Da-tra">📦 Sách bình thường đã về kho</span>
+                                            @endif
+                                        @elseif(in_array($finalCondition, ['hong_nhe', 'hong_nang', 'mat_sach'], true))
+                                            @if($hasPendingFine)
+                                                <span class="status-badge status-Cho-duyet">⏳ Chờ thanh toán để chuyển duyệt xóa</span>
+                                            @elseif($hasPendingDeleteRequest)
+                                                <span class="status-badge status-Huy">🗑️ Đã chuyển sang duyệt xóa</span>
+                                            @else
+                                                <span class="status-badge status-Cho-duyet">⏳ Đang đồng bộ duyệt xóa</span>
+                                            @endif
+                                        @endif
+                                    </div>
+                                @endif
+
                                 @if($item->anh_bia_truoc || $item->anh_bia_sau || $item->anh_gay_sach)
                                     <div style="margin-top: 12px;">
                                         <strong style="display:block; margin-bottom: 6px;">Ảnh xác nhận nhận sách:</strong>
