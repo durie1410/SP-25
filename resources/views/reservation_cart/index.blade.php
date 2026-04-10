@@ -960,7 +960,7 @@
                         <i class="fas fa-info-circle me-1"></i>
                         Chỉ các sách được tick mới được gửi đi. Vui lòng chọn <strong>ngày lấy</strong> và <strong>ngày trả</strong> cho từng sách đã chọn.
                         <div style="margin-top: 8px;">
-                            Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '20:00') }}. Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày.
+                            Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '18:00') }}. Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày.
                         </div>
                     </div>
 
@@ -971,7 +971,7 @@
                                 <span class="reservation-date-label">Giờ lấy</span>
                                 <div style="display: flex; gap: 8px;">
                                     <select class="form-control" id="pickup-time-hour" onchange="handlePickupTimeChange()">
-                                        @for($h = 8; $h <= 20; $h++)
+                                        @for($h = 8; $h <= 18; $h++)
                                             <option value="{{ str_pad($h, 2, '0', STR_PAD_LEFT) }}" {{ ($items->first()?->pickup_time && strpos($items->first()->pickup_time, str_pad($h, 2, '0', STR_PAD_LEFT) . ':') === 0) ? 'selected' : '' }}>{{ $h }}h</option>
                                         @endfor
                                     </select>
@@ -987,9 +987,8 @@
                         </div>
                         <div style="font-weight: 700; margin-bottom: 8px;">Quy định mượn trả</div>
                         <ul style="margin: 0 0 12px 18px; color: var(--reserve-muted); font-size: 12px; line-height: 1.6;">
-                            <li>Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '20:00') }}.</li>
+                            <li>Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '18:00') }}.</li>
                             <li>Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày.</li>
-                            <li>Số lượng: tối thiểu {{ config('library.borrow_min_books', 1) }} cuốn, tối đa {{ config('library.borrow_max_books', 5) }} cuốn/đơn.</li>
                             <li>Trả đúng hạn, giữ sách nguyên vẹn để được hoàn cọc đầy đủ.</li>
                         </ul>
                         <label style="display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--reserve-text);">
@@ -1565,6 +1564,14 @@ function handlePickupTimeChange(){
     const minute = minuteSelect.value;
     const timeStr = hour + ':' + minute;
 
+    // Nếu chọn 18h → disable phút (vì 18h là giờ cuối trong ngày)
+    if (hour === '18') {
+        minuteSelect.disabled = true;
+        minuteSelect.value = '00';
+    } else {
+        minuteSelect.disabled = false;
+    }
+
     if(hiddenInput){
         hiddenInput.value = timeStr;
     }
@@ -1603,10 +1610,10 @@ function handleGlobalPickupTimeChange(input){
     const pickupTime = input.value;
     const hiddenInput = document.getElementById('pickup-time-hidden');
 
-    // Validate giờ trong khoảng cho phép (8h - 20h)
+    // Validate giờ trong khoảng cho phép (8h - 18h)
     if(pickupTime){
         const openHour = "{{ config('library.open_hour', '08:00') }}";
-        const closeHour = "{{ config('library.close_hour', '20:00') }}";
+        const closeHour = "{{ config('library.close_hour', '18:00') }}";
         if(pickupTime < openHour || pickupTime > closeHour){
             alert(`Giờ nhận sách phải trong khoảng ${openHour} - ${closeHour}`);
             input.value = '';
@@ -1659,10 +1666,10 @@ function validateCartBeforeSubmit(){
         return false;
     }
 
-    // Validate giờ trong khoảng cho phép (8h - 20h)
+    // Validate giờ trong khoảng cho phép (8h - 18h)
     const hour = parseInt(hourSelect.value);
-    if(hour < 8 || hour > 20){
-        alert('Giờ nhận sách phải trong khoảng 8h - 20h');
+    if(hour < 8 || hour > 18){
+        alert('Giờ nhận sách phải trong khoảng 8h - 18h');
         return false;
     }
 
@@ -1718,7 +1725,7 @@ function validateCartBeforeSubmit(){
 
             // Nếu giờ đã chọn nhỏ hơn hoặc bằng giờ hiện tại + 1
             if(selectedHour <= currentHour + 1){
-                alert('Giờ lấy sách đã qua. Vui lòng chọn giờ khác (phải lớn hơn giờ hiện tại ít nhất 1 tiếng).');
+                alert('Giờ lấy sách đã qua. Vui lòng chọn giờ khác (phải lớn hơn giờ hiện tại ít nhất 2 tiếng).');
                 return false;
             }
         }
@@ -1784,35 +1791,47 @@ function disablePastHours() {
     const currentHour = now.getHours();
     const minValidHour = currentHour + 2; // Cần ít nhất 2 tiếng buffer
 
-    // Nếu đã qua 19h thì disable hết (vì kết thúc lúc 20h)
-    if(currentHour >= 19) {
+    // Nếu đã qua 17h thì disable hết (vì kết thúc lúc 18h, cần 2 tiếng buffer)
+    if(currentHour >= 17) {
         hourSelect.disabled = true;
         hourSelect.innerHTML = '<option value="">Đã hết giờ hôm nay</option>';
+        const minuteSelect = document.getElementById('pickup-time-minute');
+        if(minuteSelect) minuteSelect.disabled = true;
         return;
     }
 
-    // Disable các giờ không hợp lệ - CHỈ disable, KHÔNG tự động chọn giờ nào
+    // Disable các giờ không hợp lệ - CHỉ disable, KHÔNG tự động chọn giờ nào
     const options = hourSelect.querySelectorAll('option');
     options.forEach(option => {
         const hour = parseInt(option.value, 10);
-        if(hour < minValidHour || hour > 20) {
+        if(hour < minValidHour || hour > 18) {
             option.disabled = true;
             option.style.color = '#ccc';
         }
     });
+
+    // Nếu 18h vẫn còn disable được → cũng disable phút
+    const eighteenOption = hourSelect.querySelector('option[value="18"]');
+    const minuteSelect = document.getElementById('pickup-time-minute');
+    if(eighteenOption && eighteenOption.disabled && minuteSelect) {
+        minuteSelect.disabled = true;
+        minuteSelect.value = '00';
+    }
 }
 
 // Restore tất cả giờ (khi user đổi sang ngày khác hôm nay)
 function restoreAllHours() {
     const hourSelect = document.getElementById('pickup-time-hour');
+    const minuteSelect = document.getElementById('pickup-time-minute');
     if(!hourSelect) return;
 
     // Restore select box
     hourSelect.disabled = false;
+    if(minuteSelect) minuteSelect.disabled = false;
 
-    // Rebuild all hour options (8h - 20h)
+    // Rebuild all hour options (8h - 18h)
     let optionsHtml = '';
-    for(let h = 8; h <= 20; h++) {
+    for(let h = 8; h <= 18; h++) {
         const hourStr = String(h).padStart(2, '0');
         optionsHtml += `<option value="${hourStr}">${h}h</option>`;
     }

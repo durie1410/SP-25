@@ -281,31 +281,29 @@
                         {{ $pricing['rental']['description_detail'] ?? 'Phí thuê sách được tính theo số ngày mượn. Áp dụng cho mỗi ngày là 1% giá trị sách.' }}
                     </div>
                     <div class="pillar-formula">
-                        Phí = Giá sách × {{ ($pricing['rental']['daily_rate'] ?? 0.01) * 100 }}% × Ngày
+                        Phí = 5.000 VNĐ × số ngày × số sách
                     </div>
                 </div>
 
                 <!-- Tiền cọc -->
                 <div class="pillar-card">
                     <div class="pillar-icon"><i class="fas fa-shield-alt"></i></div>
-                    <h3>Tiền cọc sách</h3>
+                    <h3>giờ mượn sách</h3>
                     <div class="pillar-content">
-                        Hoàn trả 100% khi trả sách nguyên vẹn và đúng hạn. Đảm bảo trách nhiệm bảo quản sách bền lâu.
+thư viện mở cửa từ 8h -> 20h . yêu cầu đặt sách trước 2 tiếng . quý khách vui lòng tuân thủ giờ mượn sách để đảm bảo trải nghiệm tốt nhất.
                     </div>
-                    <div class="pillar-formula">
-                        Cọc = Giá sách × {{ ($pricing['deposit']['rate'] ?? 1.0) * 100 }}%
-                    </div>
+               
                 </div>
 
                 <!-- Vận chuyển -->
                 <div class="pillar-card">
                     <div class="pillar-icon"><i class="fas fa-truck"></i></div>
-                    <h3>Phí vận chuyển</h3>
+                    <h3>trả sách</h3>
                     <div class="pillar-content">
-                        Phí vận chuyển mặc định là 20.000 VNĐ cho mỗi đơn hàng. Miễn phí trong {{ $pricing['shipping']['free_km'] ?? 5 }}km đầu tiên.
+yêu cầu trả sách đúng hạn để tránh phát sinh phí trễ. mong quý khách vui lòng tuân thủ thời gian trả sách. vui lòng bảo quản sách cẩn thận và trả lại trong tình trạng tốt để tránh phí bồi thường. cảm ơn quý khách đã hợp tác!
                     </div>
                     <div class="pillar-formula">
-                        Phí ship mặc định: 20.000 VNĐ/đơn
+                        Phí trả muộn : 1 ngày = 5.000 VNĐ/đơn
                     </div>
                 </div>
             </div>
@@ -325,39 +323,14 @@
                             Tính từ ngày quá hạn đầu tiên. Vui lòng gia hạn trước 24h nếu bạn cần thêm thời gian để tránh phát sinh phí.
                         </div>
                         <div class="pillar-formula">
-                            ⛔ Trả trễ: 3.000 - 5.000 VNĐ/ngày/cuốn
+                            ⛔ Trả trễ: số ngày muộn × 5.000 VNĐ/cuốn
                         </div>
                     </div>
 
                     <!-- Trả sớm -->
-                    <div class="policy-card">
-                        <div class="policy-card-header">
-                            <i class="fas fa-gift"></i>
-                            <h4>🎁 Trả sớm</h4>
-                        </div>
-                        <div class="pillar-content">
-                            Nếu bạn trả sách sớm hơn thời hạn, bạn sẽ được hoàn lại một phần phí thuê vào ví của mình.
-                        </div>
-                        <div class="pillar-formula">
-                            🎁 Trả sớm: hoàn 20% - 30% vào ví
-                        </div>
-                    </div>
-                </div>
+                  
                 
-                <div class="policy-grid" style="margin-top: 32px;">
-                    <!-- Trễ lâu -->
-                    <div class="policy-card">
-                        <div class="policy-card-header">
-                            <i class="fas fa-lock"></i>
-                            <h4>🔒 Trễ lâu</h4>
-                        </div>
-                        <div class="pillar-content">
-                            Nếu trả sách quá trễ nhiều ngày, tài khoản sẽ bị khóa mượn và hệ thống sẽ tự động trừ cọc cùng phí ship.
-                        </div>
-                        <div class="pillar-formula">
-                            🔒 Trễ lâu: khóa mượn / trừ cọc + phí ship (20.000 VNĐ)
-                        </div>
-                    </div>
+               
 
                     <!-- Làm hỏng/Mất -->
                     <div class="policy-card">
@@ -366,38 +339,30 @@
                             <h4>Sách hỏng hoặc mất</h4>
                         </div>
                         <div class="pillar-content">
-                            Bồi thường dựa trên loại sách và tình trạng thực tế. Sách quý bồi thường 100% giá trị niêm yết.
+                            Bồi thường dựa trên loại sách và tình trạng thực tế.
                         </div>
                         <div class="pillar-formula">
-                            Bồi thường: 70% - 100% giá trị sách
+                            Bồi thường: 40% - 80% giá trị sách
                         </div>
                     </div>
                 </div>
 
                 <div class="example-block">
                     <h4><i class="fas fa-lightbulb"></i> Ví dụ minh họa thực tế</h4>
-                    <p>Giả sử bạn mượn sách <strong>100,000 VNĐ</strong> trong <strong>14 ngày</strong> (trong khoảng 7-30 ngày), giao hàng trong <strong>7km</strong>:</p>
+                    <p>Giả sử bạn mượn sách  trong <strong>10 ngày</strong> (trong khoảng 7-14 ngày)</p>
                     <ul style="margin: 15px 0; padding-left: 20px;">
-                        <li style="margin-bottom: 8px;"><strong>💰 Phí thuê:</strong> 100,000 × 1% × 14 = 14,000 VNĐ</li>
-                        <li style="margin-bottom: 8px;"><strong>🚚 Phí ship:</strong> 20,000 VNĐ (mặc định)</li>
-                        <li style="margin-bottom: 8px;"><strong>💵 Tiền cọc (Hoàn lại khi trả đúng hạn):</strong> 100,000 VNĐ</li>
+                        <li style="margin-bottom: 8px;"><strong>💰 Phí thuê:</strong> 10 × 5,000 = 50,000 VNĐ</li>
+                 
                     </ul>
-                    <p style="margin-top: 20px;"><strong>Ví dụ 2:</strong> Nếu bạn <strong>trả sớm</strong> (ví dụ: mượn 14 ngày nhưng trả sau 10 ngày):</p>
+    
+                    <p style="margin-top: 20px;"><strong>Ví dụ 2:</strong> Nếu bạn <strong>trả trễ 3 ngày</strong>:</p>
                     <ul style="margin: 15px 0; padding-left: 20px;">
-                        <li style="margin-bottom: 8px;"><strong>🎁 Hoàn lại vào ví:</strong> 14,000 × 25% = 3,500 VNĐ</li>
-                        <li style="margin-bottom: 8px;"><strong>💵 Tiền cọc:</strong> Hoàn lại 100%</li>
+                        <li style="margin-bottom: 8px;"><strong>⛔ Phí trả trễ:</strong> 5,000 VNĐ/ngày × 3 ngày = 15,000 VNĐ</li>
                     </ul>
-                    <p style="margin-top: 20px;"><strong>Ví dụ 3:</strong> Nếu bạn <strong>trả trễ 3 ngày</strong>:</p>
+                    <p style="margin-top: 20px;"><strong>Ví dụ 4:</strong> Nếu bạn <strong>làm hỏng hoặc mất sách</strong></p>
                     <ul style="margin: 15px 0; padding-left: 20px;">
-                        <li style="margin-bottom: 8px;"><strong>⛔ Phí trả trễ:</strong> 4,000 VNĐ/ngày × 3 ngày = 12,000 VNĐ</li>
-                        <li style="margin-bottom: 8px;"><strong>💵 Tiền cọc:</strong> Hoàn lại sau khi trừ phí trễ</li>
+                        <li style="margin-bottom: 8px;"><strong>💰 Trừ cọc:</strong>số sách + 8php0% giá trị sách</li>
                     </ul>
-                    <p style="margin-top: 20px;"><strong>Ví dụ 4:</strong> Nếu bạn <strong>trả trễ quá lâu</strong> (≥15 ngày):</p>
-                    <ul style="margin: 15px 0; padding-left: 20px;">
-                        <li style="margin-bottom: 8px;"><strong>🔒 Hệ thống sẽ:</strong> Khóa tài khoản mượn sách</li>
-                        <li style="margin-bottom: 8px;"><strong>💰 Trừ cọc:</strong> Trừ tiền cọc + phí ship (20,000 VNĐ)</li>
-                    </ul>
-                    <p style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #fef9c3;"><strong>Tổng chi phí đơn hàng mẫu (Ví dụ 1):</strong> <strong style="color: var(--primary-color); font-size: 1.25rem;">34,000 VNĐ</strong> (chưa tính tiền cọc - sẽ được hoàn lại khi trả sách đúng hạn)</p>
                 </div>
             </div>
 
@@ -423,16 +388,10 @@
                         <i class="fas fa-book"></i>
                         <div>
                             <strong>Số lượng mỗi đơn</strong>
-                            <span>Mượn tối thiểu {{ config('library.borrow_min_books', 1) }} cuốn, tối đa {{ config('library.borrow_max_books', 5) }} cuốn/đơn.</span>
+                            <span>Mượn tối thiểu {{ config('library.borrow_min_books', 2) }} cuốn cung 1 loại</span>
                         </div>
                     </div>
-                    <div class="rule-item">
-                        <i class="fas fa-wallet"></i>
-                        <div>
-                            <strong>Hoàn tiền cọc</strong>
-                            <span>Thực hiện trong 3-5 ngày làm việc sau khi hệ thống xác nhận tình trạng sách trả về.</span>
-                        </div>
-                    </div>
+
                     <div class="rule-item">
                         <i class="fas fa-user-shield"></i>
                         <div>
@@ -440,13 +399,7 @@
                             <span> Bạn chịu trách nhiệm giữ gìn sách nguyên vẹn, không viết vẽ hoặc làm mất trang sách.</span>
                         </div>
                     </div>
-                    <div class="rule-item">
-                        <i class="fas fa-file-invoice-dollar"></i>
-                        <div>
-                            <strong>Thanh toán phí phạt</strong>
-                            <span>Các khoản phí phát sinh cần được quyết toán trong vòng {{ $pricing['fines']['payment_deadline_days'] ?? 30 }} ngày.</span>
-                        </div>
-                    </div>
+          
                 </div>
             </div>
         </div>

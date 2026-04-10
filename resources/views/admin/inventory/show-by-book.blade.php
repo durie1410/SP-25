@@ -7,7 +7,7 @@
 <!-- Modal Báo hỏng -->
 <div class="modal-overlay" id="damageModalOverlay" onclick="closeDamageModal()"></div>
 <div class="modal-box" id="damageModal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:9999; background:#fff; border-radius:14px; width:480px; max-width:95vw; box-shadow:0 25px 60px rgba(0,0,0,0.25); overflow:hidden;">
-    <form method="POST" action="{{ route('admin.inventory.delete-requests.store') }}">
+    <form method="POST" action="{{ route('admin.inventory.delete-requests.store') }}" enctype="multipart/form-data">
         @csrf
         <input type="hidden" name="book_id" value="{{ $book->id }}">
         <input type="hidden" name="inventory_id" id="damage_inventory_id">
@@ -19,12 +19,20 @@
         </div>
         <div style="padding:24px;">
             <p id="damage_book_info" style="margin-bottom:15px; color:var(--text-secondary);"></p>
-            <div class="form-group" style="margin-bottom:0;">
+            <div class="form-group" style="margin-bottom:16px;">
                 <label style="font-weight:600; margin-bottom:6px; display:block; color:var(--text-primary);">Lý do hỏng <span class="text-danger">*</span></label>
                 <textarea name="reason" id="damage_reason" class="form-control" rows="3"
                           placeholder="Mô tả tình trạng hỏng (VD: Rách bìa, ướt, mất trang...)"
                           required maxlength="1000"></textarea>
                 <small class="form-text text-muted">Tối đa 1000 ký tự.</small>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label style="font-weight:600; margin-bottom:6px; display:block; color:var(--text-primary);">Ảnh minh chứng</label>
+                <input type="file" name="proof_images[]" id="damage_proof_images" accept="image/*" multiple
+                       style="font-size:13px; color:#495057;"
+                       onchange="previewDamageImages(this)">
+                <small class="form-text text-muted">Có thể chọn nhiều ảnh (tối đa 6 ảnh, mỗi ảnh tối đa 4MB).</small>
+                <div id="damage-preview" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;"></div>
             </div>
         </div>
         <div style="padding:16px 24px; border-top:1px solid var(--border-color); display:flex; justify-content:flex-end; gap:10px;">
@@ -42,15 +50,38 @@ function openDamageModal(inventoryId, barcode) {
     document.getElementById('damage_book_info').innerHTML =
         '<strong>Mã vạch:</strong> <code>' + barcode + '</code>';
     document.getElementById('damage_reason').value = '';
+    document.getElementById('damage_proof_images').value = '';
+    document.getElementById('damage-preview').innerHTML = '';
     document.getElementById('damageModal').style.display = 'block';
     document.getElementById('damageModalOverlay').style.display = 'block';
     document.body.style.overflow = 'hidden';
+}
+
+function previewDamageImages(input) {
+    const container = document.getElementById('damage-preview');
+    container.innerHTML = '';
+    if (!input.files) return;
+    Array.from(input.files).forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const div = document.createElement('div');
+            div.style.cssText = 'width:80px; height:80px; border-radius:8px; overflow:hidden; border:1px solid #ddd; flex-shrink:0;';
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.style.cssText = 'width:100%; height:100%; object-fit:cover;';
+            div.appendChild(img);
+            container.appendChild(div);
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 function closeDamageModal() {
     document.getElementById('damageModal').style.display = 'none';
     document.getElementById('damageModalOverlay').style.display = 'none';
     document.body.style.overflow = '';
+    document.getElementById('damage-preview').innerHTML = '';
 }
 </script>
 

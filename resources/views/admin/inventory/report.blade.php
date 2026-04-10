@@ -10,33 +10,7 @@
             <i class="fas fa-boxes" style="color: #22c55e;"></i>
             Báo Cáo Tổng Hợp Kho
         </h1>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
 
-            <!-- <a href="/admin/reports/export-excel"
-                style="background:#22c55e;color:white;padding:8px 14px;border-radius:6px;text-decoration:none;">
-                Xuất excel
-            </a> -->
-            <a href="{{ route('admin.reports.export.excel') }}" class="btn btn-success">
-                Xuất Excel
-            </a>
-            <a href="/admin/reports/export-pdf"
-                style="background:#ef4444;color:white;padding:8px 14px;border-radius:6px;text-decoration:none;">
-                Xuất PDF
-            </a>
-
-        </div>
-        <p class="page-subtitle">Thống kê và báo cáo tổng hợp về kho sách</p>
-    </div>
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <form action="{{ route('admin.inventory.report.sync') }}" method="POST" style="display: inline;" onsubmit="return confirm('Bạn có chắc chắn muốn đồng bộ hóa dữ liệu kho?\n\n✓ Liên kết Inventory với BorrowItem\n✓ Đồng bộ trạng thái mượn/trả\n✓ Sửa lỗi dữ liệu không khớp');">
-            @csrf
-            <button type="submit" class="btn btn-success">
-                <i class="fas fa-sync-alt"></i>
-                Đồng Bộ Kho
-            </button>
-        </form>
-    </div>
-</div>
 
 @if(session('success'))
 <div class="alert alert-success" style="white-space: pre-line; margin-top: 20px;">
@@ -189,38 +163,9 @@
 </div>
 
 <!-- Thống kê theo tình trạng sách -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px;">
-    <div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; position: relative; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-            <h6 style="font-size: 13px; font-weight: 700; color: #374151; text-transform: uppercase; margin: 0; letter-spacing: 0.5px; line-height: 1.4;">SÁCH MỚI</h6>
-            <div style="width: 44px; height: 44px; background: #dbeafe; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                <i class="fas fa-star" style="font-size: 22px; color: #3b82f6;"></i>
-            </div>
-        </div>
-        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
-            <h3 style="font-size: 32px; font-weight: 700; color: #1f2937; margin: 0 0 8px 0; line-height: 1.2;">{{ number_format($stats['new_books']) }}</h3>
-            <p style="font-size: 13px; color: #6b7280; margin: 0 0 12px 0; line-height: 1.4;">Sách tình trạng mới</p>
-        </div>
-        <div style="display: flex; align-items: center; gap: 6px; color: #3b82f6; font-size: 12px; margin-top: auto;">
-            <i class="fas fa-info-circle"></i>
-            <span>Tình trạng mới</span>
-        </div>
-    </div>
-    <div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; position: relative; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-            <h6 style="font-size: 13px; font-weight: 700; color: #374151; text-transform: uppercase; margin: 0; letter-spacing: 0.5px; line-height: 1.4;">SÁCH CŨ</h6>
-            <div style="width: 44px; height: 44px; background: #fef3c7; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                <i class="fas fa-book" style="font-size: 22px; color: #f59e0b;"></i>
-            </div>
-        </div>
-        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
-            <h3 style="font-size: 32px; font-weight: 700; color: #1f2937; margin: 0 0 8px 0; line-height: 1.2;">{{ number_format($stats['old_books']) }}</h3>
-            <p style="font-size: 13px; color: #6b7280; margin: 0 0 12px 0; line-height: 1.4;">Sách tình trạng cũ</p>
-        </div>
-        <div style="display: flex; align-items: center; gap: 6px; color: #f59e0b; font-size: 12px; margin-top: auto;">
-            <i class="fas fa-info-circle"></i>
-            <span>Tình trạng cũ</span>
-        </div>
+
+  
+     
     </div>
     <div class="card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; position: relative; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">

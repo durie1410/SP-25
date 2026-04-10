@@ -1086,16 +1086,7 @@
                                     <a href="{{ route('books.show', $item->book->id) }}" class="book-action-link">
                                         <i class="fas fa-eye"></i> Xem sách
                                     </a>
-                                    @if($canRerentBook)
-                                        <form action="{{ route('reservation-cart.add-and-go') }}" method="POST" class="rerent-form">
-                                            @csrf
-                                            <input type="hidden" name="book_id" value="{{ $item->book->id }}">
-                                            <input type="hidden" name="borrow_item_id" value="{{ $item->id }}">
-                                            <button type="submit" class="btn-rerent">
-                                                <i class="fas fa-rotate-right"></i> Thuê lại
-                                            </button>
-                                        </form>
-                                    @endif
+                            
                                 </div>
 
                                 @if($canReviewBook)
@@ -1350,24 +1341,12 @@
                     @endif
                 </div>
 
-                @if($borrow->payments->count() > 0)
-                    <div style="margin-top: 20px;">
-                        <strong>Phương thức thanh toán:</strong>
-                        @php $payment = $borrow->payments->first(); @endphp
-                        @if($payment->payment_method === 'online')
-                            <span>💳 Thanh toán online</span>
-                        @else
-                            <span>💰 Thanh toán khi nhận hàng</span>
-                        @endif
-                    </div>
-                @endif
+                
             </div>
 
             <!-- Action buttons -->
             <div class="action-buttons">
-                <a href="{{ route('orders.index') }}" class="btn-custom btn-back">
-                    <i class="fas fa-arrow-left"></i> Quay lại
-                </a>
+             
 
                 {{-- Hiển thị nút "Nhận sách" khi đang giao hàng --}}
                 @if(in_array($borrow->trang_thai_chi_tiet, ['dang_giao_hang', 'giao_hang_thanh_cong']) && !$borrow->customer_confirmed_delivery)

@@ -40,14 +40,16 @@
             <div class="col-md-4">
                 <div class="mb-3">
                     <label class="form-label">Nhà xuất bản</label>
-                    <select name="nha_xuat_ban_id" class="form-control">
-                        <option value="">-- Chọn nhà xuất bản --</option>
+                    <input type="text" name="nha_xuat_ban_name" id="nha_xuat_ban_input" class="form-control" list="publisher-list" autocomplete="off" placeholder="Chọn hoặc nhập nhà xuất bản mới">
+                    <input type="hidden" name="nha_xuat_ban_id" id="nha_xuat_ban_id">
+                    <datalist id="publisher-list">
                         @if(isset($publishers))
                             @foreach($publishers as $publisher)
-                                <option value="{{ $publisher->id }}">{{ $publisher->ten_nha_xuat_ban }}</option>
+                                <option value="{{ $publisher->ten_nha_xuat_ban }}" data-id="{{ $publisher->id }}">
                             @endforeach
                         @endif
-                    </select>
+                    </datalist>
+                    <small class="form-text text-muted">Chọn nhà xuất bản có sẵn hoặc nhập tên mới</small>
                 </div>
             </div>
 

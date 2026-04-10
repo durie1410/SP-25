@@ -72,7 +72,15 @@
 
         @php
             $proofImages = $reservation->getProofImages();
+            $lockedStatuses = ['cancelled', 'overdue', 'fulfilled'];
+            $isLocked = in_array($reservation->status, $lockedStatuses);
         @endphp
+
+        @if($isLocked)
+            <div class="alert alert-secondary mb-3">
+                <i class="fas fa-lock"></i> Đơn đặt trước đã {{ $reservation->getStatusLabel() }} — không thể tải ảnh chứng minh.
+            </div>
+        @endif
 
         @if(!empty($proofImages))
             <div class="mb-4">
@@ -92,7 +100,7 @@
             </div>
         @endif
 
-        @if(empty($proofImages))
+        @if(empty($proofImages) && !$isLocked)
             <form action="{{ route('admin.inventory-reservations.proof.store', $reservation->id) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="mb-3">
@@ -107,7 +115,7 @@
                     <i class="fas fa-save"></i> Lưu ảnh chứng minh
                 </button>
             </form>
-        @else
+        @elseif(!empty($proofImages) && !$isLocked)
             <form action="{{ route('admin.inventory-reservations.proof.store', $reservation->id) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="mb-3">

@@ -5,19 +5,16 @@
 @section('content')
 <div class="fine-payment-page">
     @php
-        $totalPending = $fines->sum('amount');
+        $totalPending = ($fines->sum('amount') ?? 0) + ($pendingReturnTotal ?? 0);
         $firstBorrowId = optional($fines->first())->borrow_id;
     @endphp
 
     <div class="fine-payment-header">
         <div>
             <h2 class="fine-payment-title"><i class="fas fa-money-check-alt"></i> Thanh toán phạt</h2>
-            <p class="fine-payment-subtitle">Tổng hợp khoản phạt pending và xác nhận phương thức thanh toán</p>
         </div>
         <div class="fine-payment-actions">
-            <a href="{{ route('admin.returns.index') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-undo"></i> Trả sách
-            </a>
+ 
         </div>
     </div>
 
@@ -43,9 +40,12 @@
         </div>
     @endif
 
-    @if($fines->count() === 0)
+    {{-- Sách đang chờ trả (từ session) --}}
+ 
+
+    @if($fines->count() === 0 && (empty($pendingReturnItems) || $pendingReturnItems->count() === 0))
         <div class="alert alert-info border-0">
-            <i class="fas fa-info-circle me-2"></i>Không có khoản phạt pending.
+            <i class="fas fa-info-circle me-2"></i>Không có khoản phạt pending và không có sách nào được chọn để trả.
         </div>
     @else
         <div class="fine-payment-grid">
@@ -73,7 +73,6 @@
                             </div>
                             <div>
                                 <div class="fine-info-label">Phiếu mượn</div>
-                                <div class="fine-info-value">#{{ $firstBorrowId ?? '---' }}</div>
                             </div>
                         </div>
 
@@ -101,6 +100,21 @@
                                             <td class="text-end fw-bold text-danger">{{ number_format($fine->amount) }}₫</td>
                                         </tr>
                                     @endforeach
+                                    {{-- Phạt ước tính từ sách chờ trả (chưa tạo Fine record) --}}
+                                    @foreach($pendingReturnFines ?? [] as $fine)
+                                        <tr class="table-warning">
+                                            <td>
+                                                <div class="fw-semibold">{{ optional(optional($fine->borrowItem)->book)->ten_sach ?? '---' }}</div>
+                                                <div class="small text-muted">Chờ trả sách</div>
+                                            </td>
+                                            <td>#{{ $fine->borrow_id }}</td>
+                                            <td>
+                                                <span class="badge bg-danger">{{ $fine->type }}</span>
+                                            </td>
+                                            <td>{{ $fine->created_at ? $fine->created_at->format('d/m/Y H:i') : '---' }}</td>
+                                            <td class="text-end fw-bold text-danger">{{ number_format($fine->amount) }}₫</td>
+                                        </tr>
+                                    @endforeach
                                 </tbody>
                             </table>
                         </div>
@@ -108,51 +122,117 @@
                         {{-- Ảnh minh chứng từ đặt trước / khi trả sách --}}
                         <div class="fine-proof-section mt-4">
                             <div class="fine-proof-title">
-                                <i class="fas fa-camera"></i> Ảnh minh chứng mượn / trả sách
+                                <i class="fas fa-camera"></i> Ảnh minh chứng minh trả sách
                             </div>
-                            <p class="fine-proof-note">
-                                Ảnh được lấy từ yêu cầu đặt trước (ảnh nhận sách) và từ màn hình trả sách (ảnh trả lại).
-                                Dùng để đối chiếu trước khi xác nhận thanh toán phạt.
-                            </p>
+                        
+                  
 
                             <div class="fine-proof-list">
+                                @php
+            // Lấy danh sách borrow_item_id đã hiển thị (tránh trùng khi cả fine + pendingReturn cùng 1 item)
+            $shownItemIds = [];
+
+            // Helper tách ảnh từ path
+            $makeProofUrl = function($img) {
+                if (!$img) return null;
+                if (preg_match('/^https?:\/\//i', $img)) return $img;
+                $normalized = ltrim(str_replace(['\\', 'storage/'], ['/', ''], (string) $img), '/');
+                return asset('storage/' . $normalized);
+            };
+
+            $sessionProofsByItemId = $sessionProofsByItemId ?? collect();
+        @endphp
+
+                                {{-- Ảnh từ sách chờ trả (từ session) --}}
+                                @if(!empty($pendingReturnItems))
+                                    @foreach($pendingReturnItems as $item)
+                                        @php
+                                            $book = optional($item)->book;
+                                            $shownItemIds[] = $item->id;
+
+                                            // Ảnh đặt trước
+                                            $reservationProofs = collect(optional($item->reservation)->getProofImages() ?? [])->map($makeProofUrl)->filter()->values()->all();
+
+                                            // Ảnh trả sách
+                                            $raw = is_array($item->return_proof_images ?? null)
+                                                ? $item->return_proof_images
+                                                : (is_string($item->return_proof_images ?? null) ? json_decode($item->return_proof_images, true) : []);
+                                            $sessionProofs = collect($sessionProofsByItemId->get($item->id, []))->filter()->values()->all();
+                                            $returnProofs = collect(is_array($raw) ? $raw : [])
+                                                ->merge($sessionProofs)
+                                                ->unique()
+                                                ->map($makeProofUrl)
+                                                ->filter()
+                                                ->values()
+                                                ->all();
+
+                                            $hasAnyProof = !empty($reservationProofs) || !empty($returnProofs);
+                                        @endphp
+                                        <div class="fine-proof-row">
+                                            <div class="fine-proof-book">
+                                                <div class="fine-proof-thumb">
+                                                    @if($book && $book->hinh_anh)
+                                                        <img src="{{ $book->image_url ?? asset('images/default-book.png') }}" alt="">
+                                                    @else
+                                                        <span>📘</span>
+                                                    @endif
+                                                </div>
+                                                <div>
+                                                    <div class="fine-proof-book-name">{{ $book->ten_sach ?? '---' }}</div>
+                                                    <div class="fine-proof-book-meta">Phiếu #{{ $item->borrow_id }} · Chờ trả sách</div>
+                                                </div>
+                                            </div>
+                                            <div class="fine-proof-images">
+                                                @if($hasAnyProof)
+                                                    @if(!empty($reservationProofs))
+                                                        <div class="fine-proof-group">
+                                                            <div class="fine-proof-group-label">Ảnh khi nhận sách</div>
+                                                            <div class="fine-proof-grid">
+                                                                @foreach($reservationProofs as $url)
+                                                                    <a href="{{ $url }}" target="_blank"><img src="{{ $url }}" alt="Ảnh nhận sách"></a>
+                                                                @endforeach
+                                                            </div>
+                                                        </div>
+                                                    @endif
+                                                    @if(!empty($returnProofs))
+                                                        <div class="fine-proof-group">
+                                                            <div class="fine-proof-group-label">Ảnh khi trả sách</div>
+                                                            <div class="fine-proof-grid">
+                                                                @foreach($returnProofs as $url)
+                                                                    <a href="{{ $url }}" target="_blank"><img src="{{ $url }}" alt="Ảnh trả sách"></a>
+                                                                @endforeach
+                                                            </div>
+                                                        </div>
+                                                    @endif
+                                                @else
+                                                    <span class="text-muted small">Chưa có ảnh minh chứng cho sách này.</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                @endif
+
+                                {{-- Ảnh từ Fine records đã có trong DB (không trùng với pendingReturnItems) --}}
                                 @foreach($fines as $fine)
                                     @php
                                         $item = $fine->borrowItem;
+                                        if (!$item || in_array($item->id, $shownItemIds)) continue;
                                         $book = optional($item)->book;
 
-                                        // Ảnh từ đặt trước
-                                        $reservationProofs = collect($item?->reservation?->getProofImages() ?? [])->map(function ($img) {
-                                            if (!$img) {
-                                                return null;
-                                            }
-                                            if (preg_match('/^https?:\/\//i', $img)) {
-                                                return $img;
-                                            }
-                                            $normalized = ltrim(str_replace(['\\', 'storage/'], ['/', ''], (string) $img), '/');
-                                            return asset('storage/' . $normalized);
-                                        })->filter()->values()->all();
-
-                                        // Ảnh chứng minh khi trả sách
-                                        $rawReturnProofs = is_array($item->return_proof_images ?? null)
-                                            ? $item->return_proof_images
-                                            : (is_string($item->return_proof_images ?? null) ? json_decode($item->return_proof_images, true) : []);
-                                        $rawReturnProofs = is_array($rawReturnProofs) ? $rawReturnProofs : [];
-
-                                        $returnProofs = collect($rawReturnProofs)->map(function ($img) {
-                                            if (!$img) {
-                                                return null;
-                                            }
-                                            if (preg_match('/^https?:\/\//i', $img)) {
-                                                return $img;
-                                            }
-                                            $normalized = ltrim(str_replace(['\\', 'storage/'], ['/', ''], (string) $img), '/');
-                                            return asset('storage/' . $normalized);
-                                        })->filter()->values()->all();
-
+                                        $reservationProofs = collect(optional($item->reservation)->getProofImages() ?? [])->map($makeProofUrl)->filter()->values()->all();
+                                         $raw = is_array($item->return_proof_images ?? null)
+                                             ? $item->return_proof_images
+                                             : (is_string($item->return_proof_images ?? null) ? json_decode($item->return_proof_images, true) : []);
+                                         $sessionProofs = collect($sessionProofsByItemId->get($item->id, []))->filter()->values()->all();
+                                         $returnProofs = collect(is_array($raw) ? $raw : [])
+                                             ->merge($sessionProofs)
+                                             ->unique()
+                                             ->map($makeProofUrl)
+                                             ->filter()
+                                             ->values()
+                                             ->all();
                                         $hasAnyProof = !empty($reservationProofs) || !empty($returnProofs);
                                     @endphp
-
                                     <div class="fine-proof-row">
                                         <div class="fine-proof-book">
                                             <div class="fine-proof-thumb">
@@ -163,13 +243,10 @@
                                                 @endif
                                             </div>
                                             <div>
-                                                <div class="fine-proof-book-name">{{ $book->ten_sach ?? 'N/A' }}</div>
-                                                <div class="fine-proof-book-meta">
-                                                    Phiếu #{{ $fine->borrow_id }} · Fine #{{ $fine->id }}
-                                                </div>
+                                                <div class="fine-proof-book-name">{{ $book->ten_sach ?? '---' }}</div>
+                                                <div class="fine-proof-book-meta">Phiếu #{{ $fine->borrow_id }}{{ $fine->id ? ' · Fine #'.$fine->id : '' }}</div>
                                             </div>
                                         </div>
-
                                         <div class="fine-proof-images">
                                             @if($hasAnyProof)
                                                 @if(!empty($reservationProofs))
@@ -177,28 +254,23 @@
                                                         <div class="fine-proof-group-label">Ảnh khi nhận sách</div>
                                                         <div class="fine-proof-grid">
                                                             @foreach($reservationProofs as $url)
-                                                                <a href="{{ $url }}" target="_blank">
-                                                                    <img src="{{ $url }}" alt="Ảnh nhận sách">
-                                                                </a>
+                                                                <a href="{{ $url }}" target="_blank"><img src="{{ $url }}" alt="Ảnh nhận sách"></a>
                                                             @endforeach
                                                         </div>
                                                     </div>
                                                 @endif
-
                                                 @if(!empty($returnProofs))
                                                     <div class="fine-proof-group">
                                                         <div class="fine-proof-group-label">Ảnh khi trả sách</div>
                                                         <div class="fine-proof-grid">
                                                             @foreach($returnProofs as $url)
-                                                                <a href="{{ $url }}" target="_blank">
-                                                                    <img src="{{ $url }}" alt="Ảnh trả sách">
-                                                                </a>
+                                                                <a href="{{ $url }}" target="_blank"><img src="{{ $url }}" alt="Ảnh trả sách"></a>
                                                             @endforeach
                                                         </div>
                                                     </div>
                                                 @endif
                                             @else
-                                                <span class="text-muted">Chưa có ảnh minh chứng cho khoản phạt này.</span>
+                                                <span class="text-muted small">Chưa có ảnh minh chứng.</span>
                                             @endif
                                         </div>
                                     </div>

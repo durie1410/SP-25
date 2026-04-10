@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class BorrowController extends Controller
@@ -33,7 +34,7 @@ class BorrowController extends Controller
         Borrow::syncOverdueStatuses();
 
         // Sử dụng fresh() để đảm bảo load dữ liệu mới nhất từ database
-        $query = Borrow::with(['reader', 'librarian', 'items.book', 'items.inventory', 'voucher', 'payments']);
+        $query = Borrow::with(['reader', 'librarian', 'items.book', 'items.inventory', 'items.reservation', 'voucher', 'payments']);
 
         if ($request->filled('keyword')) {
             $keyword = $request->keyword;
@@ -380,7 +381,7 @@ class BorrowController extends Controller
     {
         Borrow::syncOverdueStatuses();
 
-        $borrow = Borrow::with(['reader', 'librarian', 'items.book', 'fines'])
+        $borrow = Borrow::with(['reader', 'librarian', 'items.book', 'items.reservation', 'fines'])
             ->findOrFail($id);
         
 
@@ -706,10 +707,9 @@ class BorrowController extends Controller
             return back()->with('info', 'Không có thanh toán nào đang chờ xác nhận.');
         }
 
-        // Thanh toán online: tạo mã MoMo, KHÔNG tự động chuyển success tại thời điểm bấm nút
+        // Thanh toán online: tạo mã MoMo
         if ($paymentMethod === 'online') {
             try {
-                // Lưu các ảnh/ghi chú mà admin đã nhập (nếu có), nhưng không bắt buộc đủ bộ trước khi tạo mã MoMo.
                 $this->saveReceiveConfirmationFromPaymentForm($request, $borrow);
 
                 $momoData = $this->createMomoPaymentForBorrow($borrow, $payment);
@@ -955,18 +955,10 @@ class BorrowController extends Controller
         $secretKey   = config('services.momo.secret_key');
 
         $missingKeys = [];
-        if (!$endpoint) {
-            $missingKeys[] = 'MOMO_ENDPOINT';
-        }
-        if (!$partnerCode) {
-            $missingKeys[] = 'MOMO_PARTNER_CODE';
-        }
-        if (!$accessKey) {
-            $missingKeys[] = 'MOMO_ACCESS_KEY';
-        }
-        if (!$secretKey) {
-            $missingKeys[] = 'MOMO_SECRET_KEY';
-        }
+        if (!$endpoint) $missingKeys[] = 'MOMO_ENDPOINT';
+        if (!$partnerCode) $missingKeys[] = 'MOMO_PARTNER_CODE';
+        if (!$accessKey) $missingKeys[] = 'MOMO_ACCESS_KEY';
+        if (!$secretKey) $missingKeys[] = 'MOMO_SECRET_KEY';
 
         if (!empty($missingKeys)) {
             throw new \Exception('Thiếu cấu hình MoMo: ' . implode(', ', $missingKeys) . '. Hãy cập nhật .env và chạy php artisan config:clear.');
@@ -978,43 +970,71 @@ class BorrowController extends Controller
         }
 
         $redirectUrl = route('admin.borrows.momo.return');
-        $ipnUrl = route('admin.borrows.momo.ipn');
+        $ipnUrl      = route('admin.borrows.momo.ipn');
 
-        $orderId = 'BORROW_' . $borrow->id . '_' . $payment->id . '_' . time();
-        $requestId = (string) time();
         $orderInfo = 'Thanh_toan_phieu_muon_' . $borrow->id;
         $extraData = base64_encode(json_encode([
-            'type' => 'borrow_payment',
-            'borrow_id' => $borrow->id,
+            'type'       => 'borrow_payment',
+            'borrow_id'  => $borrow->id,
             'payment_id' => $payment->id,
         ]));
 
-        $rawHash = "accessKey={$accessKey}&amount={$amount}&extraData={$extraData}&ipnUrl={$ipnUrl}&orderId={$orderId}&orderInfo={$orderInfo}&partnerCode={$partnerCode}&redirectUrl={$redirectUrl}&requestId={$requestId}&requestType=captureWallet";
+        $orderId   = 'BORROW_' . $borrow->id . '_' . $payment->id . '_' . time() . '_' . Str::random(6);
+        $requestId = (string) (time() . rand(100, 999));
+
+        $rawHash   = "accessKey={$accessKey}&amount={$amount}&extraData={$extraData}&ipnUrl={$ipnUrl}&orderId={$orderId}&orderInfo={$orderInfo}&partnerCode={$partnerCode}&redirectUrl={$redirectUrl}&requestId={$requestId}&requestType=captureWallet";
         $signature = hash_hmac('sha256', $rawHash, $secretKey);
 
-        $response = Http::post($endpoint, [
-            'partnerCode' => $partnerCode,
-            'accessKey'   => $accessKey,
-            'requestId'   => $requestId,
-            'amount'      => (string) $amount,
-            'orderId'     => $orderId,
-            'orderInfo'   => $orderInfo,
-            'redirectUrl' => $redirectUrl,
-            'ipnUrl'      => $ipnUrl,
-            'extraData'   => $extraData,
-            'requestType' => 'captureWallet',
-            'signature'   => $signature,
-            'lang'        => 'vi',
+        $payload = json_encode([
+            'partnerCode'  => $partnerCode,
+            'accessKey'    => $accessKey,
+            'requestId'    => $requestId,
+            'amount'       => (string) $amount,
+            'orderId'      => $orderId,
+            'orderInfo'    => $orderInfo,
+            'redirectUrl'  => $redirectUrl,
+            'ipnUrl'       => $ipnUrl,
+            'extraData'    => $extraData,
+            'requestType'  => 'captureWallet',
+            'signature'    => $signature,
+            'lang'         => 'vi',
         ]);
 
-        $result = $response->json();
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST              => true,
+            CURLOPT_POSTFIELDS        => $payload,
+            CURLOPT_RETURNTRANSFER     => true,
+            CURLOPT_TIMEOUT           => 25,
+            CURLOPT_FRESH_CONNECT     => true,
+            CURLOPT_FORBID_REUSE      => true,
+            CURLOPT_SSL_VERIFYPEER    => false,
+            CURLOPT_SSL_VERIFYHOST    => 0,
+            CURLOPT_HTTPHEADER        => [
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr  = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlErr) {
+            throw new \Exception('Không kết nối được MoMo: ' . $curlErr);
+        }
+
+        $result = json_decode($response, true);
 
         if (!isset($result['payUrl'])) {
-            throw new \Exception($result['message'] ?? 'MoMo không trả về payUrl');
+            $errorMsg    = $result['message'] ?? 'MoMo không trả về payUrl';
+            $errorDetail = ' (resultCode: ' . ($result['resultCode'] ?? 'N/A') . ')';
+            throw new \Exception('QR Code tạo không thành công: ' . $errorMsg . $errorDetail);
         }
 
         return [
-            'payUrl' => $result['payUrl'],
+            'payUrl'  => $result['payUrl'],
             'orderId' => $orderId,
         ];
     }
@@ -2645,101 +2665,6 @@ class BorrowController extends Controller
         }
     }
 
-    /* ============================================================
-        GIA HẠN PHIẾU MƯỢN (ADMIN - THÊM 5 NGÀY + 25,000Đ)
-    ============================================================ */
-    public function extend($id)
-    {
-        if (!auth()->check() || !auth()->user()->can('edit-borrows')) {
-            return back()->with('error', 'Bạn không có quyền thực hiện thao tác này.');
-        }
-
-        $borrow = Borrow::with('items')->findOrFail($id);
-
-        // Kiểm tra có sách đang mượn không
-        $itemsDangMuon = collect($borrow->items)->filter(function($item) {
-            return $item->trang_thai === 'Dang muon';
-        });
-        
-        if ($itemsDangMuon->isEmpty()) {
-            return back()->with('error', 'Không có sách nào đang mượn để gia hạn.');
-        }
-
-        $extendedCount = 0;
-        $totalExtensionFee = 0;
-        $days = 5; // Gia hạn 5 ngày
-        $dailyFee = 5000; // 5000đ/ngày
-
-        foreach ($itemsDangMuon as $item) {
-            if ($item->canExtend()) {
-                if ($item->extend($days, $dailyFee)) {
-                    $extendedCount++;
-                    $totalExtensionFee += ($days * $dailyFee);
-                }
-            }
-        }
-
-        if ($extendedCount > 0) {
-            // Đồng bộ tổng tiền từ borrow_items để tránh lệch/nhân đôi tiền thuê
-            $borrow->recalculateTotals();
-
-            // Reset cờ yêu cầu gia hạn của khách (nếu có)
-            $borrow->update([
-                'customer_extension_requested' => false,
-                'customer_extension_days' => null,
-                'customer_extension_requested_at' => null,
-            ]);
-
-            return back()->with('success', "Đã gia hạn thành công {$extendedCount} sách. Thêm {$days} ngày và " . number_format($totalExtensionFee) . "₫ tiền thuê.");
-        } else {
-            return back()->with('error', 'Không thể gia hạn. Các sách đã quá hạn hoặc đã gia hạn đủ số lần cho phép.');
-        }
-    }
-
-    /* ============================================================
-        KHÁCH HÀNG GỬI YÊU CẦU GIA HẠN (CHỜ ADMIN DUYỆT)
-       - Không thay đổi hạn trả / tiền ngay lập tức
-       - Admin dùng nút Gia hạn trong backend để xử lý khi phù hợp
-    ============================================================ */
-    public function customerExtendBorrow(Request $request, $id)
-    {
-        $user = auth()->user();
-        if (!$user || !$user->reader) {
-            return redirect()->route('account.borrowed-books')
-                ->with('error', 'Bạn cần có thẻ độc giả để gửi yêu cầu gia hạn.');
-        }
-
-        $borrow = Borrow::with('items')
-            ->where('id', $id)
-            ->where('reader_id', $user->reader->id)
-            ->first();
-
-        if (!$borrow) {
-            return back()->with('error', 'Phiếu mượn không tồn tại hoặc không thuộc về bạn.');
-        }
-
-        // Chỉ cho phép gửi yêu cầu khi đơn đang mượn và chưa quá hạn theo policy chung
-        if (!$borrow->canExtend()) {
-            return back()->with('error', 'Không thể gửi yêu cầu gia hạn (đơn đã quá hạn hoặc đã gia hạn đủ số lần).');
-        }
-
-        // Nếu đã có yêu cầu gia hạn đang chờ, không cho gửi thêm
-        if ($borrow->customer_extension_requested) {
-            return back()->with('info', 'Bạn đã gửi yêu cầu gia hạn trước đó. Vui lòng chờ thư viện xử lý.');
-        }
-
-        $days = 5; // cố định +5 ngày
-
-        $borrow->update([
-            'customer_extension_requested' => true,
-            'customer_extension_days' => $days,
-            'customer_extension_requested_at' => now(),
-        ]);
-
-        return back()->with(
-            'success',
-            "Đã gửi yêu cầu gia hạn thêm {$days} ngày. Thư viện sẽ kiểm tra (ví dụ: có độc giả khác đặt mượn) và duyệt nếu phù hợp. Phí gia hạn sẽ được tính cùng lúc khi bạn trả sách."
-        );
-    }
-
 }
+
+

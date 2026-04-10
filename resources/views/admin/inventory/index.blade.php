@@ -15,10 +15,7 @@
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <form action="{{ route('admin.inventory.sync-to-homepage') }}" method="POST" style="display: inline;" id="syncForm">
             @csrf
-            <button type="submit" class="btn btn-success" id="syncBtn">
-                <i class="fas fa-sync-alt"></i>
-                Đồng bộ lên trang chủ
-            </button>
+      
         </form>
         
     </div>
@@ -289,12 +286,18 @@
                                                 </button>
                                             </form>
                                         @else
-                                            <form action="{{ route('admin.inventory.delete-requests.store') }}" method="POST" class="d-inline">
+                                            <form action="{{ route('admin.inventory.delete-requests.store') }}" method="POST" class="d-inline" enctype="multipart/form-data">
                                                 @csrf
                                                 <input type="hidden" name="book_id" value="{{ $book->id }}">
-                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Gửi yêu cầu xóa sách \"{{ $book->ten_sach }}\" để Admin duyệt?');" title="Đề xuất xóa">
-                                                    <i class="fas fa-paper-plane"></i> Đề xuất xóa
-                                                </button>
+                                                <input type="hidden" name="inventory_id" value="{{ $firstInventory->id }}">
+                                                <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
+                                                    <input type="file" name="proof_images[]" accept="image/*" multiple
+                                                           style="font-size:11px; max-width:140px;"
+                                                           title="Ảnh minh chứng (tùy chọn)">
+                                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Gửi yêu cầu xóa sách \"{{ $book->ten_sach }}\" để Admin duyệt?');" title="Đề xuất xóa">
+                                                        <i class="fas fa-paper-plane"></i> Gửi
+                                                    </button>
+                                                </div>
                                             </form>
                                         @endif
                                     @else
@@ -410,37 +413,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- Modal Import Excel -->
-<div class="modal fade" id="importModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form action="{{ route('admin.inventory.import') }}" method="POST" enctype="multipart/form-data">
-                @csrf
-                <div class="modal-header">
-                    <h5 class="modal-title">Nhập kho từ Excel</h5>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Chọn file Excel <span class="text-danger">*</span></label>
-                        <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
-                        <small class="form-text text-muted">
-                            Định dạng: book_id, barcode, location, condition, status, purchase_price, purchase_date
-                        </small>
-                    </div>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Lưu ý:</strong> File Excel phải có định dạng đúng. Nếu không có mã vạch, hệ thống sẽ tự động tạo.
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-upload"></i> Nhập file
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+
 @endsection
 

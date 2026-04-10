@@ -128,7 +128,10 @@ class ReservationCartController extends Controller
         }
 
         $added = null;
-        if ($splitItems) {
+        $addNewLine = !empty($data['add_new_line']);
+
+        // Nếu yêu cầu tạo dòng mới hoặc tách riêng từng cuốn
+        if ($addNewLine || $splitItems) {
             for ($i = 0; $i < $requestedQuantity; $i++) {
                 $added = $cart->addBook((int) $data['book_id'], 1);
             }

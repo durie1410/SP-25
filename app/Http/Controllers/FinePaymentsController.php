@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BorrowItem;
 use App\Models\Fine;
 use App\Models\Reader;
+use App\Services\PricingService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class FinePaymentsController extends Controller
@@ -27,6 +30,149 @@ class FinePaymentsController extends Controller
 
         $fines = $query->orderByDesc('created_at')->paginate(15);
 
-        return view('admin.fine-payments.index', compact('fines', 'reader'));
+        // Lấy sách đang chờ trả từ session
+        $pendingReturn = session('pending_return');
+        $pendingReturnItems = [];
+        $pendingReturnTotal = 0;
+
+        // Danh sách phạt ước tính từ session (để hiển thị ngay trong bảng, trước khi thanh toán)
+        $pendingReturnFines = [];
+
+        $sessionProofsByItemId = collect();
+
+        if ($pendingReturn && $reader && (int) ($pendingReturn['reader_id'] ?? 0) === $reader->id) {
+            $returnItemsData = $pendingReturn['items'] ?? [];
+            $returnItemsDataById = collect($returnItemsData)->keyBy('id');
+            $sessionProofsByItemId = $returnItemsDataById->mapWithKeys(function ($item) {
+                $proofs = $item['return_proof_images'] ?? [];
+                if (!is_array($proofs)) {
+                    if (is_string($proofs)) {
+                        $decoded = json_decode($proofs, true);
+                        $proofs = is_array($decoded) ? $decoded : [];
+                    } else {
+                        $proofs = [];
+                    }
+                }
+                return [$item['id'] ?? null => array_values(array_filter($proofs))];
+            })->filter(function ($v, $k) {
+                return !empty($k);
+            });
+            $itemIds = $returnItemsDataById->keys()->filter()->values()->all();
+            if (!empty($itemIds)) {
+                $items = BorrowItem::with(['book', 'borrow', 'inventory'])
+                    ->whereIn('id', $itemIds)
+                    ->get()
+                    ->keyBy('id');
+
+                // Map items với condition đã chọn
+                $pendingReturnItems = $returnItemsDataById->map(function ($itemData) use ($items) {
+                    $item = $items->get($itemData['id']);
+                    if (!$item) return null;
+                    $condition = $itemData['condition'] ?? 'binh_thuong';
+                    $item->selected_condition = $condition;
+                    // Gắn thêm ảnh từ session nếu có (phòng DB chưa kịp cập nhật)
+                    $sessionProofs = $itemData['return_proof_images'] ?? [];
+                    $currentProofs = $item->return_proof_images ?? [];
+                    if (is_string($currentProofs)) {
+                        $decoded = json_decode($currentProofs, true);
+                        $currentProofs = is_array($decoded) ? $decoded : [];
+                    }
+                    $mergedProofs = array_values(array_unique(array_filter(array_merge(
+                        is_array($currentProofs) ? $currentProofs : [],
+                        is_array($sessionProofs) ? $sessionProofs : []
+                    ))));
+                    if (!empty($mergedProofs)) {
+                        $item->return_proof_images = $mergedProofs;
+                    }
+                    return $item;
+                })->filter()->values();
+
+                // Tính tổng phạt từ sách đang chờ trả
+                foreach ($pendingReturnItems as $item) {
+                    $lateFine = 0;
+                    if ($item->ngay_hen_tra && Carbon::parse($item->ngay_hen_tra)->lt(Carbon::today())) {
+                        $lateFine = PricingService::calculateLateReturnFine($item->ngay_hen_tra, Carbon::today(), 1);
+                    }
+                    $damageFine = 0;
+                    if (($item->selected_condition ?? 'binh_thuong') !== 'binh_thuong') {
+                        $bookPrice = (float) ($item->book->gia ?? 0);
+                        $bookType = $item->book->loai_sach ?? 'binh_thuong';
+                        $startCondition = $item->inventory->condition ?? 'Trung binh';
+                        if ($item->selected_condition === 'mat_sach') {
+                            $damageFine = (int) PricingService::calculateLostBookFine($bookPrice, $bookType, $startCondition);
+                        } elseif ($item->selected_condition === 'hong_nhe') {
+                            $damageFine = (int) round(PricingService::calculateDamagedBookFine($bookPrice, $bookType, $startCondition) * 0.5);
+                        } else {
+                            $damageFine = (int) PricingService::calculateDamagedBookFine($bookPrice, $bookType, $startCondition);
+                        }
+                    }
+                    $itemTotal = $lateFine + $damageFine;
+                    $pendingReturnTotal += $itemTotal;
+
+                    // Tạo pseudo-fine object để hiển thị trong bảng phạt ngay
+                    if ($itemTotal > 0) {
+                        $fineType = match ($item->selected_condition) {
+                            'mat_sach' => 'Mất sách',
+                            'hong_nang' => 'Hỏng nặng',
+                            'hong_nhe' => 'Hỏng nhẹ',
+                            default => 'Quá hạn',
+                        };
+                        if ($lateFine > 0 && $damageFine > 0) {
+                            $fineType = 'Quá hạn + ' . $fineType;
+                        } elseif ($lateFine > 0) {
+                            $fineType = 'Quá hạn';
+                        } elseif ($damageFine > 0) {
+                            // giữ nguyên fineType
+                        }
+                        $pendingReturnFines[] = (object) [
+                            'id' => null,
+                            'borrow_item_id' => $item->id,
+                            'borrow_id' => $item->borrow_id,
+                            'amount' => $itemTotal,
+                            'type' => $fineType,
+                            'created_at' => now(),
+                            'fine_type' => $item->selected_condition,
+                            'late_fine' => $lateFine,
+                            'damage_fine' => $damageFine,
+                            'borrowItem' => $item,
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Ghép ảnh từ session vào các khoản phạt (fallback khi pendingReturnItems rỗng)
+        if ($sessionProofsByItemId->isNotEmpty()) {
+            $fines->getCollection()->transform(function ($fine) use ($sessionProofsByItemId) {
+                $item = $fine->borrowItem;
+                if (!$item) return $fine;
+                $sessionProofs = $sessionProofsByItemId->get($item->id, []);
+                if (!empty($sessionProofs)) {
+                    $currentProofs = $item->return_proof_images ?? [];
+                    if (is_string($currentProofs)) {
+                        $decoded = json_decode($currentProofs, true);
+                        $currentProofs = is_array($decoded) ? $decoded : [];
+                    }
+                    $mergedProofs = array_values(array_unique(array_filter(array_merge(
+                        is_array($currentProofs) ? $currentProofs : [],
+                        $sessionProofs
+                    ))));
+                    if (!empty($mergedProofs)) {
+                        $item->return_proof_images = $mergedProofs;
+                        $fine->setRelation('borrowItem', $item);
+                    }
+                }
+                return $fine;
+            });
+        }
+
+        return view('admin.fine-payments.index', [
+            'fines' => $fines,
+            'reader' => $reader,
+            'pendingReturnItems' => $pendingReturnItems,
+            'pendingReturnTotal' => $pendingReturnTotal,
+            'pendingReturnFines' => $pendingReturnFines,
+            'sessionProofsByItemId' => $sessionProofsByItemId,
+        ]);
     }
 }

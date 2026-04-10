@@ -63,7 +63,7 @@
 
         .content-wrapper {
             display: flex;
-            width: 90%;
+            width: 98%;
             max-width: 1300px;
             margin: 20px auto;
             gap: 20px;
@@ -75,7 +75,7 @@
         .main-content {
             flex: 3;
             background-color: white;
-            padding: 20px 30px;
+            padding: 20px 15px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
         }
 
@@ -698,8 +698,15 @@
             background-color: #ffcc00;
         }
 
+        .description-card {
+            padding: 20px;
+            border-radius: 20px;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
         .description-section {
-            padding: 20px 0;
+            padding: 0 0 20px;
             line-height: 1.8;
             color: #555;
         }
@@ -1820,14 +1827,14 @@
                 font-size: 1.8rem;
             }
 
-            .description-section,
-            .metadata-table,
-            .comment-section,
-            .related-books-section,
-            .buy-options,
-            .sidebar-block {
+            .description-card {
                 padding: 18px;
                 border-radius: 20px;
+            }
+
+            .description-section,
+            .metadata-table {
+                padding: 0;
             }
         }
     </style>
@@ -2108,9 +2115,11 @@
 
                                 <div class="action-buttons" style="display: flex; gap: 10px;">
                                     @auth
-                                        <button class="btn btn-buy" onclick="addToCart()" style="flex: 1; background: #6C63FF;">
-                                            <span style="font-size: 1.2em;">🛒</span> Thêm vào giỏ sách
-                                        </button>
+                                        @if(($stats['available_copies'] ?? 0) > 0)
+                                            <button class="btn btn-buy" onclick="addToCart()" style="flex: 1; background: #6C63FF;">
+                                                <span style="font-size: 1.2em;">🛒</span> Thêm vào giỏ sách
+                                            </button>
+                                        @endif
                                         <button class="btn btn-buy" onclick="borrowNow()" style="flex: 1;">
                                             <span style="font-size: 1.2em;">📖</span> Mượn ngay
                                         </button>
@@ -2123,47 +2132,52 @@
                                     @endauth
                                 </div>
                             @else
-                                <label>Đặt trước</label>
+                                @if(($stats['available_copies'] ?? 0) > 0)
 
-                                <!-- Sách giấy -->
-                                <div class="option-row">
-                                    <div style="display: flex; align-items: center; gap: 8px;">
-                                        <span class="type">📚 Sách giấy</span>
-                                        <span style="font-size: 0.9em; color: #666; font-weight: normal;">
-                                            (Còn {{ $stats['stock_quantity'] ?? 0 }} cuốn trong kho)
-                                        </span>
+                                    <!-- Sách giấy -->
+                                    <div class="option-row">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="type">📚 Sách</span>
+                                            <span style="font-size: 0.9em; color: #666; font-weight: normal;">
+                                                (Còn {{ $stats['available_copies'] ?? 0 }} cuốn có sẵn{{ $cartQuantity > 0 ? ' · Đã đặt ' . $cartQuantity . ' cuốn' : '' }})
+                                            </span>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 5px;">
+                                            <button type="button" onclick="changeQuantity('paper', -1)"
+                                                style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">-</button>
+                                            <input type="number" id="paper-quantity" value="1" min="1"
+                                                max="{{ min(($stats['available_copies'] ?? 999) - ($cartQuantity ?? 0), 2) > 0 ? min(($stats['available_copies'] ?? 999) - ($cartQuantity ?? 0), 2) : 0 }}"
+                                                style="width: 50px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; text-align: center;"
+                                                onchange="validateReservationQuantity(); updateTotalPrice();">
+                                            <button type="button" onclick="changeQuantity('paper', 1)"
+                                                style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">+</button>
+                                        </div>
+                                        <span class="price"
+                                            id="paper-price">{{ number_format($book->gia ?? 111000, 0, ',', '.') }}₫</span>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 5px;">
-                                        <button type="button" onclick="changeQuantity('paper', -1)"
-                                            style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">-</button>
-                                        <input type="number" id="paper-quantity" value="1" min="1"
-                                            max="{{ $stats['stock_quantity'] ?? 999 }}"
-                                            style="width: 50px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; text-align: center;"
-                                            onchange="validateReservationQuantity(); updateTotalPrice();">
-                                        <button type="button" onclick="changeQuantity('paper', 1)"
-                                            style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">+</button>
-                                    </div>
-                                    <span class="price"
-                                        id="paper-price">{{ number_format($book->gia ?? 111000, 0, ',', '.') }}₫</span>
-                                </div>
 
-                                @if(($stats['stock_quantity'] ?? 0) == 0)
+                                    <div class="total-price">
+                                        <span>Thành tiền</span>
+                                        <span class="final-price"
+                                            id="reservation-total">{{ number_format($book->gia ?? 111000, 0, ',', '.') }}₫</span>
+                                    </div>
+                                    <div class="total-price">
+                                        <span>Thành tiền</span>
+                                        <span class="final-price"
+                                            id="total-price">{{ number_format($book->gia ?? 111000, 0, ',', '.') }}₫</span>
+                                    </div>
+
+                                    <div class="action-buttons">
+                                        <button class="btn btn-buy" onclick="addToReservationCart()" style="width: 100%; background: #0d9488;">
+                                            <span style="font-size: 1.2em;">📌</span> Thêm vào giỏ đặt trước
+                                        </button>
+                                    </div>
+                                @else
                                     <div
-                                        style="padding: 15px; background: #fff3cd; border-radius: 4px; margin: 15px 0; border: 1px solid #ffc107; color: #856404;">
+                                        style="padding: 15px; background: #fff3cd; border-radius: 4px; margin-top: 10px; border: 1px solid #ffc107; color: #856404;">
                                         <strong>⚠️ Hết hàng:</strong> Sách này hiện đã hết hàng. Vui lòng quay lại sau!
                                     </div>
                                 @endif
-
-                                <div class="total-price">
-                                    <span>Thành tiền</span>
-                                    <span class="final-price"
-                                        id="total-price">{{ number_format($book->gia ?? 111000, 0, ',', '.') }}₫</span>
-                                </div>
-
-                                <div class="action-buttons">
-                                    <button class="btn btn-buy" onclick="addToReservationCart()" style="width: 100%; background: #0d9488;">
-                                        <span style="font-size: 1.2em;">📌</span> Thêm vào giỏ đặt trước
-                                    </button>
                                 </div>
                             @endif
                         </div>
@@ -2174,12 +2188,13 @@
                     <a href="#" class="tab-link active" onclick="switchTab('intro'); return false;">Giới thiệu</a>
                 </div>
 
-                <div class="description-section" id="intro-content">
-                    {{ $book->formatted_description }}
-                </div>
+                <div class="description-card">
+                    <div class="description-section" id="intro-content">
+                        {{ $book->formatted_description }}
+                    </div>
 
-                <div class="metadata-table">
-                    <h2>Thông tin xuất bản</h2>
+                    <div class="metadata-table">
+                        <h2>Thông tin xuất bản</h2>
                     <table class="book-metadata">
                         <tr>
                             <td class="label">Tác giả:</td>
@@ -2208,6 +2223,7 @@
                         </tr>
                         @endif
                     </table>
+                </div>
                 </div>
 
                 <div class="comment-section">
@@ -2527,11 +2543,19 @@
                     alert(`Chỉ còn ${maxBorrowQuantity} cuốn sách có sẵn.`);
                 }
             } else {
-                // Chế độ mua: sử dụng stock_quantity
+                // Chế độ đặt trước: tính cả số đã có trong giỏ
                 const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
-                if (currentQuantity > stockQuantity) {
-                    currentQuantity = stockQuantity;
-                    alert(`Chỉ còn ${stockQuantity} cuốn sách trong kho.`);
+                const cartQuantity = {{ $cartQuantity ?? 0 }};
+                const maxPerBook = 2;
+                const remaining = Math.max(0, maxPerBook - cartQuantity);
+                const maxAllowed = Math.min(stockQuantity, remaining);
+                if (currentQuantity > maxAllowed) {
+                    currentQuantity = maxAllowed;
+                    if (remaining <= 0) {
+                        alert(`Mỗi loại sách chỉ được đặt tối đa ${maxPerBook} cuốn theo quy định thư viện. Bạn đã có ${cartQuantity} cuốn trong giỏ.`);
+                    } else {
+                        alert(`Chỉ còn ${maxAllowed} cuốn có thể đặt thêm.`);
+                    }
                 }
             }
 
@@ -2541,18 +2565,27 @@
 
         function validateReservationQuantity() {
             const quantityInput = document.getElementById('paper-quantity');
-            if (!quantityInput) return 1;
+            if (!quantityInput) return 0;
 
             const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
+            const cartQuantity = {{ $cartQuantity ?? 0 }};
+            const maxPerBook = 2;
+            const remainingQuota = maxPerBook - cartQuantity;
+            const maxAllowed = Math.min(stockQuantity > 0 ? stockQuantity : 999, remainingQuota > 0 ? remainingQuota : 0);
             let quantity = parseInt(quantityInput.value) || 1;
 
             if (quantity < 1) {
                 quantity = 1;
             }
 
-            if (stockQuantity > 0 && quantity > stockQuantity) {
-                quantity = stockQuantity;
-                alert(`Chỉ còn ${stockQuantity} cuốn trong kho.`);
+            if (quantity > maxAllowed) {
+                if (remainingQuota <= 0) {
+                    alert(`Mỗi loại sách chỉ được đặt tối đa ${maxPerBook} cuốn theo quy định thư viện. Bạn đã có ${cartQuantity} cuốn trong giỏ.`);
+                } else {
+                    alert(`Mỗi loại sách chỉ được đặt tối đa ${maxPerBook} cuốn. Bạn có thể thêm tối đa ${remainingQuota} cuốn nữa.`);
+                }
+                quantityInput.value = remainingQuota > 0 ? remainingQuota : 1;
+                return 0;
             }
 
             quantityInput.value = quantity;
@@ -2645,7 +2678,10 @@
             @endguest
 
             const quantity = validateReservationQuantity();
+            if (!quantity) return;
             const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
+            const maxPerBook = 2;
+            const cartQuantity = {{ $cartQuantity ?? 0 }};
 
             if (stockQuantity === 0) {
                 if (typeof window.showToast === 'function') {
@@ -2653,19 +2689,24 @@
                 }
             }
 
-            if (quantity > stockQuantity && stockQuantity > 0) {
-                if (typeof window.showToast === 'function') {
-                    window.showToast('Thông báo', `Bạn chọn ${quantity} cuốn nhưng kho chỉ còn ${stockQuantity} cuốn.`, 'warning');
+            const remainingQuota = maxPerBook - cartQuantity;
+
+            if ((cartQuantity + quantity) > maxPerBook) {
+                if (remainingQuota <= 0) {
+                    alert(`Mỗi loại sách chỉ được đặt tối đa ${maxPerBook} cuốn theo quy định thư viện. Bạn đã có ${cartQuantity} cuốn trong giỏ.`);
+                } else {
+                    alert(`Mỗi loại sách chỉ được đặt tối đa ${maxPerBook} cuốn. Bạn có thể thêm tối đa ${remainingQuota} cuốn nữa.`);
                 }
 
                 return;
             }
 
-            let splitReservationItems = false;
+            if (quantity > stockQuantity && stockQuantity > 0) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Thông báo', `Vượt quá số lượng quy định! Chỉ còn ${stockQuantity} cuốn có sẵn.`, 'warning');
+                }
 
-            if (quantity > 1) {
-                const sameDay = confirm(`Bạn đang thêm ${quantity} cuốn cùng một đầu sách.\n\nBạn có muốn trả ${quantity} cuốn cùng một ngày không?\n\nChọn OK = cùng ngày trả\nChọn Cancel = sẽ tách thành nhiều dòng để chọn thời gian thuê riêng cho từng cuốn.`);
-                splitReservationItems = !sameDay;
+                return;
             }
 
             fetch('{{ route("reservation-cart.add") }}', {
@@ -2674,7 +2715,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({ book_id: {{ $book->id }}, quantity, split_items: splitReservationItems })
+                body: JSON.stringify({ book_id: {{ $book->id }}, quantity, add_new_line: true })
             })
             .then(res => res.json())
             .then(data => {
@@ -2689,10 +2730,8 @@
                         window.loadReservationCartCount();
                     }
                 } else {
-                    if (typeof window.showToast === 'function') {
-                        window.showToast('Có lỗi', data.message || 'Không thể thêm vào giỏ.', 'error');
-                    } else {
-                        alert(data.message || 'Không thể thêm vào giỏ.');
+                    if (data.message) {
+                        alert(data.message);
                     }
 
                     if (data.redirect) {
@@ -2701,11 +2740,7 @@
                 }
             })
             .catch(() => {
-                if (typeof window.showToast === 'function') {
-                    window.showToast('Có lỗi', 'Không thể thêm vào giỏ. Vui lòng thử lại.', 'error');
-                } else {
-                    alert('Không thể thêm vào giỏ. Vui lòng thử lại.');
-                }
+                // Bỏ qua lỗi mạng/server
             });
         }
 

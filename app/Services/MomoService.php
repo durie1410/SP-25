@@ -45,7 +45,7 @@ class MomoService
         Log::info('MOMO RAW HASH', ['rawHash' => $rawHash]);
         Log::info('MOMO SIGNATURE', ['signature' => $signature]);
 
-        // ===== GỬI REQUEST SANG MOMO =====
+        // ===== GỬI REQUEST SANG MOMO (form-urlencoded) =====
         $response = Http::post($endpoint, [
             'partnerCode' => $partnerCode,
             'accessKey'   => $accessKey,

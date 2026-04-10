@@ -100,17 +100,11 @@ class Borrow extends Model
         'ma_van_don_di',
         'ma_van_don_ve',
         'don_vi_van_chuyen',
-        // Khách yêu cầu gia hạn
-        'customer_extension_requested',
-        'customer_extension_days',
-        'customer_extension_requested_at',
     ];
 
     protected $casts = [
         'ngay_muon' => 'date',
         'anh_hoan_tra' => 'array',
-        'customer_extension_requested' => 'boolean',
-        'customer_extension_requested_at' => 'datetime',
     ];
 
 
@@ -241,30 +235,6 @@ class Borrow extends Model
                     ->whereDate('ngay_hen_tra', '<', $today);
             })
             ->update(['trang_thai' => 'Dang muon']);
-    }
-
-    // 🔹 Kiểm tra có thể gia hạn không
-    public function canExtend()
-    {
-        $maxExtensions = 2;
-        return $this->trang_thai === 'Dang muon' &&
-            $this->so_lan_gia_han < $maxExtensions &&
-            !$this->isOverdue();
-    }
-
-    // 🔹 Gia hạn mượn
-    public function extend($days = 7)
-    {
-        if (!$this->canExtend()) {
-            return false;
-        }
-
-        // Gia hạn tất cả các item đang mượn
-        $this->items()->where('trang_thai', 'Dang muon')->each(function ($item) use ($days) {
-            $item->extend($days);
-        });
-
-        return true;
     }
 
     // 🔹 Số ngày quá hạn

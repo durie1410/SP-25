@@ -111,8 +111,7 @@ class MobileApiController extends Controller
                     'book_author' => $borrow->book->tac_gia,
                     'due_date' => $borrow->ngay_hen_tra,
                     'days_remaining' => now()->diffInDays($borrow->ngay_hen_tra, false),
-                    'can_extend' => $borrow->canExtend(),
-                ];
+                    ];
             });
     }
 
@@ -348,8 +347,6 @@ class MobileApiController extends Controller
                 'status' => $borrow->trang_thai,
                 'is_overdue' => $borrow->isOverdue(),
                 'days_overdue' => $borrow->days_overdue,
-                'can_extend' => $borrow->canExtend(),
-                'extensions_count' => $borrow->so_lan_gia_han,
             ];
         });
 
@@ -427,62 +424,6 @@ class MobileApiController extends Controller
             'total_pending' => $fines->where('status', 'pending')->sum('amount'),
             'total_paid' => $fines->where('status', 'paid')->sum('amount'),
         ]);
-    }
-
-    /**
-     * Extend borrow
-     */
-    public function extendBorrow(Request $request, $id): JsonResponse
-    {
-        $user = $request->user();
-        $reader = Reader::where('user_id', $user->id)->first();
-
-        if (!$reader) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Reader profile not found'
-            ], 404);
-        }
-
-        $borrow = Borrow::where('id', $id)
-            ->where('reader_id', $reader->id)
-            ->first();
-
-        if (!$borrow) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Borrow record not found'
-            ], 404);
-        }
-
-        if (!$borrow->canExtend()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot extend this borrow'
-            ], 400);
-        }
-
-        $days = $request->input('days', 7);
-        $success = $borrow->extend($days);
-
-        if ($success) {
-            // Log extension
-            AuditService::log('borrow_extended', $borrow, [], [], "Borrow extended by {$days} days");
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Borrow extended successfully',
-                'data' => [
-                    'new_due_date' => $borrow->ngay_hen_tra,
-                    'extensions_count' => $borrow->so_lan_gia_han,
-                ]
-            ]);
-        }
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to extend borrow'
-        ], 500);
     }
 
     /**

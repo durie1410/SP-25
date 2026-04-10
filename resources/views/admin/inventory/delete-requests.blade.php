@@ -46,6 +46,7 @@
                     <th>Sách</th>
                     <th>Người yêu cầu</th>
                     <th>Lý do</th>
+                    <th>Ảnh minh chứng</th>
                     <th>Trạng thái</th>
                     <th>Thời gian</th>
                     <th>Thao tác</th>
@@ -80,6 +81,32 @@
                             <div style="font-size: 12px; color: #888;">#{{ $req->requested_by }}</div>
                         </td>
                         <td style="max-width: 300px;">{{ $reasonClean ?: '-' }}</td>
+                        <td>
+                            @php
+                                $proofImages = [];
+                                // Ưu tiên: ảnh upload trực tiếp trên yêu cầu
+                                if ($req->proof_images) {
+                                    $proofImages = is_array($req->proof_images) ? $req->proof_images : (is_string($req->proof_images) ? json_decode($req->proof_images, true) : []);
+                                }
+                                // Fallback: ảnh từ borrow_item (trả sách)
+                                if (empty($proofImages) && $req->borrowItem && $req->borrowItem->return_proof_images) {
+                                    $raw = $req->borrowItem->return_proof_images;
+                                    $proofImages = is_array($raw) ? $raw : (is_string($raw) ? json_decode($raw, true) : []);
+                                }
+                            @endphp
+                            @if(!empty($proofImages))
+                                <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                                    @foreach($proofImages as $img)
+                                        <img src="{{ asset('storage/' . $img) }}"
+                                             alt="Ảnh minh chứng"
+                                             style="width:50px; height:50px; object-fit:cover; border-radius:4px; border:1px solid #ddd; cursor:pointer;"
+                                             onclick="window.open('{{ asset('storage/' . $img) }}', '_blank')">
+                                    @endforeach
+                                </div>
+                            @else
+                                <span style="color:#aaa; font-size:12px;">Không có ảnh</span>
+                            @endif
+                        </td>
                         <td>
                             @if($req->status==='pending')
                                 <span class="badge badge-warning">Chờ duyệt</span>
@@ -119,7 +146,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="text-center" style="padding: 30px; color:#888;">Chưa có yêu cầu nào</td>
+                        <td colspan="9" class="text-center" style="padding: 30px; color:#888;">Chưa có yêu cầu nào</td>
                     </tr>
                 @endforelse
             </tbody>

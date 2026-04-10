@@ -337,8 +337,6 @@ Route::middleware('auth')->group(function () {
     // Customer return book routes (hoàn trả sách)
     Route::post('/account/borrows/{id}/return-book', [BorrowController::class, 'customerReturnBook'])->name('account.borrows.return-book');
 
-    // Customer extend borrow routes (gia hạn mượn)
-    Route::post('/account/borrows/{id}/extend', [BorrowController::class, 'customerExtendBorrow'])->name('account.borrows.extend');
 });
 
 // Admin Routes
@@ -411,8 +409,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
         ->middleware('permission:view-borrows');
 
 
-    Route::post('borrows/{id}/return', [BorrowController::class, 'return'])->name('borrows.return')->middleware('permission:return-books');
-    Route::post('borrows/{id}/extend', [BorrowController::class, 'extend'])->name('borrows.extend')->middleware('permission:edit-borrows');
+    Route::post('returns/prepare', [App\Http\Controllers\ReturnController::class, 'prepareReturn'])->name('returns.prepare')->middleware('permission:return-books');
     Route::get('borrows-dashboard', [App\Http\Controllers\BorrowDashboardController::class, 'index'])->name('borrows.dashboard')->middleware('permission:view-borrows');
     Route::get('borrows-dashboard/export', [App\Http\Controllers\BorrowDashboardController::class, 'export'])->name('borrows.dashboard.export')->middleware('permission:view-reports');
     route::get('borrows/{id}/create-item', [BorrowController::class, 'createItem'])->name('borrows.createitem')->middleware('permission:create-borrows');
@@ -591,6 +588,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     // Màn hình trả sách theo TÊN khách (tick chọn nhiều sách, nhập tình trạng từng quyển)
     Route::get('returns', [ReturnController::class, 'index'])->name('returns.index');
     Route::post('returns/process', [ReturnController::class, 'processReturn'])->name('returns.process');
+    Route::post('returns/{item}/approve-stock', [ReturnController::class, 'approveReturnedToStock'])->name('returns.approve-stock');
+    Route::post('returns/{item}/delete-returned', [ReturnController::class, 'deleteReturnedItem'])->name('returns.delete-returned');
 
     // Màn hình Thanh toán phạt (lọc theo độc giả)
     Route::get('fine-payments', [FinePaymentsController::class, 'index'])->name('fine-payments.index');
@@ -631,7 +630,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('bulk-operations/books/update', [App\Http\Controllers\Admin\BulkOperationController::class, 'bulkUpdateBooks'])->name('bulk-operations.books.update')->middleware('permission:manage-bulk-operations');
     Route::delete('bulk-operations/books/delete', [App\Http\Controllers\Admin\BulkOperationController::class, 'bulkDeleteBooks'])->name('bulk-operations.books.delete')->middleware('permission:manage-bulk-operations');
     Route::post('bulk-operations/readers/update', [App\Http\Controllers\Admin\BulkOperationController::class, 'bulkUpdateReaders'])->name('bulk-operations.readers.update')->middleware('permission:manage-bulk-operations');
-    Route::post('bulk-operations/borrows/extend', [App\Http\Controllers\Admin\BulkOperationController::class, 'bulkExtendBorrows'])->name('bulk-operations.borrows.extend')->middleware('permission:manage-bulk-operations');
     Route::post('bulk-operations/borrows/return', [App\Http\Controllers\Admin\BulkOperationController::class, 'bulkReturnBooks'])->name('bulk-operations.borrows.return')->middleware('permission:manage-bulk-operations');
     // Route bulk cancel reservations đã xóa (chức năng đặt trước đã bị loại bỏ)
     Route::post('bulk-operations/fines/create', [App\Http\Controllers\Admin\BulkOperationController::class, 'bulkCreateFines'])->name('bulk-operations.fines.create')->middleware('permission:manage-bulk-operations');
@@ -793,16 +791,16 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('reports/export-excel', [ReportController::class, 'exportExcel'])->name('reports.export.excel');
     Route::get('reports/export-pdf', [ReportController::class, 'exportPDF'])->name('reports/export-pdf');
     //duyet dki
-    Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
+    Route::middleware(['auth', 'admin'])->group(function () {
 
         // danh sách user
-        Route::get('users', [AuthController::class, 'index'])->name('users.index');
+        Route::get('users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
 
         // khóa user
-        Route::get('users/lock/{id}', [AuthController::class, 'lockUser'])->name('users.lock');
+        Route::get('users/lock/{id}', [\App\Http\Controllers\Admin\UserController::class, 'lockUser'])->name('users.lock');
 
         // mở khóa
-        Route::get('users/unlock/{id}', [AuthController::class, 'unlockUser'])->name('users.unlock');
+        Route::get('users/unlock/{id}', [\App\Http\Controllers\Admin\UserController::class, 'unlockUser'])->name('users.unlock');
     });
     // Route::get('users/pending', [AuthController::class, 'pendingUsers'])->name('users.pending');
 

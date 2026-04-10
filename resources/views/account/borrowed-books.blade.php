@@ -441,11 +441,6 @@
                                                         </span>
                                                     @endif
                                                 </div>
-                                                @if(($item->so_lan_gia_han ?? 0) > 0)
-                                                    <div style="margin-top:3px;">
-                                                        <span class="borrow-meta-pill" style="font-size:11px;">🔁 Gia hạn {{ $item->so_lan_gia_han }}/2 lần</span>
-                                                    </div>
-                                                @endif
                                             </div>
                                         </div>
                                     @endforeach
@@ -488,33 +483,6 @@
                         <div class="borrow-card-actions">
                         @if($borrow->borrowItems && $borrow->borrowItems->count() > 0)
                             <button type="button" class="btn-view-book" onclick="showBorrowDetail({{ $borrow->id }})">Xem chi tiết</button>
-                            @php
-                                // Kiểm tra có cuốn nào đang mượn chưa quá hạn và chưa gia hạn tối đa
-                                $canExtendItem = $borrow->borrowItems->first(fn($i) =>
-                                    $i->trang_thai === 'Dang muon' && !$i->isOverdue() && ($i->so_lan_gia_han ?? 0) < 2
-                                );
-                                $allMaxExtended = $borrow->borrowItems->where('trang_thai', 'Dang muon')->isNotEmpty()
-                                    && $borrow->borrowItems->where('trang_thai', 'Dang muon')->every(fn($i) => ($i->so_lan_gia_han ?? 0) >= 2);
-                            @endphp
-                            @if($canExtendItem)
-                                @if($borrow->customer_extension_requested)
-                                    <p style="margin-top: 8px; font-size: 12px; color: #0d6efd;">
-                                        🔁 Bạn đã gửi yêu cầu gia hạn (+{{ $borrow->customer_extension_days ?? 5 }} ngày). Vui lòng chờ thư viện duyệt.
-                                    </p>
-                                @else
-                                    <form action="{{ route('account.borrows.extend', $borrow->id) }}" method="POST" style="margin-top: 10px;">
-                                        @csrf
-                                        <button type="submit" class="btn-extend-borrow"
-                                                onclick="return confirm('Gửi yêu cầu gia hạn thêm 5 ngày cho tất cả sách trong phiếu này. Thư viện sẽ kiểm tra và duyệt nếu phù hợp. Phí gia hạn sẽ được tính cùng lúc khi bạn trả sách.');">
-                                            🔁 Gửi yêu cầu gia hạn (+5 ngày)
-                                        </button>
-                                    </form>
-                                @endif
-                            @elseif($allMaxExtended)
-                                <p class="borrow-card-hint info">Đã gia hạn tối đa 2 lần, không thể gia hạn thêm.</p>
-                            @elseif($hasOverdue)
-                                <p class="borrow-card-hint danger">Sách đã quá hạn, vui lòng hoàn trả hoặc liên hệ thư viện để xử lý.</p>
-                            @endif
                         @endif
                             @php
                                 // Cho phép xác nhận khi đang giao hàng hoặc đã giao hàng thành công
@@ -911,8 +879,6 @@
                     ngay_hen_tra: {!! json_encode($item->ngay_hen_tra ? (\Carbon\Carbon::parse($item->ngay_hen_tra)->format('d/m/Y')) : '') !!},
                     ngay_tra_thuc_te: {!! json_encode($item->ngay_tra_thuc_te ? (\Carbon\Carbon::parse($item->ngay_tra_thuc_te)->format('d/m/Y')) : null) !!},
                     trang_thai: {!! json_encode($item->trang_thai ?? '') !!},
-                    so_lan_gia_han: {{ $item->so_lan_gia_han ?? 0 }},
-                    ngay_gia_han_cuoi: {!! json_encode($item->ngay_gia_han_cuoi ? (\Carbon\Carbon::parse($item->ngay_gia_han_cuoi)->format('d/m/Y')) : null) !!},
                     tien_coc: {{ $item->tien_coc ?? 0 }},
                     tien_thue: {{ $item->tien_thue ?? 0 }},
                     tien_ship: {{ $item->tien_ship ?? 0 }},
@@ -1603,18 +1569,6 @@
                             <div class="detail-row">
                                 <span class="detail-label">Ngày trả thực tế:</span>
                                 <span class="detail-value text-success">${item.ngay_tra_thuc_te}</span>
-                            </div>
-                            ` : ''}
-                            ${item.so_lan_gia_han > 0 ? `
-                            <div class="detail-row">
-                                <span class="detail-label">Số lần gia hạn:</span>
-                                <span class="detail-value">${item.so_lan_gia_han}/2</span>
-                            </div>
-                            ` : ''}
-                            ${item.ngay_gia_han_cuoi ? `
-                            <div class="detail-row">
-                                <span class="detail-label">Ngày gia hạn cuối:</span>
-                                <span class="detail-value">${item.ngay_gia_han_cuoi}</span>
                             </div>
                             ` : ''}
                             <div class="detail-row" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0;">

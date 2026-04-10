@@ -163,17 +163,27 @@ class BookController extends Controller
         }
 
         try {
-            // Tạo sách mới - mặc định là inactive cho đến khi phiếu nhập kho được duyệt
+            // Xử lý nhà xuất bản: chọn từ danh sách hoặc tạo mới
+            $publisherId = $request->nha_xuat_ban_id;
+            if (!$publisherId && $request->nha_xuat_ban_name) {
+                $publisher = \App\Models\Publisher::firstOrCreate(
+                    ['ten_nha_xuat_ban' => trim($request->nha_xuat_ban_name)],
+                    ['trang_thai' => 'active']
+                );
+                $publisherId = $publisher->id;
+            }
+
+            // Tạo sách mới
             $book = Book::create([
                 'ten_sach' => $request->ten_sach,
                 'category_id' => $request->category_id,
-                'nha_xuat_ban_id' => $request->nha_xuat_ban_id,
+                'nha_xuat_ban_id' => $publisherId,
                 'tac_gia' => $request->tac_gia,
                 'nam_xuat_ban' => $request->nam_xuat_ban,
                 'hinh_anh' => $path,
                 'mo_ta' => $request->mo_ta,
                 'gia' => $request->gia,
-                'trang_thai' => 'inactive', // Mặc định không hiển thị cho đến khi duyệt phiếu nhập kho
+                'trang_thai' => $request->trang_thai ?? 'inactive', // Lấy từ form, mặc định inactive
                 'danh_gia_trung_binh' => 0,
                 'so_luong_ban' => 0,
                 'so_luot_xem' => 0,
@@ -192,7 +202,7 @@ class BookController extends Controller
                 'quantity' => $soLuong,
                 'unit_price' => $donGia,
                 'total_price' => $soLuong * $donGia,
-                'supplier' => $request->nha_xuat_ban_id ? \App\Models\Publisher::find($request->nha_xuat_ban_id)?->ten_nha_xuat_ban : 'Không xác định',
+                'supplier' => $publisherId ? \App\Models\Publisher::find($publisherId)?->ten_nha_xuat_ban : 'Không xác định',
                 'storage_location' => $request->vi_tri ?? 'Kệ A',
                 'storage_type' => 'Kho',
                 'status' => 'pending', // Chờ phê duyệt

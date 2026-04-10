@@ -15,10 +15,7 @@
             <i class="fas fa-user-plus"></i>
             Thêm Người Dùng
         </a>
-        <a href="{{ route('admin.users.index') }}" class="btn btn-info" style="background: #3b82f6; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;">
-            <i class="fas fa-users"></i>
-            Quản Lý Người Dùng
-        </a>
+      
     </div>
 </div>
 
@@ -40,6 +37,10 @@
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #6b7280; font-size: 14px;"><i class="fas fa-crown" style="color: #dc3545;"></i> Quản trị viên</span>
                 <strong style="color: #1f2937; font-size: 18px;">{{ $adminUsers }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #6b7280; font-size: 14px;"><i class="fas fa-user-tie" style="color: #f59e0b;"></i> Nhân viên</span>
+                <strong style="color: #1f2937; font-size: 18px;">{{ $staffUsers }}</strong>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="color: #6b7280; font-size: 14px;"><i class="fas fa-user" style="color: #17a2b8;"></i> Người dùng</span>
@@ -122,15 +123,24 @@
                                 @case('admin')
                                     <i class="fas fa-crown me-1"></i>Quản trị viên
                                     @break
+                                @case('staff')
+                                    <i class="fas fa-user-tie me-1"></i>Nhân viên
+                                    @break
                                 @default
                                     <i class="fas fa-user me-1"></i>Người dùng
                             @endswitch
                         </span>
                     </td>
                     <td>
-                        <span class="status-badge status-active">
-                            <i class="fas fa-circle me-1"></i>N/A
-                        </span>
+                        @if($user->isLocked())
+                            <span class="status-badge" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">
+                                <i class="fas fa-lock me-1"></i>Đã khóa
+                            </span>
+                        @else
+                            <span class="status-badge status-active">
+                                <i class="fas fa-check-circle me-1"></i>Hoạt động
+                            </span>
+                        @endif
                     </td>
                     <td>{{ $user->created_at->format('d/m/Y') }}</td>
                     <td>{{ $user->updated_at->diffForHumans() }}</td>
@@ -142,9 +152,17 @@
                             <button class="btn btn-info btn-sm" onclick="viewUser({{ $user->id }})" title="Xem chi tiết">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteUser({{ $user->id }})" title="Xóa">
-                                <i class="fas fa-trash"></i>
+                            @if($user->id !== auth()->id())
+                            <button class="btn btn-sm {{ $user->isLocked() ? 'btn-success' : 'btn-danger' }} btn-sm"
+                                    onclick="toggleLock({{ $user->id }}, {{ $user->isLocked() ? 'true' : 'false' }})"
+                                    title="{{ $user->isLocked() ? 'Mở khóa' : 'Khóa' }}">
+                                @if($user->isLocked())
+                                    <i class="fas fa-unlock"></i>
+                                @else
+                                    <i class="fas fa-lock"></i>
+                                @endif
                             </button>
+                            @endif
                         </div>
                     </td>
                 </tr>
@@ -203,7 +221,8 @@
         
         window.adminUsersRoutes = {
             show: (id) => `${origin}${basePath}/admin/users/${id}`,
-            destroy: (id) => `${origin}${basePath}/admin/users/${id}`
+            lock: (id) => `${origin}${basePath}/admin/users/lock/${id}`,
+            unlock: (id) => `${origin}${basePath}/admin/users/unlock/${id}`
         };
         
         console.log('Origin:', origin);
@@ -286,12 +305,12 @@
         background: linear-gradient(135deg, #dc3545, #c82333);
         color: white;
     }
-    
+
     .role-staff {
-        background: linear-gradient(135deg, #ffc107, #e0a800);
-        color: #212529;
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: white;
     }
-    
+
     .role-user {
         background: linear-gradient(135deg, #6c757d, #5a6268);
         color: white;
@@ -501,11 +520,17 @@
         })
         .then(data => {
             // Hiển thị thông tin user
-            const roleText = data.role === 'admin' ? 'Quản trị viên' : 'Người dùng';
-            const roleBadge = data.role === 'admin' 
-                ? '<span class="badge bg-danger">Quản trị viên</span>' 
-                : '<span class="badge bg-secondary">Người dùng</span>';
+            const roleText = data.role === 'admin' ? 'Quản trị viên' : (data.role === 'staff' ? 'Nhân viên' : 'Người dùng');
+            const roleBadge = data.role === 'admin'
+                ? '<span class="badge bg-danger">Quản trị viên</span>'
+                : (data.role === 'staff'
+                    ? '<span class="badge" style="background:#f59e0b; color:white;">Nhân viên</span>'
+                    : '<span class="badge bg-secondary">Người dùng</span>');
             
+            const lockedBadge = data.is_locked
+                ? '<span class="badge" style="background:#ef4444; color:white;"><i class="fas fa-lock me-1"></i>Đã khóa</span>'
+                : '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Hoạt động</span>';
+
             content.innerHTML = `
                 <div class="user-detail">
                     <div class="text-center mb-4">
@@ -515,7 +540,7 @@
                         <h4>${data.name}</h4>
                         <p class="text-muted">${data.email}</p>
                     </div>
-                    
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <strong><i class="fas fa-id-card me-2"></i>ID:</strong>
@@ -526,14 +551,64 @@
                             <p class="mb-0">${roleBadge}</p>
                         </div>
                         <div class="col-md-6 mb-3">
+                            <strong><i class="fas fa-shield-alt me-2"></i>Trạng thái:</strong>
+                            <p class="mb-0">${lockedBadge}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <strong><i class="fas fa-calendar-plus me-2"></i>Ngày tạo:</strong>
                             <p class="mb-0">${new Date(data.created_at).toLocaleDateString('vi-VN')}</p>
                         </div>
+                    </div>
+
+                    <hr style="margin: 20px 0; border-top: 2px solid #e5e7eb;">
+
+                    <h6 style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 15px;">
+                        <i class="fas fa-address-card me-2"></i>Thông tin đăng ký độc giả
+                    </h6>
+
+                    <div class="row">
                         <div class="col-md-6 mb-3">
-                            <strong><i class="fas fa-calendar-check me-2"></i>Cập nhật cuối:</strong>
-                            <p class="mb-0">${new Date(data.updated_at).toLocaleDateString('vi-VN')}</p>
+                            <strong><i class="fas fa-phone me-2"></i>Số điện thoại:</strong>
+                            <p class="mb-0">${data.phone || '<span style="color:#9ca3af;">Chưa cập nhật</span>'}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong><i class="fas fa-calendar-alt me-2"></i>Ngày sinh:</strong>
+                            <p class="mb-0">${data.ngay_sinh ? new Date(data.ngay_sinh).toLocaleDateString('vi-VN') : '<span style="color:#9ca3af;">Chưa cập nhật</span>'}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong><i class="fas fa-venus-mars me-2"></i>Giới tính:</strong>
+                            <p class="mb-0">${data.gioi_tinh ? (data.gioi_tinh === 'male' ? 'Nam' : (data.gioi_tinh === 'female' ? 'Nữ' : data.gioi_tinh)) : '<span style="color:#9ca3af;">Chưa cập nhật</span>'}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong><i class="fas fa-id-card me-2"></i>Số CCCD:</strong>
+                            <p class="mb-0">${data.so_cccd || '<span style="color:#9ca3af;">Chưa cập nhật</span>'}</p>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <strong><i class="fas fa-map-marker-alt me-2"></i>Địa chỉ:</strong>
+                            <p class="mb-0">${data.address || '<span style="color:#9ca3af;">Chưa cập nhật</span>'}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="fas fa-map me-2"></i>Tỉnh/Thành:</strong>
+                            <p class="mb-0">${data.province || '<span style="color:#9ca3af;">Chưa cập nhật</span>'}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="fas fa-map-pin me-2"></i>Quận/Huyện:</strong>
+                            <p class="mb-0">${data.district || '<span style="color:#9ca3af;">Chưa cập nhật</span>'}</p>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <strong><i class="fas fa-building me-2"></i>Phường/Xã:</strong>
+                            <p class="mb-0">${data.xa || '<span style="color:#9ca3af;">Chưa cập nhật</span>'}</p>
                         </div>
                     </div>
+
+                    ${data.cccd_image ? `
+                    <div class="mt-3">
+                        <strong><i class="fas fa-image me-2"></i>Ảnh CCCD:</strong>
+                        <div class="mt-2">
+                            <img src="${data.cccd_image.startsWith('http') ? data.cccd_image : '/storage/' + data.cccd_image}" alt="Ảnh CCCD" style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 1px solid #e5e7eb;" onerror="this.style.display='none'">
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
             `;
         })
@@ -576,70 +651,47 @@
         });
     });
     
-    window.deleteUser = function(userId) {
-        console.log('Deleting user:', userId); // Debug
-        
-        if (confirm('Bạn có chắc chắn muốn xóa người dùng này? Hành động này không thể hoàn tác!')) {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]');
-            if (!csrfToken) {
-                alert('Không tìm thấy CSRF token. Vui lòng tải lại trang.');
-                return;
-            }
-            
-            // Sử dụng FormData với method spoofing
-            const formData = new FormData();
-            formData.append('_method', 'DELETE');
-            formData.append('_token', csrfToken.getAttribute('content'));
-            
-            fetch(window.adminUsersRoutes.destroy(userId), {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: formData
-            })
-            .then(response => {
-                console.log('Delete response status:', response.status);
-                console.log('Delete response URL:', response.url);
-                
-                // Kiểm tra nếu response không phải JSON
-                const contentType = response.headers.get("content-type");
-                if (contentType && contentType.includes("application/json")) {
-                    return response.json();
-                } else {
-                    // Nếu response là redirect hoặc HTML
-                    if (response.ok || response.status === 200 || response.status === 204) {
-                        return { success: true, message: 'Người dùng đã được xóa thành công!' };
-                    }
-                    return response.text().then(text => {
-                        console.error('Error response:', text);
-                        throw new Error(`Lỗi ${response.status}: Có lỗi xảy ra khi xóa người dùng`);
-                    });
-                }
-            })
-            .then(data => {
-                if (data.success) {
-                    // Hiển thị thông báo thành công
-                    alert(data.message || 'Người dùng đã được xóa thành công!');
-                    
-                    // Reload trang ngay lập tức
-                    location.reload();
-                } else {
-                    alert(data.message || 'Có lỗi xảy ra khi xóa người dùng');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                console.error('Error details:', {
-                    message: error.message,
-                    stack: error.stack,
-                    userId: userId
-                });
-                alert('Có lỗi xảy ra khi xóa người dùng: ' + (error.message || 'Lỗi không xác định'));
-            });
+    window.toggleLock = function(userId, isLocked) {
+        const actionText = isLocked ? 'mở khóa' : 'khóa';
+        const actionRoute = isLocked ? window.adminUsersRoutes.unlock : window.adminUsersRoutes.lock;
+        const method = 'GET';
+
+        if (!confirm(`Bạn có chắc chắn muốn ${actionText} tài khoản này?`)) return;
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        if (!csrfToken) {
+            alert('Không tìm thấy CSRF token. Vui lòng tải lại trang.');
+            return;
         }
+
+        fetch(actionRoute(userId), {
+            method: method,
+            headers: {
+                'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                return response.json();
+            }
+            if (response.ok) {
+                return { success: true, message: `Đã ${actionText} tài khoản!` };
+            }
+            return response.text().then(text => {
+                console.error('Error:', text);
+                throw new Error(`Lỗi ${response.status}`);
+            });
+        })
+        .then(data => {
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Có lỗi xảy ra: ' + (error.message || 'Lỗi không xác định'));
+        });
     }
     
     // Auto-hide alerts

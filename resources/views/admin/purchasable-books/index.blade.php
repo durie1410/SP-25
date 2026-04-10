@@ -68,8 +68,8 @@
                                             </td>
                                             <td>
                                                 @if($book->hinh_anh)
-                                                    <img src="{{ asset('storage/' . $book->hinh_anh) }}" 
-                                                         width="50" height="70" 
+                                                    <img src="{{ $book->image_url }}"
+                                                         width="50" height="70"
                                                          style="object-fit: cover; border-radius: 4px;"
                                                          alt="{{ $book->ten_sach }}">
                                                 @else

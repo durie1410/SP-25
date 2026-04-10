@@ -22,7 +22,7 @@ return [
 
 	// SLA / opening hours (informational; use in UI/validation as needed)
 	'open_hour' => env('LIB_OPEN_HOUR', '08:00'),
-	'close_hour' => env('LIB_CLOSE_HOUR', '20:00'),
+	'close_hour' => env('LIB_CLOSE_HOUR', '18:00'),
 
 	// Borrow rules
 	'borrow_min_days' => env('LIB_BORROW_MIN_DAYS', 1),

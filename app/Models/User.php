@@ -35,6 +35,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'cccd_image',
         'ngay_sinh',
         'gioi_tinh',
+        'locked_at',
+        'status',
     ];
 
     /**
@@ -89,6 +91,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $casts = [
         'email_verified_at' => 'datetime',
         'ngay_sinh' => 'date',
+        'locked_at' => 'datetime',
     ];
 
     /**
@@ -107,6 +110,11 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Check if user is admin
      */
+    public function isLocked()
+    {
+        return !is_null($this->locked_at);
+    }
+
     public function isAdmin()
     {
         return $this->role === 'admin' || $this->hasRole('admin');

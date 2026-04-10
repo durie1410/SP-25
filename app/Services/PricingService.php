@@ -139,14 +139,9 @@ class PricingService
             return 0;
         }
 
-        // Policy: 3 ngày đầu 5k/ngày/cuốn, từ ngày 4 trở đi 15k/ngày/cuốn
-        $fineDay1 = 5000;
-        $fineDay2 = 15000;
-        $threshold = 3;
-
-        $perBook = $daysOverdue <= $threshold
-            ? ($daysOverdue * $fineDay1)
-            : (($threshold * $fineDay1) + (($daysOverdue - $threshold) * $fineDay2));
+        // Policy: 5k/ngày/cuốn
+        $finePerDay = 5000;
+        $perBook = $daysOverdue * $finePerDay;
 
         return round($perBook * max(1, (int) $numberOfBooks));
     }

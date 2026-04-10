@@ -33,8 +33,6 @@ class BorrowItem extends Model
         'ngay_tra_thuc_te',
         'trang_thai',
         'borrow_type',
-        'so_lan_gia_han',
-        'ngay_gia_han_cuoi',
         'inventorie_id',
         'tien_phat',
         'tinh_trang_sach_cuoi',
@@ -50,7 +48,6 @@ class BorrowItem extends Model
         'ngay_muon' => 'datetime',
         'ngay_hen_tra' => 'datetime',
         'ngay_tra_thuc_te' => 'date',
-        'ngay_gia_han_cuoi' => 'date',
         'ngay_thu_coc' => 'date',
         'ngay_hoan_coc' => 'date',
         'tien_coc' => 'decimal:2',
@@ -67,8 +64,21 @@ class BorrowItem extends Model
 
     public function reservation()
     {
-        return $this->hasOne(InventoryReservation::class, 'borrow_id', 'borrow_id')
-            ->where('book_id', $this->book_id);
+        return $this->hasOne(InventoryReservation::class, 'borrow_id', 'borrow_id');
+    }
+
+    /**
+     * Lấy reservation đúng theo book_id của item này
+     * Dùng khi reservation() bị constraint sai do eager load
+     */
+    public function getReservationMatchAttribute()
+    {
+        if (!$this->borrow_id || !$this->book_id) {
+            return null;
+        }
+        return \App\Models\InventoryReservation::where('borrow_id', $this->borrow_id)
+            ->where('book_id', $this->book_id)
+            ->first();
     }
     public function voucher()
     {
@@ -115,34 +125,6 @@ class BorrowItem extends Model
         }
 
         return $ngayHenTra < now();
-    }
-
-    public function canExtend()
-    {
-        return $this->trang_thai === 'Dang muon' && $this->so_lan_gia_han < 2 && !$this->isOverdue();
-    }
-
-    public function extend($days = 5, $dailyFee = 5000)
-    {
-        if (!$this->canExtend())
-            return false;
-
-        // Đảm bảo ngay_hen_tra là Carbon object
-        $ngayHenTra = $this->ngay_hen_tra;
-        if (!($ngayHenTra instanceof Carbon)) {
-            $ngayHenTra = Carbon::parse($ngayHenTra);
-        }
-
-        // Tính tiền gia hạn (5000đ/ngày x số ngày)
-        $extensionFee = $days * $dailyFee;
-
-        $this->update([
-            'ngay_hen_tra' => $ngayHenTra->copy()->addDays($days),
-            'tien_thue' => ($this->tien_thue ?? 0) + $extensionFee,
-            'so_lan_gia_han' => $this->so_lan_gia_han + 1,
-            'ngay_gia_han_cuoi' => now()->toDateString(),
-        ]);
-        return true;
     }
 
 

@@ -39,15 +39,17 @@ class UserController extends Controller
         // Get statistics
         $totalUsers = User::count();
         $adminUsers = User::where('role', 'admin')->count();
+        $staffUsers = User::where('role', 'staff')->count();
         $regularUsers = User::where('role', 'user')->count();
         $newUsersThisMonth = User::whereYear('created_at', now()->year)
             ->whereMonth('created_at', now()->month)
             ->count();
-        
+
         return view('admin.users.index', compact(
-            'users', 
-            'totalUsers', 
-            'adminUsers', 
+            'users',
+            'totalUsers',
+            'adminUsers',
+            'staffUsers',
             'regularUsers',
             'newUsersThisMonth'
         ));
@@ -65,9 +67,20 @@ class UserController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role,
-            'status' => 'N/A', // Users table doesn't have status field
+            'locked_at' => $user->locked_at,
+            'is_locked' => $user->isLocked(),
             'created_at' => $user->created_at,
             'updated_at' => $user->updated_at,
+            // Thông tin đăng ký độc giả
+            'phone' => $user->phone,
+            'province' => $user->province,
+            'district' => $user->district,
+            'xa' => $user->xa,
+            'address' => $user->address,
+            'so_cccd' => $user->so_cccd,
+            'cccd_image' => $user->cccd_image,
+            'ngay_sinh' => $user->ngay_sinh,
+            'gioi_tinh' => $user->gioi_tinh,
         ]);
     }
     
@@ -156,28 +169,75 @@ class UserController extends Controller
     
     public function destroy(User $user)
     {
-        // Prevent deleting the last admin
+        // Prevent locking the last admin
         if ($user->role === 'admin' && User::where('role', 'admin')->count() <= 1) {
             return response()->json([
                 'success' => false,
-                'message' => 'Không thể xóa quản trị viên cuối cùng'
+                'message' => 'Không thể khóa quản trị viên cuối cùng'
             ], 400);
         }
-        
-        // Prevent users from deleting themselves
+
+        // Prevent locking themselves
         if ($user->id === auth()->id()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Không thể xóa chính mình'
+                'message' => 'Không thể khóa chính mình'
             ], 400);
         }
-        
-        $user->delete();
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Người dùng đã được xóa thành công'
-        ]);
+
+        // Toggle lock status
+        if ($user->locked_at) {
+            $user->update(['locked_at' => null]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã mở khóa tài khoản'
+            ]);
+        } else {
+            $user->update(['locked_at' => now()]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã khóa tài khoản'
+            ]);
+        }
+    }
+
+    public function lockUser($id)
+    {
+        $user = User::findOrFail($id);
+
+        if ($user->role === 'admin' && User::where('role', 'admin')->count() <= 1) {
+            if (request()->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Không thể khóa quản trị viên cuối cùng'], 403);
+            }
+            return back()->with('error', 'Không thể khóa quản trị viên cuối cùng');
+        }
+        if ($user->id === auth()->id()) {
+            if (request()->expectsJson()) {
+                return response()->json(['success' => false, 'message' => 'Không thể khóa chính mình'], 403);
+            }
+            return back()->with('error', 'Không thể khóa chính mình');
+        }
+
+        $user->locked_at = now();
+        $user->save();
+
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Đã khóa tài khoản']);
+        }
+        return back()->with('success', 'Đã khóa tài khoản');
+    }
+
+    public function unlockUser($id)
+    {
+        $user = User::findOrFail($id);
+
+        $user->locked_at = null;
+        $user->save();
+
+        if (request()->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Đã mở khóa tài khoản']);
+        }
+        return back()->with('success', 'Đã mở khóa tài khoản');
     }
     
     public function bulkAction(Request $request)

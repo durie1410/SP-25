@@ -85,7 +85,7 @@ return [
             'icon' => 'fa-book-reader',
             'step' => 7,
             'next_statuses' => ['cho_tra_sach', 'dang_van_chuyen_tra_ve'],
-            'actions' => ['gia_han', 'tao_yeu_cau_tra_sach'],
+            'actions' => ['tao_yeu_cau_tra_sach'],
         ],
 
         'cho_tra_sach' => [
@@ -203,8 +203,6 @@ return [
 
     'default_times' => [
         'borrow_days' => 14,          // Số ngày mượn mặc định
-        'max_extensions' => 2,         // Số lần gia hạn tối đa
-        'extension_days' => 7,         // Số ngày gia hạn mỗi lần
         'overdue_fine_per_day' => 5000, // Phí phạt quá hạn mỗi ngày (VNĐ)
     ],
 

@@ -224,6 +224,15 @@ class PublicBookController extends Controller
             }
         }
 
+        // Kiểm tra số lượng đã có trong giỏ đặt trước cho sách này
+        $cartQuantity = 0;
+        if (auth()->check()) {
+            $cart = \App\Models\ReservationCart::where('user_id', auth()->id())->first();
+            if ($cart) {
+                $cartQuantity = (int) $cart->items()->where('book_id', $book->id)->sum('quantity');
+            }
+        }
+
         // Kiểm tra KYC status của user
         $kycStatus = 'unverified';
         if (auth()->check()) {
@@ -238,10 +247,10 @@ class PublicBookController extends Controller
         }
 
         return view('books.show', compact(
-            'book', 
-            'relatedBooks', 
-            'stats', 
-            'isFavorited', 
+            'book',
+            'relatedBooks',
+            'stats',
+            'isFavorited',
             'userReview',
             'top_selling_books',
             'most_viewed_books',
@@ -254,7 +263,8 @@ class PublicBookController extends Controller
             'reviewEligibilityMessage',
             'ratingBreakdown',
             'reviewDraftBorrowItem',
-            'reviewEditWindowHours'
+            'reviewEditWindowHours',
+            'cartQuantity'
         ));
     }
 

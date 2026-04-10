@@ -39,7 +39,6 @@ public function update(Request $request, $id)
         'tien_thue' => 'nullable|numeric|min:0',
         'tien_ship' => 'required|numeric|min:0',
         'trang_thai_coc' => 'required|in:cho_xu_ly,da_thu,da_hoan,tru_vao_phat',
-        'so_lan_gia_han' => 'nullable|integer|min:0',
         'ghi_chu' => 'nullable|string',
     ]);
 
@@ -556,17 +555,9 @@ public function markOverdue($id)
         $today = \Carbon\Carbon::today();
         $daysOverdue = $today->diffInDays($dueDate, false) * -1;
 
-        $fineDay1 = 5000;
-        $fineDay2 = 15000;
-        $threshold = 3;
-
         $phatQuaHan = 0;
         if ($daysOverdue > 0) {
-            if ($daysOverdue <= $threshold) {
-                $phatQuaHan = $daysOverdue * $fineDay1;
-            } else {
-                $phatQuaHan = ($threshold * $fineDay1) + (($daysOverdue - $threshold) * $fineDay2);
-            }
+            $phatQuaHan = $daysOverdue * 5000;
 
             $item->update([
                 'tien_phat' => $phatQuaHan,
@@ -637,17 +628,9 @@ public function updateStatus(Request $request, $id)
                 $today = \Carbon\Carbon::today();
                 $daysOverdue = $today->diffInDays($dueDate, false) * -1;
 
-                $fineDay1 = 5000;
-                $fineDay2 = 15000;
-                $threshold = 3;
-
                 // Nếu đã quá hạn thì tính phạt
                 if ($daysOverdue > 0) {
-                    if ($daysOverdue <= $threshold) {
-                        $phatQuaHan = $daysOverdue * $fineDay1;
-                    } else {
-                        $phatQuaHan = ($threshold * $fineDay1) + (($daysOverdue - $threshold) * $fineDay2);
-                    }
+                    $phatQuaHan = $daysOverdue * 5000;
 
                     // Lưu vào bảng fines
                     Fine::create([

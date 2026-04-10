@@ -49,6 +49,14 @@ class AuthController extends Controller
         // Log guard being used
         Log::info('Guard being used: ' . Auth::getDefaultDriver());
 
+        // Kiểm tra khóa TRƯỚC khi đăng nhập
+        if ($user && $user->isLocked()) {
+            Log::info('Account is LOCKED - preventing login');
+            return back()->withErrors([
+                'email' => 'Tài khoản đã bị khóa'
+            ]);
+        }
+
         if (Auth::attempt($credentials, $request->filled('remember'))) {
             $request->session()->regenerate();
 
@@ -59,20 +67,6 @@ class AuthController extends Controller
 
             // Get the authenticated user
             $user = Auth::user();
-            // Kiểm tra trạng thái tài khoản
-            if ($user->status == 'pending') {
-                Auth::logout();
-                return back()->withErrors([
-                    'email' => 'Tài khoản đang chờ quản trị viên duyệt'
-                ]);
-            }
-
-            if ($user->status == 'locked') {
-                Auth::logout();
-                return back()->withErrors([
-                    'email' => 'Tài khoản đã bị khóa'
-                ]);
-            }
             // Redirect based on user role
             if ($user->role === 'admin') {
                 return redirect()->route('admin.dashboard');
@@ -112,8 +106,8 @@ class AuthController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'role' => 'user', // SECURITY FIX: Always 'user'
-                'status' => 'pending'
+                'role' => 'user',
+                'status' => 'active'
             ]);
 
             // Assign role using Spatie Permission
@@ -134,13 +128,16 @@ class AuthController extends Controller
 
             return redirect()->route('login')->with(
                 'success',
-                'Đăng ký thành công! Tài khoản của bạn đang chờ quản trị viên duyệt.'
+                'Đăng ký thành công! Bạn có thể đăng nhập ngay.'
             );
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('=== REGISTER FAILED ===');
+            Log::error('Message: ' . $e->getMessage());
+            Log::error('File: ' . $e->getFile() . ':' . $e->getLine());
 
             return back()->withErrors([
-                'email' => 'Có lỗi xảy ra khi đăng ký. Vui lòng thử lại.',
+                'email' => 'Lỗi đăng ký: ' . $e->getMessage(),
             ])->withInput();
         }
     }
@@ -275,7 +272,7 @@ class AuthController extends Controller
     {
         $user = User::findOrFail($id);
 
-        $user->status = 'locked';
+        $user->locked_at = now();
         $user->save();
 
         return back()->with('success', 'Đã khóa tài khoản');
@@ -285,7 +282,7 @@ class AuthController extends Controller
     {
         $user = User::findOrFail($id);
 
-        $user->status = 'active';
+        $user->locked_at = null;
         $user->save();
 
         return back()->with('success', 'Đã mở khóa tài khoản');
