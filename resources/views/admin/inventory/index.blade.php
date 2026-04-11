@@ -413,37 +413,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- Modal Import Excel -->
-<div class="modal fade" id="importModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form action="{{ route('admin.inventory.import') }}" method="POST" enctype="multipart/form-data">
-                @csrf
-                <div class="modal-header">
-                    <h5 class="modal-title">Nhập kho từ Excel</h5>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Chọn file Excel <span class="text-danger">*</span></label>
-                        <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
-                        <small class="form-text text-muted">
-                            Định dạng: book_id, barcode, location, condition, status, purchase_price, purchase_date
-                        </small>
-                    </div>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Lưu ý:</strong> File Excel phải có định dạng đúng. Nếu không có mã vạch, hệ thống sẽ tự động tạo.
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Hủy</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-upload"></i> Nhập file
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+
 @endsection
 

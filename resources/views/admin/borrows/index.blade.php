@@ -339,7 +339,12 @@ if ($borrow->items && $borrow->items->count() > 0) {
                title="Xem chi tiết">
                 <i class="fas fa-eye"></i>
             </a>
-            @if(!($borrow->trang_thai === 'Da tra' || ($borrow->items->isNotEmpty() && $borrow->items->every(fn($item) => $item->trang_thai === 'Da tra'))))
+            @php
+                $isOverdue = $borrow->items->isNotEmpty() && $borrow->items->contains(fn($item) => $item->trang_thai === 'Qua han');
+            @endphp
+            @if(!($borrow->trang_thai === 'Da tra'
+                || ($borrow->items->isNotEmpty() && $borrow->items->every(fn($item) => $item->trang_thai === 'Da tra'))
+                || $isOverdue))
                 <a href="{{ route('admin.borrows.edit', $borrow->id) }}" 
                    class="btn btn-sm btn-warning"
                    title="Chỉnh sửa">
@@ -414,7 +419,7 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                 <th style="width: 100px;">Tiền thuê</th>
                                 <th style="width: 120px;">Ngày hẹn trả</th>
                                 <th style="width: 130px;">Trạng thái</th>
-                                <th style="width: 150px;">Ảnh chứng minh</th>
+                                <th style="width: 150px;">Ảnh xác nhận sách</th>
                                 <th style="width: 150px;">Hành động</th>
                             </tr>
                         </thead>
@@ -488,18 +493,41 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                 </td>
                                 <td>
                                     @php
-
+                                        $itemImages = [];
+                                        // Ảnh từ reservation (proof_images - ảnh khách upload)
+                                        $reservation = $item->reservation_match;
+                                        if ($reservation) {
+                                            foreach ($reservation->getProofImages() as $img) {
+                                                if (!$img) continue;
+                                                if (preg_match('/^https?:\/\//i', $img)) {
+                                                    $itemImages[] = $img;
+                                                } else {
+                                                    $normalized = ltrim(str_replace(['\\', 'storage/'], ['/', ''], (string) $img), '/');
+                                                    $itemImages[] = asset('storage/' . $normalized);
+                                                }
+                                            }
+                                        }
+                                        // Ảnh bìa sách
+                                        if (!empty($item->anh_bia_truoc)) {
+                                            $itemImages[] = (strpos($item->anh_bia_truoc, 'http') === 0) ? $item->anh_bia_truoc : asset('storage/' . $item->anh_bia_truoc);
+                                        }
+                                        if (!empty($item->anh_bia_sau)) {
+                                            $itemImages[] = (strpos($item->anh_bia_sau, 'http') === 0) ? $item->anh_bia_sau : asset('storage/' . $item->anh_bia_sau);
+                                        }
+                                        if (!empty($item->anh_gay_sach)) {
+                                            $itemImages[] = (strpos($item->anh_gay_sach, 'http') === 0) ? $item->anh_gay_sach : asset('storage/' . $item->anh_gay_sach);
+                                        }
                                     @endphp
-                                    @if(!empty($allImages))
+                                    @if(count($itemImages) > 0)
                                         <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
-                                            @foreach(array_slice($allImages, 0, 2) as $img)
+                                            @foreach(array_slice($itemImages, 0, 2) as $img)
                                                 <a href="{{ $img }}" target="_blank">
                                                     <img src="{{ $img }}" alt="Proof" class="img-thumbnail" style="height: 38px; width: 38px; object-fit: cover;" onerror="this.style.display='none'">
                                                 </a>
                                             @endforeach
                                         </div>
-                                        @if(count($allImages) > 2)
-                                            <div class="text-muted" style="font-size: 11px;">+{{ count($allImages) - 2 }} ảnh</div>
+                                        @if(count($itemImages) > 2)
+                                            <div class="text-muted" style="font-size: 11px;">+{{ count($itemImages) - 2 }} ảnh</div>
                                         @endif
                                     @else
                                         <span class="text-muted" style="font-size: 12px;">Chưa có</span>

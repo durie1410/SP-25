@@ -37,8 +37,8 @@
             <div class="card">
                 <div class="card-body text-center">
                     @if($book->hinh_anh)
-                        <img src="{{ asset('storage/' . $book->hinh_anh) }}" 
-                             class="img-fluid rounded shadow" 
+                        <img src="{{ $book->image_url }}"
+                             class="img-fluid rounded shadow"
                              style="max-height: 400px; object-fit: cover;"
                              alt="{{ $book->ten_sach }}">
                     @else

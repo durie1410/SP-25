@@ -62,7 +62,7 @@
             </tr>
             <tr>
                 <td><strong>Full URL:</strong></td>
-                <td><code>{{ $book->hinh_anh ? asset('storage/' . ltrim(str_replace('\\', '/', $book->hinh_anh), '/')) : 'N/A' }}</code></td>
+                <td><code>{{ $book->hinh_anh ? $book->image_url : 'N/A' }}</code></td>
             </tr>
             <tr>
                 <td><strong>File tồn tại?</strong></td>
@@ -176,12 +176,12 @@
                 <div id="image-preview-container" class="mb-2">
                     @if($book->hinh_anh)
                         @php
-                            // Clean path and build URL directly - same method as index page
-                            $imagePath = ltrim(str_replace('\\', '/', $book->hinh_anh), '/');
-                            // Add timestamp + random to prevent any caching issues
-                            $imageUrl = asset('storage/' . $imagePath) . '?v=' . $book->updated_at->timestamp . '&r=' . mt_rand();
+                            $imageUrl = $book->image_url;
+                            if ($imageUrl) {
+                                $imageUrl .= (strpos($imageUrl, '?') !== false ? '&' : '?') . 'v=' . $book->updated_at->timestamp . '&r=' . mt_rand();
+                            }
                         @endphp
-                        <img id="book-cover-image" 
+                        <img id="book-cover-image"
                              src="{{ $imageUrl }}" 
                              width="120" height="160" 
                              style="object-fit: cover; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"

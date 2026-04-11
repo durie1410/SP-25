@@ -64,8 +64,21 @@ class BorrowItem extends Model
 
     public function reservation()
     {
-        return $this->hasOne(InventoryReservation::class, 'borrow_id', 'borrow_id')
-            ->where('book_id', $this->book_id);
+        return $this->hasOne(InventoryReservation::class, 'borrow_id', 'borrow_id');
+    }
+
+    /**
+     * Lấy reservation đúng theo book_id của item này
+     * Dùng khi reservation() bị constraint sai do eager load
+     */
+    public function getReservationMatchAttribute()
+    {
+        if (!$this->borrow_id || !$this->book_id) {
+            return null;
+        }
+        return \App\Models\InventoryReservation::where('borrow_id', $this->borrow_id)
+            ->where('book_id', $this->book_id)
+            ->first();
     }
     public function voucher()
     {

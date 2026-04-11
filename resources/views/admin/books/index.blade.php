@@ -52,15 +52,10 @@
                   style="display: inline;"
                   onsubmit="return confirm('⚠️ CẢNH BÁO: Lệnh này sẽ sắp xếp lại ID của tất cả sách để liên tục từ 1 đến {{ $totalBooks ?? 0 }}.\\n\\nHãy đảm bảo bạn đã backup database trước!\\n\\nBạn có chắc chắn muốn tiếp tục?');">
                 @csrf
-                <button type="submit" 
-                        class="btn btn-info btn-sm" 
-                        title="Sắp xếp lại ID sách để liên tục từ 1">
-                    <i class="fas fa-sort-numeric-up"></i> Sắp xếp lại ID
-                </button>
+               
             </form>
         </div>
         <span class="text-muted" style="font-size: 12px;">
-            <i class="fas fa-info-circle"></i> Sách mới sẽ được tạo tự động khi nhập vào kho
         </span>
     </div>
 </div>
@@ -147,16 +142,19 @@
                             <td>
                                 @if($book->hinh_anh)
                                     @php
-                                        // Clean path and build URL directly
-                                        $imagePath = ltrim(str_replace('\\', '/', $book->hinh_anh), '/');
-                                        // Strong cache busting: timestamp + milliseconds + random
-                                        // This ensures the image URL is different every time
-                                        $cacheBuster = $book->updated_at->timestamp . substr((string)microtime(true), -6) . mt_rand(1000, 9999);
-                                        $imageUrl = asset('storage/' . $imagePath) . '?v=' . $cacheBuster;
+                                        $imageUrl = $book->image_url;
+                                        if ($imageUrl) {
+                                            $cacheBuster = $book->updated_at->timestamp . substr((string)microtime(true), -6) . mt_rand(1000, 9999);
+                                            if (strpos($imageUrl, '?') !== false) {
+                                                $imageUrl .= '&v=' . $cacheBuster;
+                                            } else {
+                                                $imageUrl .= '?v=' . $cacheBuster;
+                                            }
+                                        }
                                     @endphp
-                                    <img src="{{ $imageUrl }}" 
-                                         width="50" 
-                                         height="70" 
+                                    <img src="{{ $imageUrl }}"
+                                         width="50"
+                                         height="70"
                                          style="object-fit: cover; border-radius: 8px; border: 1px solid rgba(0, 255, 153, 0.2);"
                                          alt="{{ $book->ten_sach }}"
                                          loading="lazy"
@@ -292,9 +290,9 @@
             if (updatedBookRow) {
                 // Scroll to the updated book with smooth behavior
                 setTimeout(() => {
-                    updatedBookRow.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'center' 
+                    updatedBookRow.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
                     });
                 }, 100);
             }

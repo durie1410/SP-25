@@ -35,7 +35,7 @@
         <div class="mb-3">
             <label>Ảnh bìa</label>
             @if($book->hinh_anh)
-                <div><img src="{{ asset('storage/'.$book->hinh_anh) }}" width="80"></div>
+                <div><img src="{{ $book->image_url }}" width="80"></div>
             @endif
             <input type="file" name="hinh_anh" class="form-control">
         </div>

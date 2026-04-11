@@ -179,7 +179,7 @@
                                     <label class="form-label">Ảnh bìa</label>
                                     @if($book->hinh_anh)
                                         <div class="mb-2">
-                                            <img src="{{ asset('storage/'.$book->hinh_anh) }}" 
+                                            <img src="{{ $book->image_url }}" 
                                                  width="200" height="280" 
                                                  style="object-fit: cover; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
                                                  alt="{{ $book->ten_sach }}">

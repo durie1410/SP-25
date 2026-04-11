@@ -1110,15 +1110,16 @@
                 </a>
 
                 <!-- Quản lý dữ liệu -->
-                <div class="menu-section-title">QUẢN LÝ DỮ LIỆU</div>
-                <a href="{{ route('admin.books.index') }}"
+             
+
+                <!-- Quản lý kho -->
+                <div class="menu-section-title">QUẢN LÝ KHO</div>
+                
+                   <a href="{{ route('admin.books.index') }}"
                     class="menu-item {{ request()->routeIs('admin.books.*') ? 'active' : '' }}">
                     <i class="fas fa-book"></i>
                     <span>Quản lý sách</span>
                 </a>
-
-                <!-- Quản lý kho -->
-                <div class="menu-section-title">QUẢN LÝ KHO</div>
                 @if(Route::has('admin.inventory.index'))
                 <a href="{{ route('admin.inventory.index') }}"
                     class="menu-item {{ request()->routeIs('admin.inventory.index') || request()->routeIs('admin.inventory.show') || request()->routeIs('admin.inventory.edit') ? 'active' : '' }}">
@@ -1181,7 +1182,7 @@
                 <a href="{{ route('admin.borrows.index') }}"
                     class="menu-item {{ request()->routeIs('admin.borrows.*') ? 'active' : '' }}">
                     <i class="fas fa-book-reader"></i>
-                    <span>Quản lý đơn mượn</span>
+                    <span> phiếu mượn</span>
                 </a>
                 @if(Route::has('admin.returns.index'))
                 <a href="{{ route('admin.returns.index') }}"

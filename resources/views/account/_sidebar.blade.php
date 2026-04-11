@@ -29,7 +29,7 @@
                 <a href="{{ route('account.change-password') }}"><span class="icon">🔒</span><span class="nav-label">Đổi mật khẩu</span></a>
             </li>
             <li class="{{ in_array($currentRoute, ['orders.index', 'orders.detail', 'orders.show']) ? 'active' : '' }}">
-                <a href="{{ route('orders.index') }}"><span class="icon">📋</span><span class="nav-label">Lịch sử đơn mượn</span></a>
+                <a href="{{ route('orders.index') }}"><span class="icon">📋</span><span class="nav-label">theo dõi đơn mượn</span></a>
             </li>
             <li class="{{ $currentRoute === 'reservation-cart.history' ? 'active' : '' }}">
                 <a href="{{ route('reservation-cart.history') }}"><span class="icon">🗂️</span><span class="nav-label">Lịch sử đặt trước</span></a>

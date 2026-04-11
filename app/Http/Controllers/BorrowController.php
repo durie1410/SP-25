@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class BorrowController extends Controller
@@ -33,7 +34,7 @@ class BorrowController extends Controller
         Borrow::syncOverdueStatuses();
 
         // Sử dụng fresh() để đảm bảo load dữ liệu mới nhất từ database
-        $query = Borrow::with(['reader', 'librarian', 'items.book', 'items.inventory', 'voucher', 'payments']);
+        $query = Borrow::with(['reader', 'librarian', 'items.book', 'items.inventory', 'items.reservation', 'voucher', 'payments']);
 
         if ($request->filled('keyword')) {
             $keyword = $request->keyword;
@@ -380,7 +381,7 @@ class BorrowController extends Controller
     {
         Borrow::syncOverdueStatuses();
 
-        $borrow = Borrow::with(['reader', 'librarian', 'items.book', 'fines'])
+        $borrow = Borrow::with(['reader', 'librarian', 'items.book', 'items.reservation', 'fines'])
             ->findOrFail($id);
         
 
@@ -706,10 +707,9 @@ class BorrowController extends Controller
             return back()->with('info', 'Không có thanh toán nào đang chờ xác nhận.');
         }
 
-        // Thanh toán online: tạo mã MoMo, KHÔNG tự động chuyển success tại thời điểm bấm nút
+        // Thanh toán online: tạo mã MoMo
         if ($paymentMethod === 'online') {
             try {
-                // Lưu các ảnh/ghi chú mà admin đã nhập (nếu có), nhưng không bắt buộc đủ bộ trước khi tạo mã MoMo.
                 $this->saveReceiveConfirmationFromPaymentForm($request, $borrow);
 
                 $momoData = $this->createMomoPaymentForBorrow($borrow, $payment);
@@ -955,18 +955,10 @@ class BorrowController extends Controller
         $secretKey   = config('services.momo.secret_key');
 
         $missingKeys = [];
-        if (!$endpoint) {
-            $missingKeys[] = 'MOMO_ENDPOINT';
-        }
-        if (!$partnerCode) {
-            $missingKeys[] = 'MOMO_PARTNER_CODE';
-        }
-        if (!$accessKey) {
-            $missingKeys[] = 'MOMO_ACCESS_KEY';
-        }
-        if (!$secretKey) {
-            $missingKeys[] = 'MOMO_SECRET_KEY';
-        }
+        if (!$endpoint) $missingKeys[] = 'MOMO_ENDPOINT';
+        if (!$partnerCode) $missingKeys[] = 'MOMO_PARTNER_CODE';
+        if (!$accessKey) $missingKeys[] = 'MOMO_ACCESS_KEY';
+        if (!$secretKey) $missingKeys[] = 'MOMO_SECRET_KEY';
 
         if (!empty($missingKeys)) {
             throw new \Exception('Thiếu cấu hình MoMo: ' . implode(', ', $missingKeys) . '. Hãy cập nhật .env và chạy php artisan config:clear.');
@@ -978,43 +970,71 @@ class BorrowController extends Controller
         }
 
         $redirectUrl = route('admin.borrows.momo.return');
-        $ipnUrl = route('admin.borrows.momo.ipn');
+        $ipnUrl      = route('admin.borrows.momo.ipn');
 
-        $orderId = 'BORROW_' . $borrow->id . '_' . $payment->id . '_' . time();
-        $requestId = (string) time();
         $orderInfo = 'Thanh_toan_phieu_muon_' . $borrow->id;
         $extraData = base64_encode(json_encode([
-            'type' => 'borrow_payment',
-            'borrow_id' => $borrow->id,
+            'type'       => 'borrow_payment',
+            'borrow_id'  => $borrow->id,
             'payment_id' => $payment->id,
         ]));
 
-        $rawHash = "accessKey={$accessKey}&amount={$amount}&extraData={$extraData}&ipnUrl={$ipnUrl}&orderId={$orderId}&orderInfo={$orderInfo}&partnerCode={$partnerCode}&redirectUrl={$redirectUrl}&requestId={$requestId}&requestType=captureWallet";
+        $orderId   = 'BORROW_' . $borrow->id . '_' . $payment->id . '_' . time() . '_' . Str::random(6);
+        $requestId = (string) (time() . rand(100, 999));
+
+        $rawHash   = "accessKey={$accessKey}&amount={$amount}&extraData={$extraData}&ipnUrl={$ipnUrl}&orderId={$orderId}&orderInfo={$orderInfo}&partnerCode={$partnerCode}&redirectUrl={$redirectUrl}&requestId={$requestId}&requestType=captureWallet";
         $signature = hash_hmac('sha256', $rawHash, $secretKey);
 
-        $response = Http::post($endpoint, [
-            'partnerCode' => $partnerCode,
-            'accessKey'   => $accessKey,
-            'requestId'   => $requestId,
-            'amount'      => (string) $amount,
-            'orderId'     => $orderId,
-            'orderInfo'   => $orderInfo,
-            'redirectUrl' => $redirectUrl,
-            'ipnUrl'      => $ipnUrl,
-            'extraData'   => $extraData,
-            'requestType' => 'captureWallet',
-            'signature'   => $signature,
-            'lang'        => 'vi',
+        $payload = json_encode([
+            'partnerCode'  => $partnerCode,
+            'accessKey'    => $accessKey,
+            'requestId'    => $requestId,
+            'amount'       => (string) $amount,
+            'orderId'      => $orderId,
+            'orderInfo'    => $orderInfo,
+            'redirectUrl'  => $redirectUrl,
+            'ipnUrl'       => $ipnUrl,
+            'extraData'    => $extraData,
+            'requestType'  => 'captureWallet',
+            'signature'    => $signature,
+            'lang'         => 'vi',
         ]);
 
-        $result = $response->json();
+        $ch = curl_init($endpoint);
+        curl_setopt_array($ch, [
+            CURLOPT_POST              => true,
+            CURLOPT_POSTFIELDS        => $payload,
+            CURLOPT_RETURNTRANSFER     => true,
+            CURLOPT_TIMEOUT           => 25,
+            CURLOPT_FRESH_CONNECT     => true,
+            CURLOPT_FORBID_REUSE      => true,
+            CURLOPT_SSL_VERIFYPEER    => false,
+            CURLOPT_SSL_VERIFYHOST    => 0,
+            CURLOPT_HTTPHEADER        => [
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr  = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlErr) {
+            throw new \Exception('Không kết nối được MoMo: ' . $curlErr);
+        }
+
+        $result = json_decode($response, true);
 
         if (!isset($result['payUrl'])) {
-            throw new \Exception($result['message'] ?? 'MoMo không trả về payUrl');
+            $errorMsg    = $result['message'] ?? 'MoMo không trả về payUrl';
+            $errorDetail = ' (resultCode: ' . ($result['resultCode'] ?? 'N/A') . ')';
+            throw new \Exception('QR Code tạo không thành công: ' . $errorMsg . $errorDetail);
         }
 
         return [
-            'payUrl' => $result['payUrl'],
+            'payUrl'  => $result['payUrl'],
             'orderId' => $orderId,
         ];
     }

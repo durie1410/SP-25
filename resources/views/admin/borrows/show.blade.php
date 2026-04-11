@@ -135,17 +135,7 @@
                     @endswitch
                 </p>
                 
-                @if($borrow->trang_thai_chi_tiet)
-                <p class="mb-1">
-                    <strong>Trạng thái chi tiết:</strong>
-                    @php
-                        $statusClass = 'status-' . $borrow->trang_thai_chi_tiet;
-                    @endphp
-                    <span class="badge {{ $statusClass }} status-detail-badge">
-                        {{ $borrow->trang_thai_chi_tiet_label ?? $borrow->trang_thai_chi_tiet }}
-                    </span>
-                </p>
-                @endif
+           
                 
                 @if($borrow->tinh_trang_sach)
                 <p class="mb-1">
@@ -168,10 +158,7 @@
                 </p>
                 @endif
 
-                <p class="mb-1">
-                    <strong>Tiền thuê:</strong>
-                    <span class="fw-bold">{{ number_format($borrow->items->sum('tien_thue') ?? 0) }}₫</span>
-                </p>
+             
 
                 <p class="mb-1">
                     <strong>Tổng tiền:</strong>
@@ -302,8 +289,7 @@
                         <th>Tài chính</th>
                         <th>Hẹn trả</th>
                         <th>Trạng thái</th>
-                        <th>Ảnh chứng minh</th>
-                        <th>Xác nhận nhận sách</th>
+                        <th>ảnh xác nhận sách</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -347,56 +333,42 @@
                                 {{ $itemStatusText }}
                             </span>
                         </td>
+                 
                         <td>
                             @php
-                                $proofImages = $item->reservation ? $item->reservation->getProofImages() : [];
+                                $showImages = [];
+                                // Ảnh từ reservation (proof_images - ảnh khách upload)
+                                $reservation = $item->reservation_match;
+                                if ($reservation) {
+                                    foreach ($reservation->getProofImages() as $img) {
+                                        if (!$img) continue;
+                                        if (preg_match('/^https?:\/\//i', $img)) {
+                                            $showImages[] = $img;
+                                        } else {
+                                            $normalized = ltrim(str_replace(['\\', 'storage/'], ['/', ''], (string) $img), '/');
+                                            $showImages[] = asset('storage/' . $normalized);
+                                        }
+                                    }
+                                }
+                                // Ảnh bìa sách
+                                if (!empty($item->anh_bia_truoc)) {
+                                    $showImages[] = (strpos($item->anh_bia_truoc, 'http') === 0) ? $item->anh_bia_truoc : asset('storage/' . $item->anh_bia_truoc);
+                                }
+                                if (!empty($item->anh_bia_sau)) {
+                                    $showImages[] = (strpos($item->anh_bia_sau, 'http') === 0) ? $item->anh_bia_sau : asset('storage/' . $item->anh_bia_sau);
+                                }
+                                if (!empty($item->anh_gay_sach)) {
+                                    $showImages[] = (strpos($item->anh_gay_sach, 'http') === 0) ? $item->anh_gay_sach : asset('storage/' . $item->anh_gay_sach);
+                                }
                             @endphp
-                            @if(!empty($proofImages))
+                            @if(count($showImages) > 0)
                                 <div class="d-flex flex-wrap gap-1 mb-2">
-                                    @foreach(array_slice($proofImages, 0, 3) as $img)
-                                        <a href="{{ asset('storage/' . $img) }}" target="_blank">
-                                            <img src="{{ asset('storage/' . $img) }}" alt="Ảnh chứng minh" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;">
+                                    @foreach($showImages as $img)
+                                        <a href="{{ $img }}" target="_blank">
+                                            <img src="{{ $img }}" alt="Ảnh xác nhận" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;" onerror="this.src='/images/no-image.png'; this.onerror=null;">
                                         </a>
                                     @endforeach
                                 </div>
-                                @if(count($proofImages) > 3)
-                                    <div class="small text-muted">+{{ count($proofImages) - 3 }} ảnh</div>
-                                @endif
-                            @else
-                                <span class="text-muted small">Chưa có</span>
-                            @endif
-                        </td>
-                        <td>
-                            @if($item->anh_bia_truoc || $item->anh_bia_sau || $item->anh_gay_sach || $item->ghi_chu_nhan_sach)
-                                <div class="d-flex flex-wrap gap-1 mb-2">
-                                    @if($item->anh_bia_truoc)
-                                        @php
-                                            $frontUrl = (strpos($item->anh_bia_truoc, 'http') === 0) ? $item->anh_bia_truoc : asset('storage/' . $item->anh_bia_truoc);
-                                        @endphp
-                                        <a href="{{ $frontUrl }}" target="_blank">
-                                            <img src="{{ $frontUrl }}" alt="Bìa trước" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;" onerror="this.src='/images/no-image.png'; this.onerror=null;">
-                                        </a>
-                                    @endif
-                                    @if($item->anh_bia_sau)
-                                        @php
-                                            $backUrl = (strpos($item->anh_bia_sau, 'http') === 0) ? $item->anh_bia_sau : asset('storage/' . $item->anh_bia_sau);
-                                        @endphp
-                                        <a href="{{ $backUrl }}" target="_blank">
-                                            <img src="{{ $backUrl }}" alt="Bìa sau" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;" onerror="this.src='/images/no-image.png'; this.onerror=null;">
-                                        </a>
-                                    @endif
-                                    @if($item->anh_gay_sach)
-                                        @php
-                                            $spineUrl = (strpos($item->anh_gay_sach, 'http') === 0) ? $item->anh_gay_sach : asset('storage/' . $item->anh_gay_sach);
-                                        @endphp
-                                        <a href="{{ $spineUrl }}" target="_blank">
-                                            <img src="{{ $spineUrl }}" alt="Gáy sách" class="img-thumbnail" style="height: 56px; width: 56px; object-fit: cover;" onerror="this.src='/images/no-image.png'; this.onerror=null;">
-                                        </a>
-                                    @endif
-                                </div>
-                                @if($item->ghi_chu_nhan_sach)
-                                    <div class="small text-muted">{{ $item->ghi_chu_nhan_sach }}</div>
-                                @endif
                             @else
                                 <span class="text-muted small">Chưa có</span>
                             @endif

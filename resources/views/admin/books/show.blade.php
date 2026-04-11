@@ -5,13 +5,7 @@
 @section('content')
 <div class="container-fluid">
     <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Dashboard</a></li>
-            <li class="breadcrumb-item"><a href="{{ route('admin.books.index') }}">Quản lý sách</a></li>
-            <li class="breadcrumb-item active">{{ $book->ten_sach }}</li>
-        </ol>
-    </nav>
+
 
     <!-- Header với thông tin cơ bản -->
     <div class="row mb-4">
@@ -38,8 +32,10 @@
                             <div class="text-center">
                                 @if($book->hinh_anh)
                                     @php
-                                        $imagePath = ltrim(str_replace('\\', '/', $book->hinh_anh), '/');
-                                        $imageUrl = asset('storage/' . $imagePath) . '?t=' . $book->updated_at->timestamp;
+                                        $imageUrl = $book->image_url;
+                                        if ($imageUrl) {
+                                            $imageUrl .= (strpos($imageUrl, '?') !== false ? '&' : '?') . 't=' . $book->updated_at->timestamp;
+                                        }
                                     @endphp
                                     <img src="{{ $imageUrl }}" 
                                          alt="{{ $book->ten_sach }}" 
