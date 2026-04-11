@@ -5,19 +5,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Thư Viện Online')</title>
+    <title>@yield('title', 'Thuê Sách LibNet')</title>
+
+    <!-- Critical CSS first - prevent FOUC -->
+    <style>
+        body { opacity: 0; transition: opacity .15s ease; margin: 0; font-family: system-ui, sans-serif; background: #f8fafc; }
+        body.styles-loaded, body { opacity: 1; }
+        .loading-spinner { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #f8fafc; z-index: 9999; }
+    </style>
+
+    <!-- Preconnect for faster CDN -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Preload critical resources -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+
+    <!-- Fallback for JS disabled -->
+    <noscript>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    </noscript>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Custom CSS -->
-    <!-- Google Fonts - Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Custom CSS -->
     <style>
@@ -143,14 +164,49 @@
             border: 1px solid var(--border-color);
         }
 
-        @media (max-width: 768px) {
-            .mobile-nav {
-                display: flex;
-            }
+        /* Loading Spinner */
+        .loading-spinner {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(248, 250, 252, 0.9);
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+        }
 
-            body {
-                padding-bottom: 70px;
-            }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            border: 0.25em solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: .75s linear infinite spin;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Toast Container */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+        }
+
+        .toast {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-nav { display: flex; }
+            body { padding-bottom: 70px; }
         }
 
         @media (min-width:1025px) {
@@ -165,9 +221,7 @@
     @stack('styles')
 </head>
 
-<body>
-    @stack('scripts')
-
+<body onload="document.body.classList.add('styles-loaded')">
     <!-- Loading Spinner -->
     <div class="loading-spinner" id="loadingSpinner">
         <div class="spinner-border text-primary" role="status">
@@ -220,80 +274,65 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+
     <!-- Custom JavaScript -->
     <script>
-        // Mobile utilities
         const MobileUtils = {
-            // Show loading spinner
             showLoading: function () {
-                document.getElementById('loadingSpinner').style.display = 'block';
+                document.getElementById('loadingSpinner').style.display = 'flex';
             },
 
-            // Hide loading spinner
             hideLoading: function () {
                 document.getElementById('loadingSpinner').style.display = 'none';
             },
 
-            // Show toast notification
             showToast: function (message, type = 'info') {
                 const toastContainer = document.getElementById('toastContainer');
                 const toastId = 'toast-' + Date.now();
 
-                const toastHtml = `
-                    <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-                        <div class="toast-header">
-                            <i class="fas fa-${this.getToastIcon(type)} text-${type} me-2"></i>
-                            <strong class="me-auto">Thông báo</strong>
-                            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-                        </div>
-                        <div class="toast-body">
-                            ${message}
-                        </div>
-                    </div>
-                `;
-
-                toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-
-                const toastElement = document.getElementById(toastId);
-                const toast = new bootstrap.Toast(toastElement);
-                toast.show();
-
-                // Auto remove after 5 seconds
-                setTimeout(() => {
-                    toastElement.remove();
-                }, 5000);
-            },
-
-            getToastIcon: function (type) {
                 const icons = {
                     'success': 'check-circle',
                     'error': 'exclamation-circle',
                     'warning': 'exclamation-triangle',
                     'info': 'info-circle'
                 };
-                return icons[type] || 'info-circle';
+
+                const toastHtml = `
+                    <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="toast-header">
+                            <i class="fas fa-${icons[type] || 'info-circle'} text-${type} me-2"></i>
+                            <strong class="me-auto">Thông báo</strong>
+                            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                        </div>
+                        <div class="toast-body">${message}</div>
+                    </div>
+                `;
+
+                toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+                const toastElement = document.getElementById(toastId);
+                const toast = new bootstrap.Toast(toastElement);
+                toast.show();
+
+                setTimeout(() => { toastElement.remove(); }, 5000);
             },
 
-            // Handle form submissions with loading
             handleFormSubmit: function (formSelector) {
                 const forms = document.querySelectorAll(formSelector);
                 forms.forEach(form => {
-                    form.addEventListener('submit', function (e) {
+                    form.addEventListener('submit', function () {
                         MobileUtils.showLoading();
                     });
                 });
             },
 
-            // Initialize mobile features
             init: function () {
                 this.handleFormSubmit('form');
-
-                // Add touch feedback for buttons
                 document.querySelectorAll('.btn').forEach(btn => {
                     btn.addEventListener('touchstart', function () {
                         this.style.transform = 'scale(0.95)';
                     });
-
                     btn.addEventListener('touchend', function () {
                         this.style.transform = 'scale(1)';
                     });
@@ -301,30 +340,20 @@
             }
         };
 
-        // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', function () {
             MobileUtils.init();
-            // Hide loading spinner when page is fully loaded
             MobileUtils.hideLoading();
         });
 
-        // Also hide loading spinner when window is fully loaded
         window.addEventListener('load', function () {
             MobileUtils.hideLoading();
         });
     </script>
 
- 
-        @include('partials.global-modal')
-
-    {{-- Gemini AI Chatbox --}}
+    @include('partials.global-modal')
     @include('components.chatbox')
 
     @yield('scripts')
     @stack('scripts')
 </body>
-</html>
-
-</body>
-
 </html>

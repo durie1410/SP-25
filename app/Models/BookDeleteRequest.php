@@ -12,13 +12,19 @@ class BookDeleteRequest extends Model
     protected $fillable = [
         'book_id',
         'inventory_id',
+        'borrow_item_id',
         'requested_by',
         'approved_by',
         'status',
         'reason',
+        'proof_images',
         'admin_note',
         'approved_at',
         'rejected_at',
+    ];
+
+    protected $casts = [
+        'proof_images' => 'array',
     ];
 
     public function book()
@@ -29,6 +35,11 @@ class BookDeleteRequest extends Model
     public function inventory()
     {
         return $this->belongsTo(Inventory::class);
+    }
+
+    public function borrowItem()
+    {
+        return $this->belongsTo(BorrowItem::class);
     }
 
     public function requester()

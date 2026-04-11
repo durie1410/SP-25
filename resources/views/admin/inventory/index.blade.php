@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Quản Lý Kho - LibNet Admin')
+@section('title', 'Quản Lý Kho - Thuê Sách LibNet Admin')
 
 @section('content')
 <!-- Page Header -->
@@ -15,10 +15,7 @@
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <form action="{{ route('admin.inventory.sync-to-homepage') }}" method="POST" style="display: inline;" id="syncForm">
             @csrf
-            <button type="submit" class="btn btn-success" id="syncBtn">
-                <i class="fas fa-sync-alt"></i>
-                Đồng bộ lên trang chủ
-            </button>
+      
         </form>
         
     </div>
@@ -289,12 +286,18 @@
                                                 </button>
                                             </form>
                                         @else
-                                            <form action="{{ route('admin.inventory.delete-requests.store') }}" method="POST" class="d-inline">
+                                            <form action="{{ route('admin.inventory.delete-requests.store') }}" method="POST" class="d-inline" enctype="multipart/form-data">
                                                 @csrf
                                                 <input type="hidden" name="book_id" value="{{ $book->id }}">
-                                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Gửi yêu cầu xóa sách \"{{ $book->ten_sach }}\" để Admin duyệt?');" title="Đề xuất xóa">
-                                                    <i class="fas fa-paper-plane"></i> Đề xuất xóa
-                                                </button>
+                                                <input type="hidden" name="inventory_id" value="{{ $firstInventory->id }}">
+                                                <div style="display:flex; gap:4px; align-items:center; flex-wrap:wrap;">
+                                                    <input type="file" name="proof_images[]" accept="image/*" multiple
+                                                           style="font-size:11px; max-width:140px;"
+                                                           title="Ảnh minh chứng (tùy chọn)">
+                                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Gửi yêu cầu xóa sách \"{{ $book->ten_sach }}\" để Admin duyệt?');" title="Đề xuất xóa">
+                                                        <i class="fas fa-paper-plane"></i> Gửi
+                                                    </button>
+                                                </div>
                                             </form>
                                         @endif
                                     @else

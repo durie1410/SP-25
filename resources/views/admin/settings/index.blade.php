@@ -171,21 +171,6 @@
                     </div>
                 </div>
                 
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="setting-item">
-                            <label class="form-label">Số Lần Gia Hạn Tối Đa</label>
-                            <input type="number" class="form-control" name="max_renewals" value="2" min="0" max="10">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="setting-item">
-                            <label class="form-label">Số Ngày Gia Hạn</label>
-                            <input type="number" class="form-control" name="renewal_days" value="7" min="1" max="30">
-                        </div>
-                    </div>
-                </div>
-                
                 <div class="setting-item">
                     <label class="form-label">Cho Phép Đặt Trước</label>
                     <div class="form-check form-switch">

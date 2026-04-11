@@ -5,8 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Models\Inventory;
 use App\Services\NotificationService;
+use App\Services\UserLockService;
 use Carbon\Carbon;
 
 class InventoryReservation extends Model
@@ -176,15 +179,20 @@ class InventoryReservation extends Model
 
     public function markAsOverdue(string $reason = null, int $processedById = null, bool $sendNotification = true): bool
     {
+        $wasReady = $this->status === 'ready';
         $note = $reason ? ($this->admin_note ? $this->admin_note . "\n" . $reason : $reason) : $this->admin_note;
         // Dùng DB::table trực tiếp vì Eloquent update() không hoạt động đúng với ENUM column
-        $updated = \DB::table('inventory_reservations')
+        $updated = DB::table('inventory_reservations')
             ->where('id', $this->id)
             ->update([
                 'status' => 'overdue',
                 'admin_note' => $note,
                 'processed_by' => $processedById ?? auth()->id(),
             ]);
+
+        if ($updated && $wasReady) {
+            app(UserLockService::class)->incrementNoShowAndAutoLockByReservation($this->fresh(['reader.user', 'user']));
+        }
 
         if ($sendNotification && $updated) {
             $this->sendOverdueNotification();
@@ -211,13 +219,14 @@ class InventoryReservation extends Model
                 app(\App\Services\NotificationService::class)
                     ->sendNotification($userId, 'reservation_overdue', $data, ['database', 'email']);
             } catch (\Exception $e) {
-                \Log::warning('Failed to send overdue notification for reservation #' . $this->id . ': ' . $e->getMessage());
+                Log::warning('Failed to send overdue notification for reservation #' . $this->id . ': ' . $e->getMessage());
             }
         }
     }
 
     public function cancel(string $reason = null, int $processedById = null): bool
     {
+        $wasApproved = !is_null($this->ready_at);
         $updated = $this->update([
             'status' => 'cancelled',
             'admin_note' => $reason ? ($this->admin_note ? $this->admin_note . "\n" . $reason : $reason) : $this->admin_note,
@@ -233,6 +242,11 @@ class InventoryReservation extends Model
         if ($updated) {
             // Không gọi assignNextWaitingReservation để tránh gửi thông báo trùng
             // Admin sẽ tự xử lý ready thủ công nếu cần
+            app(UserLockService::class)->applyCancellationAutoLock(
+                $this->fresh(['reader.user', 'user']),
+                $processedById ?? auth()->id(),
+                $wasApproved
+            );
         }
 
         return $updated;

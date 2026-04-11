@@ -124,31 +124,31 @@
             background: #fef2f2;
         }
 
-        /* Cart Item Card */
+        /* Cart Item Card - E-commerce style, compact */
         .cart-item {
             background: white;
             border-radius: var(--radius-lg);
             border: 1px solid var(--cart-border);
-            padding: 24px;
-            display: grid;
-            grid-template-columns: auto 120px 1fr auto;
-            gap: 24px;
+            padding: 14px 18px;
+            display: flex;
             align-items: center;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
+            gap: 14px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            transition: box-shadow 0.2s, border-color 0.2s;
         }
 
         .cart-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border-color: #c7d2fe;
         }
 
         .cart-item-image-box {
-            width: 110px;
-            height: 154px;
+            width: 52px;
+            height: 70px;
             border-radius: var(--radius-md);
             overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
         }
 
         .cart-item-image-box img {
@@ -158,15 +158,17 @@
         }
 
         .cart-item-details {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
+            flex: 1;
+            min-width: 0;
         }
 
         .item-title {
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 700;
-            margin: 0;
+            margin: 0 0 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .item-title a {
@@ -193,37 +195,42 @@
             font-size: 14px;
         }
 
-        /* Controls Column */
-        .item-controls-grid {
-            display: grid;
-            grid-template-columns: 140px 140px;
-            gap: 24px;
-            align-items: center;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .control-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--cart-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* Quantity Inputs */
-        .modern-quantity {
+        /* Compact qty + price inline */
+        .item-qty-row {
             display: flex;
             align-items: center;
             border: 1px solid var(--cart-border);
             border-radius: var(--radius-md);
             overflow: hidden;
-            width: fit-content;
+            flex-shrink: 0;
         }
+
+        .qty-btn {
+            background: none;
+            border: none;
+            width: 28px;
+            height: 28px;
+            font-size: 14px;
+            cursor: pointer;
+            color: var(--cart-muted);
+            transition: background 0.15s;
+        }
+        .qty-btn:hover {
+            background: var(--cart-border);
+            color: var(--cart-text);
+        }
+
+        .qty-input {
+            border: none;
+            text-align: center;
+            outline: none;
+            font-size: 13px;
+            font-weight: 600;
+            background: transparent;
+            -moz-appearance: textfield;
+        }
+        .qty-input::-webkit-outer-spin-button,
+        .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
         .qty-btn {
             width: 36px;
@@ -489,7 +496,7 @@
                                 @if($book->image_url)
                                     <img src="{{ $book->image_url }}" alt="{{ $book->ten_sach }}">
                                 @else
-                                    <div class="book-placeholder" style="height: 100%; display: flex; align-items: center; justify-content: center; font-size: 40px; background: #e2e8f0;">📖</div>
+                                    <div style="height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; background: #e2e8f0; border-radius: var(--radius-md);">📖</div>
                                 @endif
                             </div>
 
@@ -497,43 +504,31 @@
                                 <h3 class="item-title">
                                     <a href="{{ route('books.show', $book->id) }}">{{ $book->ten_sach }}</a>
                                 </h3>
-                                <div class="item-meta">
-                                    <span>Tác giả: <strong>{{ $book->tac_gia ?? 'N/A' }}</strong></span>
-                                    <span>Thể loại: <strong>{{ $book->category->ten_the_loai ?? 'N/A' }}</strong></span>
-                                </div>
-                                <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center;">
-                                    <div class="item-price-tag" title="Giá trị sách">
-                                        <i class="fas fa-tag"></i> {{ number_format($book->gia ?? 0, 0, ',', '.') }}₫
-                                    </div>
-                                    <span style="font-size: 12px; color: var(--cart-muted);">* Phí cọc = 100% giá trị sách</span>
+                                <div style="font-size: 12px; color: var(--cart-muted);">
+                                    {{ $book->tac_gia ?? 'N/A' }} · {{ $book->category->ten_the_loai ?? '' }}
                                 </div>
                             </div>
 
-                            <div class="item-controls-grid">
-                                <div class="control-group">
-                                    <span class="control-label">Số lượng</span>
-                                    <div class="modern-quantity">
-                                        <button type="button" class="qty-btn" onclick="updateQuantity({{ $item->id }}, -1)">-</button>
-                                        <input type="number" id="quantity-{{ $item->id }}" value="{{ $item->quantity }}" 
-                                               min="1" max="{{ $availableCopies }}" class="qty-input"
-                                               onchange="updateQuantityInput({{ $item->id }})">
-                                        <button type="button" class="qty-btn" onclick="updateQuantity({{ $item->id }}, 1)">+</button>
-                                    </div>
-                                    <span style="font-size: 11px; color: var(--cart-muted);">Sẵn có: {{ $availableCopies }}</span>
+                            <!-- Qty compact -->
+                            <div class="item-qty-row">
+                                <button type="button" class="qty-btn" onclick="updateQuantity({{ $item->id }}, -1)">−</button>
+                                <input type="number" id="quantity-{{ $item->id }}" value="{{ $item->quantity }}"
+                                       min="1" max="{{ $availableCopies }}" class="qty-input"
+                                       onchange="updateQuantityInput({{ $item->id }})" style="width: 46px; padding: 4px 6px; font-size: 13px;">
+                                <button type="button" class="qty-btn" onclick="updateQuantity({{ $item->id }}, 1)">+</button>
+                            </div>
+
+                            <!-- Price inline -->
+                            <div class="item-price-block" style="text-align: right; flex-shrink: 0;">
+                                @php
+                                    $itemTotal = (($item->tien_thue ?? 0) + ($item->tien_coc ?? 0)) * $item->quantity;
+                                @endphp
+                                <div id="subtotal-{{ $item->id }}" style="font-weight: 800; color: var(--cart-danger); font-size: 14px;">
+                                    {{ number_format($itemTotal, 0, ',', '.') }}₫
                                 </div>
-                                
-                                <div class="control-group">
-                                    <span class="control-label">Thành tiền</span>
-                                    @php
-                                        $itemTotal = (($item->tien_thue ?? 0) + ($item->tien_coc ?? 0)) * $item->quantity;
-                                    @endphp
-                                    <div style="font-weight: 800; color: var(--cart-danger); font-size: 16px;" id="subtotal-{{ $item->id }}">
-                                        {{ number_format($itemTotal, 0, ',', '.') }}₫
-                                    </div>
-                                    <button type="button" style="background: none; border: none; color: var(--cart-muted); font-size: 12px; text-align: left; cursor: pointer; padding: 0;" onclick="removeItem({{ $item->id }})">
-                                        <i class="fas fa-times-circle"></i> Loại bỏ
-                                    </button>
-                                </div>
+                                <button type="button" style="background: none; border: none; color: var(--cart-muted); font-size: 11px; cursor: pointer; padding: 4px 0;" onclick="removeItem({{ $item->id }})">
+                                    <i class="fas fa-trash-alt"></i> Xóa
+                                </button>
                             </div>
                         </div>
                     @endforeach

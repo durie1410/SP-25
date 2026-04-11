@@ -7,6 +7,7 @@ use App\Models\Book;
 use App\Models\BookDeleteRequest;
 use App\Models\Inventory;
 use App\Models\BorrowItem;
+use App\Services\FileUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,9 @@ class BookDeleteRequestController extends Controller
         $request->validate([
             'book_id'      => 'required|exists:books,id',
             'inventory_id' => 'nullable|exists:inventories,id',
-            'reason'      => 'nullable|string|max:1000',
+            'reason'       => 'nullable|string|max:1000',
+            'proof_images' => 'nullable|array|max:6',
+            'proof_images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
         ]);
 
         $bookId      = (int) $request->book_id;
@@ -54,12 +57,31 @@ class BookDeleteRequestController extends Controller
             }
         }
 
+        // Upload ảnh minh chứng
+        $proofImages = [];
+        if ($request->hasFile('proof_images')) {
+            foreach ($request->file('proof_images') as $file) {
+                if (!$file) continue;
+                $upload = FileUploadService::uploadImage($file, 'return_proofs', [
+                    'max_size' => 4096,
+                    'resize' => true,
+                    'width' => 1400,
+                    'height' => 1400,
+                    'disk' => 'public',
+                ]);
+                if (!empty($upload['path'])) {
+                    $proofImages[] = $upload['path'];
+                }
+            }
+        }
+
         BookDeleteRequest::create([
             'book_id'      => $bookId,
             'inventory_id' => $inventoryId,
             'requested_by' => Auth::id(),
             'status'       => 'pending',
             'reason'       => $reason,
+            'proof_images' => !empty($proofImages) ? $proofImages : null,
         ]);
 
         $msg = $inventoryId
@@ -74,7 +96,7 @@ class BookDeleteRequestController extends Controller
      */
     public function index(Request $request)
     {
-        $query = BookDeleteRequest::with(['book', 'inventory.book', 'requester', 'approver'])
+        $query = BookDeleteRequest::with(['book', 'inventory.book', 'requester', 'approver', 'borrowItem'])
             ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->orderBy('created_at', 'desc');
 
@@ -90,7 +112,7 @@ class BookDeleteRequestController extends Controller
             }
         }
 
-        $requests = $query->paginate(20);
+        $requests = $query->paginate(10);
 
         return view('admin.inventory.delete-requests', compact('requests'));
     }

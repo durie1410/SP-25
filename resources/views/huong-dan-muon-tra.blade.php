@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Hướng dẫn mượn/trả sách - Thư Viện LibNet')
+@section('title', 'Hướng dẫn mượn/trả sách - Thuê Sách LibNet')
 
 @push('styles')
 <link rel="stylesheet" href="{{ asset('css/style.css') }}">
@@ -118,8 +118,7 @@
                 <p>4 bước đơn giản: tìm sách → thêm vào giỏ mượn → gửi yêu cầu → nhận sách và trả sách đúng hạn.</p>
                 <div class="guide-tags">
                     <span class="guide-tag">🕒 Thời gian xử lý: 5-15 phút</span>
-                    <span class="guide-tag">🚚 Giao/nhận tại chỗ hoặc vận chuyển</span>
-                    <span class="guide-tag">💳 COD / Chuyển khoản / VNPay</span>
+                    <span class="guide-tag">💳 COD / MOMO</span>
                 </div>
             </div>
             <div class="guide-badge">
@@ -131,7 +130,7 @@
         <div class="guide-steps" style="margin-top: 16px;">
             <div class="guide-card">
                 <h3>Quy định mượn sách</h3>
-                <p>- Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '20:00') }}.<br>- Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày.<br>- Số lượng: tối thiểu {{ config('library.borrow_min_books', 1) }} cuốn, tối đa {{ config('library.borrow_max_books', 5) }} cuốn/đơn.</p>
+                <p>- Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '20:00') }}.<br>- Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày</p>
             </div>
             <div class="guide-card">
                 <h3>Đặt trước & hàng chờ</h3>
@@ -150,11 +149,11 @@
             </div>
             <div class="guide-card">
                 <h3>3) Gửi yêu cầu</h3>
-                <p>- Điền thông tin nhận sách (địa chỉ/số điện thoại).<br>- Chọn phương thức thanh toán.</p>
+                <p>- Điền thông tin nhận sách (địa chỉ/số điện thoại).</p>
             </div>
             <div class="guide-card">
                 <h3>4) Nhận & trả sách</h3>
-                <p>- Nhận sách tại quầy hoặc giao tận nơi.<br>- Trả sách đúng hạn để tránh phí trễ/hư hỏng.</p>
+                <p>- Nhận sách tại quầy<br>- Trả sách đúng hạn để tránh phí trễ/hư hỏng.</p>
             </div>
         </div>
 
@@ -178,7 +177,7 @@
         <ul class="guide-list">
             <li>Đăng nhập để lưu giỏ mượn và theo dõi trạng thái đơn.</li>
             <li>Kiểm tra số lượng còn trong kho và tình trạng sách trước khi đặt.</li>
-            <li>Chọn phương thức nhận sách phù hợp (nhận tại chỗ / giao tận nơi).</li>
+            <li>Chọn phương thức nhận sách phù hợp (nhận tại chỗ).</li>
             <li>Trả sách đúng hạn, bảo quản sách tránh ẩm/mốc/rách.</li>
             <li>Nếu cần hỗ trợ, liên hệ Thủ thư hoặc hotline hiển thị trên trang.</li>
         </ul>

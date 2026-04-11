@@ -167,57 +167,49 @@
         margin-top: 8px;
     }
 
+    /* === Cart Item - Shopee style === */
     .reservation-item {
         display: grid;
-        grid-template-columns: 34px 92px minmax(0, 1fr) 220px;
-        gap: 18px;
-        align-items: start;
-        background: linear-gradient(180deg, #fffefb 0%, #ffffff 100%);
-        border-radius: var(--radius-lg);
-        border: 1px solid var(--reserve-border);
-        padding: 18px;
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
-        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        grid-template-columns: 36px 64px 1fr auto auto;
+        gap: 12px;
+        align-items: center;
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #f1f5f9;
+        padding: 14px 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        margin-bottom: 10px;
     }
 
     .reservation-item.is-unselected {
-        opacity: 0.68;
-        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
-        background: linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(255, 255, 255, 0.92));
+        opacity: 0.6;
     }
 
     .reservation-item:hover {
-        transform: translateY(-2px);
-        border-color: rgba(15, 118, 110, 0.22);
-        box-shadow: 0 20px 36px rgba(15, 23, 42, 0.1);
+        box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+        border-color: #0d9488;
     }
 
     .reservation-item-select {
         display: flex;
         align-items: center;
         justify-content: center;
-        padding-top: 10px;
     }
 
     .reservation-item-checkbox,
     .reservation-select-all-checkbox {
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
         cursor: pointer;
-        accent-color: var(--reserve-primary);
+        accent-color: #0d9488;
     }
 
     .reservation-item-img-box {
-        width: 92px;
-        height: 128px;
-        border-radius: 16px;
+        width: 64px;
+        height: 88px;
+        border-radius: 8px;
         overflow: hidden;
-        background: #e2e8f0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid rgba(255, 255, 255, 0.9);
-        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
 
     .reservation-item-img-box img {
@@ -229,86 +221,151 @@
     .reservation-item-info {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 4px;
         min-width: 0;
     }
 
     .reservation-item-title {
-        font-size: 22px;
-        line-height: 1.35;
-        font-weight: 800;
+        font-size: 14px;
+        font-weight: 600;
         margin: 0;
-        color: var(--reserve-text);
+        color: #1e40af;
+        line-height: 1.4;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
     }
 
-    .reservation-item-variant {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        width: fit-content;
-        padding: 7px 12px;
-        border-radius: 999px;
-        background: rgba(15, 118, 110, 0.1);
-        color: var(--reserve-primary);
-        font-size: 12px;
-        font-weight: 700;
+    .reservation-item-title a {
+        color: #1e40af;
+        text-decoration: none;
+    }
+
+    .reservation-item-title a:hover {
+        color: #1d4ed8;
     }
 
     .reservation-item-author {
-        font-size: 14px;
-        color: var(--reserve-muted);
+        font-size: 12px;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .reservation-item-meta {
+    .reservation-item-right {
         display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        font-size: 13px;
-        color: var(--reserve-muted);
-    }
-
-    .reservation-item-meta span {
-        display: inline-flex;
-        align-items: center;
+        flex-direction: column;
         gap: 6px;
-        padding: 8px 12px;
-        border-radius: 999px;
-        background: #f4f7f2;
-        border: 1px solid rgba(219, 228, 220, 0.8);
-    }
-
-    .reservation-item-meta span strong {
-        color: var(--reserve-text);
+        align-items: flex-start;
     }
 
     .reservation-fee-breakdown {
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
-        gap: 8px;
-        width: fit-content;
-        padding: 8px 12px;
-        border-radius: 14px;
-        background: #eef6f2;
-        border: 1px solid rgba(15, 118, 110, 0.1);
+        gap: 6px;
         font-size: 12px;
-        color: var(--reserve-muted);
+        color: #475569;
     }
 
-    .reservation-fee-breakdown strong {
-        color: var(--reserve-text);
+    .reservation-fee-breakdown .fee-text {
+        white-space: nowrap;
+    }
+
+    .reservation-fee-breakdown .fee-total strong {
+        color: #f59e0b;
+        font-weight: 700;
+    }
+
+    .reservation-item-dates {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .reservation-item-dates input[type="date"] {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 3px 8px;
+        font-size: 12px;
+        color: #334155;
+        outline: none;
+        background: #f8fafc;
+        cursor: pointer;
+    }
+
+    .reservation-item-dates input[type="date"]:hover {
+        border-color: #0d9488;
     }
 
     .reservation-item-actions {
         display: flex;
         flex-direction: column;
-        gap: 14px;
-        align-items: stretch;
-        min-width: 220px;
-        padding: 16px;
-        border-radius: 18px;
-        background: linear-gradient(180deg, #f8fbf7 0%, #ffffff 100%);
-        border: 1px solid rgba(219, 228, 220, 0.9);
+        align-items: center;
+        gap: 8px;
+    }
+
+    .qty-box {
+        display: flex;
+        align-items: center;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        overflow: hidden;
+        background: white;
+    }
+
+    .qty-box .qty-btn {
+        border: none;
+        background: #f8fafc;
+        width: 28px;
+        height: 28px;
+        font-size: 14px;
+        color: #64748b;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+    }
+
+    .qty-box .qty-btn:hover {
+        background: #e2e8f0;
+        color: #334155;
+    }
+
+    .qty-box input[type="number"] {
+        border: none;
+        width: 32px;
+        height: 28px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 600;
+        color: #1e293b;
+        outline: none;
+        background: white;
+        -moz-appearance: textfield;
+    }
+
+    .qty-box input[type="number"]::-webkit-inner-spin-button,
+    .qty-box input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+    }
+
+    .delete-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #94a3b8;
+        font-size: 14px;
+        padding: 4px;
+        border-radius: 4px;
+        transition: color 0.15s;
+    }
+
+    .delete-btn:hover {
+        color: #ef4444;
     }
 
     .reservation-select-toolbar {
@@ -757,6 +814,7 @@
                                 }
                             @endphp
                             <div class="reservation-item" data-item-id="{{ $item->id }}" data-item-total="{{ $computedTotal }}" data-quantity="{{ $quantity }}" data-daily-fee="{{ $dailyFee }}">
+                                <!-- Checkbox -->
                                 <div class="reservation-item-select">
                                     <input
                                         type="checkbox"
@@ -767,136 +825,48 @@
                                         checked
                                         onchange="handleReservationSelectionChange()"
                                     >
-                                    <!-- Hidden inputs for dates -->
                                     <input type="hidden" name="items[{{ $item->id }}][pickup_date]" value="{{ $item->pickup_date ? (is_object($item->pickup_date) ? $item->pickup_date->format('Y-m-d') : $item->pickup_date) : '' }}" form="reservation-submit-form">
                                     <input type="hidden" name="items[{{ $item->id }}][return_date]" value="{{ $item->return_date ? (is_object($item->return_date) ? $item->return_date->format('Y-m-d') : $item->return_date) : '' }}" form="reservation-submit-form">
                                 </div>
 
+                                <!-- Ảnh bìa -->
                                 <div class="reservation-item-img-box">
-                                    <img src="{{ $item->book->image_url ?? asset('images/default-book.png') }}"
-                                         alt="{{ $item->book->ten_sach }}">
+                                    <img src="{{ $item->book->image_url ?? asset('images/default-book.png') }}" alt="{{ $item->book->ten_sach }}">
                                 </div>
 
+                                <!-- Cột trái: Tên sách + Tác giả -->
                                 <div class="reservation-item-info">
                                     <h4 class="reservation-item-title">
-                                        {{ $item->book->ten_sach }}
+                                        <a href="{{ route('books.show', $item->book_id) }}">{{ $item->book->ten_sach }}</a>
                                     </h4>
+                                    <div class="reservation-item-author">{{ $item->book->tac_gia ?? 'Không rõ' }}</div>
+                                </div>
 
-                                    @if($sameBookItems->count() > 1)
-                                        <div class="reservation-item-variant">
-                                            <i class="fas fa-copy"></i>
-                                            Bản đặt trước #{{ ($sameBookIndex !== false ? $sameBookIndex + 1 : 1) }} cho cùng đầu sách
-                                        </div>
-                                    @endif
-
-                                    <div class="reservation-item-author">
-                                        Tác giả: <strong>{{ $item->book->tac_gia ?? 'Không rõ' }}</strong>
+                                <!-- Cột phải: Tiền + Ngày -->
+                                <div class="reservation-item-right">
+                                    <div class="reservation-fee-breakdown" data-item-id="{{ $item->id }}" data-daily-fee="{{ $dailyFee }}">
+                                        <span class="fee-text">{{ $computedDays }} ngày × {{ number_format($dailyFee, 0, ',', '.') }}đ/ngày × {{ $quantity }} cuốn</span>
+                                        <span class="fee-total">= <strong>{{ number_format($computedTotal, 0, ',', '.') }}đ</strong></span>
                                     </div>
-
-                                    <div class="reservation-item-meta">
-                                        <span>
-                                            <i class="fas fa-layer-group me-1"></i>
-                                            Số lượng: <strong class="reservation-quantity-value">{{ $quantity }}</strong>
-                                        </span>
-                                        <span>
-                                            <i class="fas fa-calendar-day me-1"></i>
-                                            Số ngày mượn:
-                                            <span class="reservation-days-pill">
-                                                <span class="days-display" data-item-id="{{ $item->id }}">{{ $computedDays }}</span> ngày
-                                            </span>
-                                        </span>
-                                    </div>
-
-                                    <div class="reservation-item-meta" style="margin-top: 8px;">
-                                        <span class="reservation-fee-breakdown" data-daily-fee="{{ $dailyFee }}" data-item-id="{{ $item->id }}">
-                                            <span class="fee-breakdown-text" data-item-id="{{ $item->id }}">
-                                                {{ $computedDays }} ngày × {{ number_format($dailyFee, 0, ',', '.') }}₫/ngày × {{ max(1, (int) ($item->quantity ?? 1)) }} cuốn
-                                            </span>
-                                            <span class="fee-breakdown-total" data-item-id="{{ $item->id }}">
-                                                = <strong>{{ number_format($computedTotal, 0, ',', '.') }}₫</strong>
-                                            </span>
-                                        </span>
-                                    </div>
-
-                                    <div class="reservation-date-row">
-                                        <div class="reservation-date-group" style="min-width: 0;">
-                                            <span class="reservation-date-label">Ngày lấy</span>
-                                            <input
-                                                type="date"
-                                                class="form-control pickup-date"
-                                                data-item-id="{{ $item->id }}"
-                                                min="{{ now()->format('Y-m-d') }}"
-                                                max="{{ now()->addDays(config('library.borrow_max_days', 14))->format('Y-m-d') }}"
-                                                value="{{ $item->pickup_date ? \Carbon\Carbon::parse($item->pickup_date)->format('Y-m-d') : '' }}"
-                                                onchange="handleItemDateChange(this)"
-                                            >
-                                        </div>
-                                        <div class="reservation-date-group" style="min-width: 0;">
-                                            <span class="reservation-date-label">Ngày trả</span>
-                                            <input
-                                                type="date"
-                                                class="form-control return-date"
-                                                data-item-id="{{ $item->id }}"
-                                                min="{{ $item->pickup_date ? \Carbon\Carbon::parse($item->pickup_date)->addDay()->format('Y-m-d') : now()->addDay()->format('Y-m-d') }}"
-                                                max="{{ $item->pickup_date ? \Carbon\Carbon::parse($item->pickup_date)->addDays(config('library.borrow_max_days', 14))->format('Y-m-d') : now()->addDays(config('library.borrow_max_days', 14))->format('Y-m-d') }}"
-                                                value="{{ $item->return_date ? \Carbon\Carbon::parse($item->return_date)->format('Y-m-d') : '' }}"
-                                                onchange="handleItemDateChange(this)"
-                                            >
-                                        </div>
+                                    <div class="reservation-item-dates">
+                                        <i class="far fa-calendar" style="font-size:11px; color:#94a3b8;"></i>
+                                        <input type="date" class="pickup-date" data-item-id="{{ $item->id }}" min="{{ now()->format('Y-m-d') }}" max="{{ now()->addDays(config('library.borrow_max_days', 14))->format('Y-m-d') }}" value="{{ $item->pickup_date ? (is_object($item->pickup_date) ? $item->pickup_date->format('Y-m-d') : $item->pickup_date) : '' }}" onchange="handleItemDateChange(this)">
+                                        <i class="fas fa-arrow-right" style="font-size:10px; color:#94a3b8;"></i>
+                                        <i class="far fa-calendar-check" style="font-size:11px; color:#f59e0b;"></i>
+                                        <input type="date" class="return-date" data-item-id="{{ $item->id }}" min="{{ $item->pickup_date ? (is_object($item->pickup_date) ? \Carbon\Carbon::parse($item->pickup_date)->addDay()->format('Y-m-d') : \Carbon\Carbon::parse($item->pickup_date)->addDay()->format('Y-m-d')) : now()->addDay()->format('Y-m-d') }}" max="{{ now()->addDays(config('library.borrow_max_days', 14))->format('Y-m-d') }}" value="{{ $item->return_date ? (is_object($item->return_date) ? $item->return_date->format('Y-m-d') : $item->return_date) : '' }}" onchange="handleItemDateChange(this)">
                                     </div>
                                 </div>
 
+                                <!-- Cụm tương tác: Qty + Xóa -->
                                 <div class="reservation-item-actions">
-                                    <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
-                                        <div class="reservation-side-label">Số lượng đặt trước</div>
-                                        <div class="reservation-quantity-control">
-                                            <button type="button" class="reservation-quantity-btn"
-                                                    onclick="changeReservationQuantity({{ $item->id }}, -1)"
-                                                    {{ !$canDecrease ? 'disabled' : '' }}>-</button>
-                                            <input
-                                                type="number"
-                                                id="reservation-quantity-{{ $item->id }}"
-                                                class="reservation-quantity-input"
-                                                value="{{ $quantity }}"
-                                                min="1"
-                                                max="{{ $maxQuantity }}"
-                                                data-max-quantity="{{ $maxQuantity }}"
-                                                data-item-id="{{ $item->id }}"
-                                                oninput="validateQuantityInput(this, {{ $maxQuantity }})"
-                                                onchange="updateReservationQuantityInput({{ $item->id }})"
-                                            >
-                                            <button type="button" class="reservation-quantity-btn"
-                                                    onclick="changeReservationQuantity({{ $item->id }}, 1)"
-                                                    {{ !$canIncrease ? 'disabled' : '' }}>+</button>
-                                        </div>
-
-                                        @if($maxQuantity <= 1 && $quantity >= $maxQuantity)
-                                            <small class="text-muted" style="font-size: 11px; color: #dc2626;">
-                                                <i class="fas fa-info-circle"></i> Kho chỉ còn {{ $maxQuantity }} cuốn
-                                            </small>
-                                        @endif
-                                        @if($quantity > 1)
-                                            <form method="POST" action="{{ route('reservation-cart.split-item', $item->id) }}" class="reservation-split-form {{ $quantity > 1 ? '' : 'is-hidden' }}" data-item-id="{{ $item->id }}">
-                                                @csrf
-                                                <button type="submit" class="reservation-split-btn">
-                                                    Tách thành từng cuốn riêng
-                                                </button>
-                                            </form>
-                                        @endif
+                                    <div class="qty-box">
+                                        <button type="button" class="qty-btn" onclick="changeReservationQuantity({{ $item->id }}, -1)">−</button>
+                                        <input type="number" id="reservation-quantity-{{ $item->id }}" value="{{ $quantity }}" min="1" max="{{ $maxQuantity }}" readonly>
+                                        <button type="button" class="qty-btn" onclick="changeReservationQuantity({{ $item->id }}, 1)" {{ $quantity >= $maxQuantity ? 'disabled' : '' }}>+</button>
                                     </div>
-
-                                    <div class="reservation-item-price-stack">
-                                        <div class="reservation-side-label" style="margin-bottom: 4px;">Tạm tính</div>
-                                        <span class="item-price reservation-item-price-value" data-item-id="{{ $item->id }}">
-                                            {{ number_format($computedTotal, 0, ',', '.') }}₫
-                                        </span>
-                                    </div>
-
                                     <form method="POST" action="{{ route('reservation-cart.remove', $item->id) }}">
                                         @csrf
-                                        <button class="btn btn-outline-danger btn-sm reservation-remove-btn" type="submit">
-                                            <i class="fas fa-times"></i> Xóa
-                                        </button>
+                                        <button type="submit" class="delete-btn"><i class="fas fa-trash-alt"></i></button>
                                     </form>
                                 </div>
                             </div>
@@ -960,7 +930,7 @@
                         <i class="fas fa-info-circle me-1"></i>
                         Chỉ các sách được tick mới được gửi đi. Vui lòng chọn <strong>ngày lấy</strong> và <strong>ngày trả</strong> cho từng sách đã chọn.
                         <div style="margin-top: 8px;">
-                            Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '20:00') }}. Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày.
+                            Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '18:00') }}. Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày.
                         </div>
                     </div>
 
@@ -971,7 +941,7 @@
                                 <span class="reservation-date-label">Giờ lấy</span>
                                 <div style="display: flex; gap: 8px;">
                                     <select class="form-control" id="pickup-time-hour" onchange="handlePickupTimeChange()">
-                                        @for($h = 8; $h <= 20; $h++)
+                                        @for($h = 8; $h <= 18; $h++)
                                             <option value="{{ str_pad($h, 2, '0', STR_PAD_LEFT) }}" {{ ($items->first()?->pickup_time && strpos($items->first()->pickup_time, str_pad($h, 2, '0', STR_PAD_LEFT) . ':') === 0) ? 'selected' : '' }}>{{ $h }}h</option>
                                         @endfor
                                     </select>
@@ -987,7 +957,7 @@
                         </div>
                         <div style="font-weight: 700; margin-bottom: 8px;">Quy định mượn trả</div>
                         <ul style="margin: 0 0 12px 18px; color: var(--reserve-muted); font-size: 12px; line-height: 1.6;">
-                            <li>Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '20:00') }}.</li>
+                            <li>Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '18:00') }}.</li>
                             <li>Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày.</li>
                             <li>Số lượng: tối thiểu {{ config('library.borrow_min_books', 1) }} cuốn, tối đa {{ config('library.borrow_max_books', 5) }} cuốn/đơn.</li>
                             <li>Trả đúng hạn, giữ sách nguyên vẹn để được hoàn cọc đầy đủ.</li>
@@ -1193,7 +1163,13 @@ function ensureDateStatusEl(){
 function validateReservationDates(pickup, ret, showAlert = true){
     if(!pickup || !ret){
         if(showAlert){
-            alert('Vui lòng chọn đầy đủ ngày lấy và ngày trả.');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Chưa chọn ngày',
+                text: 'Vui lòng chọn đầy đủ ngày lấy và ngày trả.',
+                confirmButtonText: 'Đã hiểu',
+                confirmButtonColor: '#0d9488',
+            });
         }
         return false;
     }
@@ -1206,21 +1182,39 @@ function validateReservationDates(pickup, ret, showAlert = true){
 
     if(!pickupDate || !returnDate){
         if(showAlert){
-            alert('Ngày không đúng định dạng. Vui lòng chọn lại.');
+            Swal.fire({
+                icon: 'error',
+                title: 'Ngày không đúng định dạng',
+                text: 'Vui lòng chọn lại.',
+                confirmButtonText: 'Đã hiểu',
+                confirmButtonColor: '#0d9488',
+            });
         }
         return false;
     }
 
     if(pickupDate < today){
         if(showAlert){
-            alert('Ngày lấy sách không được ở quá khứ.');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Ngày lấy không hợp lệ',
+                text: 'Ngày lấy sách không được ở quá khứ.',
+                confirmButtonText: 'Đã hiểu',
+                confirmButtonColor: '#0d9488',
+            });
         }
         return false;
     }
 
     if(returnDate <= pickupDate){
         if(showAlert){
-            alert('Ngày trả sách phải sau ngày lấy sách.');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Ngày trả không hợp lệ',
+                text: 'Ngày trả sách phải sau ngày lấy sách.',
+                confirmButtonText: 'Đã hiểu',
+                confirmButtonColor: '#0d9488',
+            });
         }
         return false;
     }
@@ -1232,7 +1226,13 @@ function validateReservationDates(pickup, ret, showAlert = true){
 
     if(diffDays < minDays || diffDays > maxDays){
         if(showAlert){
-            alert(`Thời gian mượn phải từ ${minDays} đến ${maxDays} ngày.`);
+            Swal.fire({
+                icon: 'warning',
+                title: 'Thời gian mượn không hợp lệ',
+                text: `Thời gian mượn phải từ ${minDays} đến ${maxDays} ngày.`,
+                confirmButtonText: 'Đã hiểu',
+                confirmButtonColor: '#0d9488',
+            });
         }
         return false;
     }
@@ -1351,164 +1351,95 @@ function updateItemPriceDisplay(itemId){
 
     const pickupInput = document.querySelector(`.pickup-date[data-item-id="${itemId}"]`);
     const returnInput = document.querySelector(`.return-date[data-item-id="${itemId}"]`);
-    const quantityEl = itemCard.querySelector('.reservation-quantity-value');
     const feeBox = document.querySelector(`.reservation-fee-breakdown[data-item-id="${itemId}"]`);
-
-    // Lấy dailyFee từ data attribute, nếu không có thì mặc định 5000
-    let dailyFee = 5000;
-    if(feeBox && feeBox.dataset.dailyFee){
-        dailyFee = Number(feeBox.dataset.dailyFee) || 5000;
-    }
-    // Backup: lấy từ itemCard nếu feeBox không có
-    if(!dailyFee || dailyFee === 5000){
-        const itemDailyFee = itemCard.dataset.dailyFee;
-        if(itemDailyFee){
-            dailyFee = Number(itemDailyFee) || 5000;
-        }
-    }
-    const quantity = quantityEl ? Number(quantityEl.textContent || 1) : 1;
+    const dailyFee = Number(feeBox ? feeBox.dataset.dailyFee : (itemCard.dataset.dailyFee || 5000));
+    const quantity = parseInt(itemCard.dataset.quantity) || 1;
 
     let days = 0;
     if(pickupInput && returnInput && pickupInput.value && returnInput.value){
         const pickup = parseDateString(pickupInput.value);
         const ret = parseDateString(returnInput.value);
         if(pickup && ret){
-            // Mượn + trả cùng ngày = 1 ngày, mượn hôm nay trả ngày mai = 2 ngày
-            const diffTime = ret.getTime() - pickup.getTime();
-            days = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            days = Math.floor((ret.getTime() - pickup.getTime()) / (1000*60*60*24)) + 1;
         }
     }
-
     const itemTotal = days * dailyFee * quantity;
 
-    // Cập nhật số ngày
-    const daysEl = document.querySelector(`.days-display[data-item-id="${itemId}"]`);
-    if(daysEl){
-        daysEl.textContent = days;
-    }
-
-    // Cập nhật tiền
-    const itemPriceEl = document.querySelector(`.item-price[data-item-id="${itemId}"]`);
-    if(itemPriceEl){
-        itemPriceEl.textContent = formatCurrency(itemTotal);
-    }
-
-    // Cập nhật dataset
-    itemCard.dataset.itemTotal = itemTotal;
-
-    // Cập nhật công thức - sử dụng lại feeBox đã lấy ở trên
+    // Cập nhật dòng tiền ở giữa
     if(feeBox){
-        const feeText = feeBox.querySelector(`.fee-breakdown-text[data-item-id="${itemId}"]`);
-        const feeTotal = feeBox.querySelector(`.fee-breakdown-total[data-item-id="${itemId}"]`);
-
-        if(feeText){
-            feeText.textContent = `${days} ngày × ${formatCurrency(dailyFee)}/ngày × ${quantity} cuốn`;
-        }
-        if(feeTotal){
-            feeTotal.innerHTML = `= <strong>${formatCurrency(itemTotal)}</strong>`;
-        }
+        feeBox.innerHTML = `${days} ngày × ${formatCurrency(dailyFee)}/ngày × ${quantity} cuốn = <strong style="color: var(--reserve-accent);">${formatCurrency(itemTotal)}</strong>`;
     }
 
-    // Cập nhật tổng tiền
+    itemCard.dataset.itemTotal = itemTotal;
     recalculateReservationSummary();
 }
 
 function changeReservationQuantity(itemId, delta){
     const input = document.getElementById(`reservation-quantity-${itemId}`);
-    const itemCard = getReservationItemCard(itemId);
-
-    if(!input || !itemCard) {
-        console.error('Input or itemCard not found!');
-        return;
-    }
+    if(!input) return;
+    const itemCard = document.querySelector(`.reservation-item[data-item-id="${itemId}"]`);
+    if(!itemCard) return;
 
     const maxQuantity = parseInt(input.dataset.maxQuantity || '2', 10);
-    const currentValue = Math.max(1, parseInt(input.value || '1', 10));
-    let nextValue = currentValue + delta;
+    let currentValue = parseInt(input.value || '1', 10);
+    if(isNaN(currentValue) || currentValue < 1) currentValue = 1;
 
-    // Giới hạn
+    // Luôn đọc giá trị từ input, cộng thêm delta nếu bấm +/-
+    let nextValue = currentValue + delta;
     nextValue = Math.max(1, Math.min(maxQuantity, nextValue));
 
-    // Nếu không thay đổi thì không làm gì
-    if(nextValue === currentValue) {
-        return;
-    }
+    input.value = nextValue;
+    itemCard.dataset.quantity = nextValue;
 
-    // Gọi API để lưu số lượng
-    updateQuantityOnServer(itemId, nextValue, currentValue);
-}
-
-// Ngăn không cho nhập số lớn hơn maxQuantity
-function validateQuantityInput(input, maxQuantity) {
-    const value = parseInt(input.value || '1', 10);
-
-    // Nếu nhập số lớn hơn max, tự động sửa thành max
-    if(value > maxQuantity) {
-        input.value = maxQuantity;
-        showToastMessage(`Số lượng tối đa là ${maxQuantity} cuốn!`, 'warning');
-    }
-
-    // Nếu nhập số nhỏ hơn 1, tự động sửa thành 1
-    if(value < 1 || input.value === '') {
-        input.value = 1;
-    }
-}
-
-function updateQuantityOnServer(itemId, newQuantity, previousQuantity) {
-    const input = document.getElementById(`reservation-quantity-${itemId}`);
-    const itemCard = getReservationItemCard(itemId);
-
-    if(!input || !itemCard) {
-        return;
-    }
-
-    const maxQuantity = parseInt(input.dataset.maxQuantity || '2', 10);
-    const qty = Math.max(1, Math.min(maxQuantity, newQuantity));
-
-    // Cập nhật UI ngay lập tức
-    input.value = qty;
-    itemCard.dataset.quantity = qty;
-
-    const quantityLabel = itemCard.querySelector('.reservation-quantity-value');
-    if(quantityLabel) {
-        quantityLabel.textContent = qty;
-    }
-
-    // Cập nhật trạng thái nút +/-
-    updateQuantityButtons(itemCard, qty, maxQuantity);
-
-    // Gửi API để lưu số lượng xuống database
-    fetch(`/reservation-cart/update-quantity/${itemId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-            'Accept': 'application/json',
-        },
-        body: JSON.stringify({ quantity: qty })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if(data.success){
-            updateItemPriceDisplay(itemId);
-        } else {
-            // Revert về giá trị trước đó
-            input.value = previousQuantity;
-            itemCard.dataset.quantity = previousQuantity;
-            if(quantityLabel) quantityLabel.textContent = previousQuantity;
-            updateQuantityButtons(itemCard, previousQuantity, maxQuantity);
-            showToastMessage(data.message || 'Có lỗi xảy ra khi cập nhật số lượng!', 'error');
+    const pickupInput = document.querySelector(`.pickup-date[data-item-id="${itemId}"]`);
+    const returnInput = document.querySelector(`.return-date[data-item-id="${itemId}"]`);
+    const feeBox = document.querySelector(`.reservation-fee-breakdown[data-item-id="${itemId}"]`);
+    const dailyFee = Number(feeBox ? feeBox.dataset.dailyFee : (itemCard.dataset.dailyFee || 5000));
+    let days = 0;
+    if(pickupInput && returnInput && pickupInput.value && returnInput.value){
+        const pickup = parseDateString(pickupInput.value);
+        const ret = parseDateString(returnInput.value);
+        if(pickup && ret){
+            days = Math.floor((ret.getTime() - pickup.getTime()) / (1000*60*60*24)) + 1;
         }
-    })
-    .catch(error => {
-        console.error('Error updating quantity:', error);
-        // Revert về giá trị trước đó khi có lỗi network
-        input.value = previousQuantity;
-        itemCard.dataset.quantity = previousQuantity;
-        if(quantityLabel) quantityLabel.textContent = previousQuantity;
-        updateQuantityButtons(itemCard, previousQuantity, maxQuantity);
-    });
+    }
+    const itemTotal = days * dailyFee * nextValue;
+
+    // Cập nhật dòng tiền ở giữa
+    if(feeBox){
+        feeBox.innerHTML = `${days} ngày × ${formatCurrency(dailyFee)}/ngày × ${nextValue} cuốn = <strong style="color: var(--reserve-accent);">${formatCurrency(itemTotal)}</strong>`;
+    }
+
+    itemCard.dataset.itemTotal = itemTotal;
+    recalculateReservationSummary();
+
+    // Disable nút - nếu đạt giới hạn
+    const minusBtn = input.previousElementSibling;
+    const plusBtn = input.nextElementSibling;
+    if(minusBtn) minusBtn.disabled = (nextValue <= 1);
+    if(plusBtn) plusBtn.disabled = (nextValue >= maxQuantity);
+
+    // Gọi API chỉ khi giá trị thực sự thay đổi (tăng/giảm chứ không phải cap max)
+    if(delta !== 0 && nextValue !== currentValue){
+        fetch(`/reservation-cart/update-quantity/${itemId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ quantity: nextValue })
+        }).then(r => {
+            if(!r.ok) return r.json().then(d => Promise.reject(d));
+            return r.json();
+        }).then(d => {
+            if(!d.success && d.message) showToastMessage(d.message, 'warning');
+        }).catch(d => {
+            if(d && d.message) showToastMessage(d.message, 'warning');
+        });
+    }
 }
+
 
 function updateReservationQuantityDisplay(itemId, quantity){
     // Không cần làm gì ở đây vì đã xử lý trong changeReservationQuantity
@@ -1565,6 +1496,14 @@ function handlePickupTimeChange(){
     const minute = minuteSelect.value;
     const timeStr = hour + ':' + minute;
 
+    // Nếu chọn 18h → disable phút (vì 18h là giờ cuối trong ngày)
+    if (hour === '18') {
+        minuteSelect.disabled = true;
+        minuteSelect.value = '00';
+    } else {
+        minuteSelect.disabled = false;
+    }
+
     if(hiddenInput){
         hiddenInput.value = timeStr;
     }
@@ -1603,12 +1542,18 @@ function handleGlobalPickupTimeChange(input){
     const pickupTime = input.value;
     const hiddenInput = document.getElementById('pickup-time-hidden');
 
-    // Validate giờ trong khoảng cho phép (8h - 20h)
+    // Validate giờ trong khoảng cho phép (8h - 18h)
     if(pickupTime){
         const openHour = "{{ config('library.open_hour', '08:00') }}";
-        const closeHour = "{{ config('library.close_hour', '20:00') }}";
+        const closeHour = "{{ config('library.close_hour', '18:00') }}";
         if(pickupTime < openHour || pickupTime > closeHour){
-            alert(`Giờ nhận sách phải trong khoảng ${openHour} - ${closeHour}`);
+            Swal.fire({
+                icon: 'warning',
+                title: 'Giờ không hợp lệ',
+                text: `Giờ nhận sách phải trong khoảng ${openHour} - ${closeHour}.`,
+                confirmButtonText: 'Đã hiểu',
+                confirmButtonColor: '#0d9488',
+            });
             input.value = '';
             if(hiddenInput) hiddenInput.value = '';
             return;
@@ -1646,7 +1591,13 @@ function validateCartBeforeSubmit(){
     const selectedCheckboxes = getSelectedReservationCheckboxes();
 
     if(selectedCheckboxes.length === 0){
-        alert('Vui lòng chọn ít nhất 1 cuốn sách để đặt trước.');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Chưa chọn sách',
+            text: 'Vui lòng chọn ít nhất 1 cuốn sách để đặt trước.',
+            confirmButtonText: 'Đã hiểu',
+            confirmButtonColor: '#0d9488',
+        });
         return false;
     }
 
@@ -1654,15 +1605,39 @@ function validateCartBeforeSubmit(){
     const hourSelect = document.getElementById('pickup-time-hour');
     const minuteSelect = document.getElementById('pickup-time-minute');
 
-    if(!hourSelect || !minuteSelect || !hourSelect.value || !minuteSelect.value){
-        alert('Vui lòng chọn giờ lấy cho đơn đặt trước.');
+    // Kiểm tra nếu giờ đã đóng (disablePastHours đã chạy)
+    if(hourSelect && hourSelect.disabled && hourSelect.dataset.closed === 'true'){
+        Swal.fire({
+            icon: 'info',
+            title: 'LibNet ngừng nhận đơn đặt trước sau 18:00',
+            text: 'Vui lòng quay lại vào 08:00 sáng mai!',
+            confirmButtonText: 'Đã hiểu',
+            confirmButtonColor: '#0d9488',
+        });
         return false;
     }
 
-    // Validate giờ trong khoảng cho phép (8h - 20h)
+    if(!hourSelect || !minuteSelect || !hourSelect.value || !minuteSelect.value){
+        Swal.fire({
+            icon: 'warning',
+            title: 'Chưa chọn giờ lấy',
+            text: 'Vui lòng chọn giờ lấy cho đơn đặt trước.',
+            confirmButtonText: 'Đã hiểu',
+            confirmButtonColor: '#0d9488',
+        });
+        return false;
+    }
+
+    // Validate giờ trong khoảng cho phép (8h - 18h)
     const hour = parseInt(hourSelect.value);
-    if(hour < 8 || hour > 20){
-        alert('Giờ nhận sách phải trong khoảng 8h - 20h');
+    if(hour < 8 || hour > 18){
+        Swal.fire({
+            icon: 'warning',
+            title: 'Giờ không hợp lệ',
+            text: 'Giờ nhận sách phải trong khoảng 8h - 18h.',
+            confirmButtonText: 'Đã hiểu',
+            confirmButtonColor: '#0d9488',
+        });
         return false;
     }
 
@@ -1683,19 +1658,47 @@ function validateCartBeforeSubmit(){
         const pickup = pickupInput ? pickupInput.value : '';
         const ret = retInput ? retInput.value : '';
 
-        // Kiểm tra số lượng
+        // Nếu người dùng chọn ngày hôm nay VÀ giờ đã bị disabled (đã quá 17h)
+        if(pickup){
+            const pickupDate = parseDateString(pickup);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            if(pickupDate && pickupDate.getTime() === today.getTime() && hourSelect && hourSelect.disabled && hourSelect.dataset.closed === 'true'){
+                Swal.fire({
+                    icon: 'info',
+                    title: 'LibNet ngừng nhận đơn đặt trước sau 18:00',
+                    text: 'Vui lòng quay lại vào 08:00 sáng mai!',
+                    confirmButtonText: 'Đã hiểu',
+                    confirmButtonColor: '#0d9488',
+                });
+                return false;
+            }
+        }
+
         if(quantityInput) {
             const qty = parseInt(quantityInput.value || '1', 10);
             const maxQty = parseInt(quantityInput.dataset.maxQuantity || '2', 10);
             if(qty > maxQty) {
-                alert(`Số lượng sách "${quantityInput.closest('.reservation-item').querySelector('.reservation-item-title')?.textContent || 'này'}" vượt quá giới hạn cho phép!`);
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Vượt quá số lượng cho phép',
+                    text: `Số lượng sách "${quantityInput.closest('.reservation-item').querySelector('.reservation-item-title')?.textContent || 'này'}" vượt quá giới hạn cho phép!`,
+                    confirmButtonText: 'Đã hiểu',
+                    confirmButtonColor: '#0d9488',
+                });
                 quantityInput.focus();
                 return false;
             }
         }
 
         if(!pickup || !ret){
-            alert('Vui lòng chọn đầy đủ ngày lấy và ngày trả cho các sách đã chọn.');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Chưa chọn ngày',
+                text: 'Vui lòng chọn đầy đủ ngày lấy và ngày trả cho các sách đã chọn.',
+                confirmButtonText: 'Đã hiểu',
+                confirmButtonColor: '#0d9488',
+            });
             return false;
         }
 
@@ -1705,7 +1708,13 @@ function validateCartBeforeSubmit(){
         today.setHours(0, 0, 0, 0);
 
         if(pickupDate && pickupDate < today){
-            alert('Ngày lấy sách đã qua. Vui lòng chọn ngày khác.');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Ngày lấy không hợp lệ',
+                text: 'Ngày lấy sách đã qua. Vui lòng chọn ngày khác.',
+                confirmButtonText: 'Đã hiểu',
+                confirmButtonColor: '#0d9488',
+            });
             if(pickupInput) pickupInput.focus();
             return false;
         }
@@ -1718,7 +1727,13 @@ function validateCartBeforeSubmit(){
 
             // Nếu giờ đã chọn nhỏ hơn hoặc bằng giờ hiện tại + 1
             if(selectedHour <= currentHour + 1){
-                alert('Giờ lấy sách đã qua. Vui lòng chọn giờ khác (phải lớn hơn giờ hiện tại ít nhất 1 tiếng).');
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Giờ lấy đã qua',
+                    text: 'Giờ lấy sách đã qua. Vui lòng chọn giờ khác (phải lớn hơn giờ hiện tại ít nhất 1 tiếng).',
+                    confirmButtonText: 'Đã hiểu',
+                    confirmButtonColor: '#0d9488',
+                });
                 return false;
             }
         }
@@ -1727,7 +1742,13 @@ function validateCartBeforeSubmit(){
     // Check agreement
     const agreed = document.getElementById('agree-reservation-rules');
     if(!agreed || !agreed.checked){
-        alert('Vui lòng tick "Tôi đã đọc và hiểu quy định mượn trả" trước khi gửi yêu cầu.');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Chưa đồng ý quy định',
+            text: 'Vui lòng tick "Tôi đã đọc và hiểu quy định mượn trả" trước khi gửi yêu cầu.',
+            confirmButtonText: 'Đã hiểu',
+            confirmButtonColor: '#0d9488',
+        });
         return false;
     }
 
@@ -1775,7 +1796,7 @@ function initPickupTimeValidation() {
     }
 }
 
-// Disable các giờ đã qua trong select box - KHÔNG tự động chọn giờ nào cả
+// Disable các giờ đã qua trong select box - TỰ ĐỘNG chọn giờ hợp lệ đầu tiên
 function disablePastHours() {
     const hourSelect = document.getElementById('pickup-time-hour');
     if(!hourSelect) return;
@@ -1784,35 +1805,87 @@ function disablePastHours() {
     const currentHour = now.getHours();
     const minValidHour = currentHour + 2; // Cần ít nhất 2 tiếng buffer
 
-    // Nếu đã qua 19h thì disable hết (vì kết thúc lúc 20h)
-    if(currentHour >= 19) {
+    // Nếu đã qua 17h thì disable hết (vì kết thúc lúc 18h, cần 2 tiếng buffer)
+    if(currentHour >= 17) {
         hourSelect.disabled = true;
-        hourSelect.innerHTML = '<option value="">Đã hết giờ hôm nay</option>';
+        hourSelect.innerHTML = '<option value="">Đã hết</option>';
+        hourSelect.dataset.closed = 'true';
+        const minuteSelect = document.getElementById('pickup-time-minute');
+        if(minuteSelect) minuteSelect.disabled = true;
+
+        // Thông báo cho người dùng
+        Swal.fire({
+            icon: 'info',
+            title: 'LibNet ngừng nhận đơn sau 18:00 hôm nay',
+            text: 'Vui lòng chọn ngày khác hoặc quay lại vào 08:00 sáng mai!',
+            confirmButtonText: 'Đã hiểu',
+            confirmButtonColor: '#0d9488',
+        });
         return;
     }
 
-    // Disable các giờ không hợp lệ - CHỈ disable, KHÔNG tự động chọn giờ nào
+    // Disable các giờ không hợp lệ
     const options = hourSelect.querySelectorAll('option');
+    let firstValidHour = null;
     options.forEach(option => {
         const hour = parseInt(option.value, 10);
-        if(hour < minValidHour || hour > 20) {
+        if(hour < minValidHour || hour > 18) {
             option.disabled = true;
             option.style.color = '#ccc';
+        } else {
+            option.disabled = false;
+            option.style.color = '';
+            if(firstValidHour === null) firstValidHour = option.value;
         }
     });
+
+    // TỰ ĐỘNG chọn giờ hợp lệ đầu tiên
+    if(firstValidHour !== null) {
+        const oldHour = hourSelect.value;
+        hourSelect.value = firstValidHour;
+        hourSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+        // Thông báo chỉ khi giờ thay đổi
+        if(oldHour && parseInt(oldHour) < minValidHour) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Giờ lấy đã tự động chuyển sang ' + firstValidHour + 'h',
+                text: 'Các giờ trước ' + minValidHour + 'h đã không còn khả dụng hôm nay.',
+                confirmButtonText: 'Đã hiểu',
+                confirmButtonColor: '#0d9488',
+            });
+        }
+    }
+
+    // Nếu 18h vẫn còn disable được → cũng disable phút
+    const eighteenOption = hourSelect.querySelector('option[value="18"]');
+    const minuteSelect = document.getElementById('pickup-time-minute');
+    if(eighteenOption && eighteenOption.disabled && minuteSelect) {
+        minuteSelect.disabled = true;
+        minuteSelect.value = '00';
+    }
+}
+
+// Kiểm tra xem giờ có bị disabled không (đã hết giờ đặt trước hôm nay)
+function isPickupTimeClosed() {
+    const hourSelect = document.getElementById('pickup-time-hour');
+    if(!hourSelect) return false;
+    return hourSelect.disabled === true && hourSelect.dataset.closed === 'true';
 }
 
 // Restore tất cả giờ (khi user đổi sang ngày khác hôm nay)
 function restoreAllHours() {
     const hourSelect = document.getElementById('pickup-time-hour');
+    const minuteSelect = document.getElementById('pickup-time-minute');
     if(!hourSelect) return;
 
     // Restore select box
     hourSelect.disabled = false;
+    if(minuteSelect) minuteSelect.disabled = false;
 
-    // Rebuild all hour options (8h - 20h)
+    // Rebuild all hour options (8h - 18h)
     let optionsHtml = '';
-    for(let h = 8; h <= 20; h++) {
+    for(let h = 8; h <= 18; h++) {
         const hourStr = String(h).padStart(2, '0');
         optionsHtml += `<option value="${hourStr}">${h}h</option>`;
     }

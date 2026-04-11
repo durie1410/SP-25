@@ -12,6 +12,8 @@ use App\Services\FileUploadService;
 use App\Http\Requests\BookRequest;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -155,7 +157,7 @@ class BookController extends Controller
                 );
                 $path = $result['path'];
             } catch (\Exception $e) {
-                \Log::error('Upload error:', ['message' => $e->getMessage()]);
+                Log::error('Upload error:', ['message' => $e->getMessage()]);
                 return redirect()->back()
                     ->withErrors(['hinh_anh' => $e->getMessage()])
                     ->withInput();
@@ -172,6 +174,7 @@ class BookController extends Controller
                 'nam_xuat_ban' => $request->nam_xuat_ban,
                 'hinh_anh' => $path,
                 'mo_ta' => $request->mo_ta,
+                'preview_content' => $request->preview_content,
                 'gia' => $request->gia,
                 'trang_thai' => 'inactive', // Mặc định không hiển thị cho đến khi duyệt phiếu nhập kho
                 'danh_gia_trung_binh' => 0,
@@ -205,7 +208,7 @@ class BookController extends Controller
 
             return redirect()->route('admin.books.index')->with('success', "Tạo sách '{$book->ten_sach}' thành công! Phiếu nhập kho {$receiptNumber} đang chờ phê duyệt.");
         } catch (\Exception $e) {
-            \Log::error('Create Book error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            Log::error('Create Book error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return redirect()->back()->with('error', 'Lỗi khi tạo sách: ' . $e->getMessage())->withInput();
         }
     }
@@ -267,21 +270,21 @@ class BookController extends Controller
                     $path = $newImagePath;
                     
                     // Verify file exists after upload
-                    if (!\Storage::disk('public')->exists($path)) {
+                    if (!Storage::disk('public')->exists($path)) {
                         throw new \Exception('File ảnh không tồn tại sau khi upload.');
                     }
                     
                     // Log for debugging
-                    \Log::info('Image uploaded successfully', [
+                    Log::info('Image uploaded successfully', [
                         'path' => $path,
                         'filename' => $result['filename'] ?? 'unknown',
                         'url' => $result['url'] ?? 'unknown',
                         'book_id' => $book->id,
-                        'file_exists' => \Storage::disk('public')->exists($path),
+                        'file_exists' => Storage::disk('public')->exists($path),
                     ]);
                     
                 } catch (\Exception $e) {
-                    \Log::error('Upload error:', [
+                    Log::error('Upload error:', [
                         'message' => $e->getMessage(),
                         'book_id' => $book->id,
                         'trace' => $e->getTraceAsString(),
@@ -293,13 +296,13 @@ class BookController extends Controller
             }
             
             // Log path before saving
-            \Log::info('Preparing to save book update', [
+            Log::info('Preparing to save book update', [
                 'book_id' => $book->id,
                 'has_new_image' => $request->hasFile('hinh_anh'),
                 'old_image_path' => $oldImagePath,
                 'new_image_path' => $newImagePath,
                 'hinh_anh_path' => $path,
-                'path_exists' => $path ? \Storage::disk('public')->exists($path) : false,
+                'path_exists' => $path ? Storage::disk('public')->exists($path) : false,
             ]);
 
             $updateData = [
@@ -309,6 +312,7 @@ class BookController extends Controller
                 'nam_xuat_ban' => $request->nam_xuat_ban,
                 'hinh_anh' => $path, // Ensure path is saved - can be old path or new path
                 'mo_ta' => $request->mo_ta,
+                'preview_content' => $request->preview_content,
                 'gia' => $request->gia,
                 'trang_thai' => $request->trang_thai,
                 // KHÔNG CẬP NHẬT so_luong từ form edit
@@ -326,7 +330,7 @@ class BookController extends Controller
             DB::beginTransaction();
             try {
                 // Log data before update for debugging
-                \Log::info('About to update book', [
+                Log::info('About to update book', [
                     'book_id' => $book->id,
                     'update_data' => $updateData,
                     'old_hinh_anh' => $book->hinh_anh,
@@ -339,7 +343,7 @@ class BookController extends Controller
                 $book->update($updateData);
                 
                 // Verify update immediately
-                \Log::info('After update, before refresh', [
+                Log::info('After update, before refresh', [
                     'book_id' => $book->id,
                     'hinh_anh_after_update' => $book->hinh_anh,
                     'getChanges' => $book->getChanges(),
@@ -388,17 +392,17 @@ class BookController extends Controller
                 
                 // SAU KHI commit thành công, xóa ảnh cũ nếu có ảnh mới
                 if ($newImagePath && $oldImagePath && $oldImagePath !== $newImagePath) {
-                    if (\Storage::disk('public')->exists($oldImagePath)) {
+                    if (Storage::disk('public')->exists($oldImagePath)) {
                         try {
                             FileUploadService::deleteFile($oldImagePath, 'public');
-                            \Log::info('Old image deleted after successful update', [
+                            Log::info('Old image deleted after successful update', [
                                 'old_path' => $oldImagePath,
                                 'new_path' => $newImagePath,
                                 'book_id' => $book->id,
                             ]);
                         } catch (\Exception $e) {
                             // Log error nhưng không rollback vì database đã commit
-                            \Log::warning('Failed to delete old image after update', [
+                            Log::warning('Failed to delete old image after update', [
                                 'old_path' => $oldImagePath,
                                 'error' => $e->getMessage(),
                                 'book_id' => $book->id,
@@ -411,12 +415,12 @@ class BookController extends Controller
                 $book->refresh();
                 
                 // Log the updated book data for debugging - always log to help debug
-                \Log::info('Book updated successfully', [
+                Log::info('Book updated successfully', [
                     'book_id' => $book->id,
                     'hinh_anh' => $book->hinh_anh,
                     'had_new_image' => $request->hasFile('hinh_anh'),
-                    'image_exists' => $book->hinh_anh ? \Storage::disk('public')->exists($book->hinh_anh) : false,
-                    'image_url' => $book->hinh_anh ? \Storage::disk('public')->url($book->hinh_anh) : null,
+                    'image_exists' => $book->hinh_anh ? Storage::disk('public')->exists($book->hinh_anh) : false,
+                    'image_url' => $book->hinh_anh ? asset('storage/' . ltrim(str_replace('\\', '/', $book->hinh_anh), '/')) : null,
                     'asset_url' => $book->hinh_anh ? asset('storage/' . ltrim(str_replace('\\', '/', $book->hinh_anh), '/')) : null,
                 ]);
                 
@@ -442,15 +446,15 @@ class BookController extends Controller
                 DB::rollBack();
                 
                 // Nếu có ảnh mới được upload nhưng transaction thất bại, xóa ảnh mới
-                if ($newImagePath && \Storage::disk('public')->exists($newImagePath)) {
+                if ($newImagePath && Storage::disk('public')->exists($newImagePath)) {
                     try {
                         FileUploadService::deleteFile($newImagePath, 'public');
-                        \Log::info('New image deleted after transaction rollback', [
+                        Log::info('New image deleted after transaction rollback', [
                             'new_path' => $newImagePath,
                             'book_id' => $book->id,
                         ]);
                     } catch (\Exception $deleteException) {
-                        \Log::error('Failed to delete new image after rollback', [
+                        Log::error('Failed to delete new image after rollback', [
                             'new_path' => $newImagePath,
                             'error' => $deleteException->getMessage(),
                             'book_id' => $book->id,
@@ -458,7 +462,7 @@ class BookController extends Controller
                     }
                 }
                 
-                \Log::error('Update Book error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+                Log::error('Update Book error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
                 return redirect()->back()
                     ->with('error', 'Có lỗi xảy ra khi cập nhật sách: ' . $e->getMessage())
                     ->withInput();
@@ -468,7 +472,7 @@ class BookController extends Controller
                 ->withErrors($e->errors())
                 ->withInput();
         } catch (\Exception $e) {
-            \Log::error('Update Book error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            Log::error('Update Book error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return redirect()->back()
                 ->with('error', 'Lỗi khi cập nhật sách: ' . $e->getMessage())
                 ->withInput();
@@ -478,10 +482,11 @@ class BookController extends Controller
     public function hide($id)
     {
         $book = Book::findOrFail($id);
+        $oldValues = $book->getAttributes();
         $book->update(['trang_thai' => 'inactive']);
         
         // Log book hiding
-        AuditService::logUpdated($book, "Book '{$book->ten_sach}' hidden");
+        AuditService::logUpdated($book, $oldValues, "Book '{$book->ten_sach}' hidden");
         
         return redirect()->route('admin.books.index')->with('success', 'Ẩn sách thành công!');
     }
@@ -489,10 +494,11 @@ class BookController extends Controller
     public function unhide($id)
     {
         $book = Book::findOrFail($id);
+        $oldValues = $book->getAttributes();
         $book->update(['trang_thai' => 'active']);
         
         // Log book unhiding
-        AuditService::logUpdated($book, "Book '{$book->ten_sach}' unhidden");
+        AuditService::logUpdated($book, $oldValues, "Book '{$book->ten_sach}' unhidden");
         
         return redirect()->route('admin.books.index')->with('success', 'Hiển thị sách thành công!');
     }
@@ -537,7 +543,7 @@ class BookController extends Controller
                 $deletedTitles[] = $book->ten_sach;
                 
                 // Log trước khi xóa
-                \Log::info("Xóa Book #{$book->id} ({$book->ten_sach}) vì không còn trong kho");
+                Log::info("Xóa Book #{$book->id} ({$book->ten_sach}) vì không còn trong kho");
                 
                 // Xóa Book
                 $book->delete();
@@ -555,7 +561,7 @@ class BookController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Delete books without inventory error:', [
+            Log::error('Delete books without inventory error:', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -571,14 +577,14 @@ class BookController extends Controller
     {
         try {
             // Chạy command để sắp xếp lại ID
-            \Artisan::call('books:reset-ids', ['--force' => true]);
+            Artisan::call('books:reset-ids', ['--force' => true]);
             
-            $output = \Artisan::output();
+            $output = Artisan::output();
             
             return redirect()->route('admin.books.index')
                 ->with('success', 'Đã sắp xếp lại ID sách thành công! ID hiện tại liên tục từ 1.');
         } catch (\Exception $e) {
-            \Log::error('Reset book IDs error:', [
+            Log::error('Reset book IDs error:', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);

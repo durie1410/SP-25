@@ -16,7 +16,35 @@
       "Bash(php C:/laragon/www/quanlythuviennn/artisan tinker --execute=\"echo \\\\App\\\\Models\\\\NotificationLog::where\\(''user_id'',44\\)->whereDate\\(''created_at'',''2026-03-25''\\)->get\\([''id'',''type'',''subject'',''content'',''created_at'']\\)->toJson\\(JSON_PRETTY_PRINT\\);\")",
       "Bash(php C:/laragon/www/quanlythuviennn/artisan tinker --execute=\"echo \\\\App\\\\Models\\\\Reader::where\\(''user_id'',44\\)->first\\([''id'',''ho_ten'',''email'',''user_id'']\\)->toJson\\(JSON_PRETTY_PRINT\\);\")",
       "Bash(php C:/laragon/www/quanlythuviennn/artisan tinker --execute=\"echo \\\\App\\\\Models\\\\User::find\\(44,[''id'',''email'',''name'']\\)->toJson\\(JSON_PRETTY_PRINT\\);\")",
-      "Bash(php C:/laragon/www/quanlythuviennn/artisan tinker --execute=\"echo \\\\App\\\\Models\\\\NotificationLog::where\\(''user_id'',44\\)->where\\(''type'',''reservation_overdue''\\)->get\\([''id'',''type'',''subject'',''content'',''created_at'']\\)->toJson\\(JSON_PRETTY_PRINT\\);\")"
+      "Bash(php C:/laragon/www/quanlythuviennn/artisan tinker --execute=\"echo \\\\App\\\\Models\\\\NotificationLog::where\\(''user_id'',44\\)->where\\(''type'',''reservation_overdue''\\)->get\\([''id'',''type'',''subject'',''content'',''created_at'']\\)->toJson\\(JSON_PRETTY_PRINT\\);\")",
+      "Bash(dir /s /b \"c:\\\\laragon\\\\www\\\\quanlythuviennn\\\\storage\\\\app\\\\public\\\\return_proofs\")",
+      "Bash(del /q \"c:\\\\laragon\\\\www\\\\quanlythuviennn\\\\storage\\\\framework\\\\views\\\\*.php\")",
+      "Read(//Users/huyenhuyen/Phpstorm3/QLTV/qlthuvien3/app/Http/Controllers/**)",
+      "Read(//c/Users/huyenhuyen/Phpstorm3/QLTV/qlthuvien3/app/Http/Controllers/**)",
+      "Bash(php -l app/Http/Controllers/ReturnController.php)",
+      "Bash(python3 -c ':*)",
+      "Bash(php -r ':*)",
+      "Bash(php -l resources/views/admin/returns/index.blade.php)",
+      "Read(//d C:/laragon/www/quanlythuviennn/**)",
+      "Bash(exist storage:*)",
+      "Bash(mklink /j storage \"..\\\\storage\\\\app\\\\public\")",
+      "Bash(cmd /c \"cd /d C:\\\\laragon\\\\www\\\\quanlythuviennn\\\\public && if exist storage \\(rmdir /s /q storage\\) && mklink /j storage \\\\\"..\\\\storage\\\\app\\\\public\\\\\"\")",
+      "Bash(php test_lock.php)",
+      "Bash(php test_login.php)",
+      "Bash(del test_lock.php test_login.php)",
+      "Bash(php -r 'require '\\\\''vendor/autoload.php'\\\\''; $app = require '\\\\''bootstrap/app.php'\\\\''; $app->make\\(Illuminate\\\\Contracts\\\\Console\\\\Kernel::class\\)->bootstrap\\(\\); print_r\\(DB::select\\('\\\\''DESCRIBE users'\\\\''\\)\\);')",
+      "Bash(php check_db.php)",
+      "Bash(php test_full.php)",
+      "Bash(php test_http.php)",
+      "Bash(php unlock_admin.php)",
+      "Bash(rm unlock_admin.php)",
+      "Bash(php test_lock2.php)",
+      "Bash(rm test_lock2.php)",
+      "Bash(php http_test.php)",
+      "Bash(php check_cccd.php)"
+    ],
+    "additionalDirectories": [
+      "C:\\laragon\\www\\quanlythuviennn\\storage\\framework\\views"
     ]
   }
 }

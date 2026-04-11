@@ -207,8 +207,39 @@ class DashboardController extends Controller
         
         // Lấy hoạt động gần đây
         $recentActivities = $this->getRecentActivities();
-        
-        return view('admin.dashboard', compact(
+
+        // === THỐNG KÊ SÁCH ===
+        $damagedBooksCount = Book::where('trang_thai', 'damaged')->count();
+        $damagedBooks = Book::where('trang_thai', 'damaged')
+            ->with('category')
+            ->orderBy('updated_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        $outOfStockBooksCount = Book::where('so_luong', '<=', 0)->count();
+        $outOfStockBooks = Book::where('so_luong', '<=', 0)
+            ->with('category')
+            ->orderBy('updated_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        // === TOP SÁCH MƯỢN NHIỀU NHẤT ===
+        $topBorrowedBooks = BorrowItem::select('book_id', DB::raw('COUNT(*) as borrow_count'))
+            ->whereNotNull('book_id')
+            ->with('book:id,ten_sach,hinh_anh')
+            ->groupBy('book_id')
+            ->orderByDesc('borrow_count')
+            ->limit(5)
+            ->get();
+
+        // === THỐNG KÊ LƯỢT MƯỢN ===
+        $borrowToday = Borrow::whereDate('created_at', Carbon::today())->count();
+        $borrowMonth = Borrow::whereYear('created_at', Carbon::now()->year)
+            ->whereMonth('created_at', Carbon::now()->month)
+            ->count();
+        $borrowYear = Borrow::whereYear('created_at', Carbon::now()->year)->count();
+
+        return view('admin.dashboard', array_merge(compact(
             'totalBooks',
             'totalBorrowingReaders',
             'totalReservations',
@@ -229,8 +260,22 @@ class DashboardController extends Controller
             'totalFinesOverdue',
             'monthlyRevenueStats',
             'monthlyBorrowStats',
-            'recentActivities'
-        ));
+            'recentActivities',
+            'damagedBooksCount',
+            'damagedBooks',
+            'outOfStockBooksCount',
+            'outOfStockBooks',
+            'topBorrowedBooks',
+            'borrowToday',
+            'borrowMonth',
+            'borrowYear',
+        ), [
+            'borrowStats' => [
+                'today' => $borrowToday,
+                'month' => $borrowMonth,
+                'year' => $borrowYear,
+            ],
+        ]));
     }
     
     /**

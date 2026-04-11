@@ -3,8 +3,10 @@
 namespace App\Console\Commands;
 
 use App\Services\NotificationService;
+use App\Services\UserLockService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class LibraryHousekeeping extends Command
 {
@@ -43,7 +45,7 @@ class LibraryHousekeeping extends Command
 
         // Mark overdue loans: picked_up and due_date < now -> overdue
         try {
-            $affected = \DB::table('loans')
+            $affected = DB::table('loans')
                 ->where('status', 'picked_up')
                 ->whereNotNull('due_date')
                 ->where('due_date', '<', $now)
@@ -126,7 +128,7 @@ class LibraryHousekeeping extends Command
         // Auto no-show for seat reservations past hold window
         try {
             $nowStr = $now->toDateTimeString();
-            $noShow = \DB::table('seat_reservations')
+            $noShow = DB::table('seat_reservations')
                 ->where('status', 'pending')
                 ->whereNotNull('hold_until')
                 ->where('hold_until', '<', $nowStr)
@@ -140,6 +142,7 @@ class LibraryHousekeeping extends Command
         // XỬ LÝ INVENTORY RESERVATIONS
         // ============================================================
         $notificationService = app(NotificationService::class);
+        $userLockService = app(UserLockService::class);
         $today = $now->toDateString();
 
         // ============================================================
@@ -176,7 +179,7 @@ class LibraryHousekeeping extends Command
         };
 
         // 0) PENDING: pickup_date đã qua nhưng KHÔNG có pickup_time -> TỰ HỦY (reservation 78)
-        $pendingPastDateNoTime = \DB::table('inventory_reservations')
+        $pendingPastDateNoTime = DB::table('inventory_reservations')
             ->where('status', 'pending')
             ->whereNotNull('pickup_date')
             ->whereNull('pickup_time')
@@ -196,7 +199,7 @@ class LibraryHousekeeping extends Command
                         // Luôn hủy status trước
                         $model->cancel('Tự động hủy: Đã qua ngày lấy sách mà không nhận.', null);
                         // Gửi thông báo (chống trùng trong 60 phút)
-                        $alreadyCancelled = \DB::table('notification_logs')
+                        $alreadyCancelled = DB::table('notification_logs')
                             ->where('user_id', $model->reader?->user_id ?? $model->user_id)
                             ->where('type', 'reservation_cancelled')
                             ->where('content', 'like', '%' . ($model->book?->ten_sach ?? '') . '%')
@@ -214,7 +217,7 @@ class LibraryHousekeeping extends Command
 
         // 0b) READY: pickup_date đã qua
         // Có inventory → QUÁ HẠN (khách đã nhận sách). Không có inventory → HỦY (khách không đến)
-        $readyPastDate = \DB::table('inventory_reservations')
+        $readyPastDate = DB::table('inventory_reservations')
             ->where('status', 'ready')
             ->whereNotNull('pickup_date')
             ->get();
@@ -243,13 +246,14 @@ class LibraryHousekeeping extends Command
 
                         if ($model->inventory_id) {
                             // Có bản sao → QUÁ HẠN
-                            \DB::table('inventory_reservations')
+                            DB::table('inventory_reservations')
                                 ->where('id', $model->id)
                                 ->update([
                                     'status' => 'overdue',
                                     'admin_note' => 'Tự động đánh dấu quá hạn: Đã qua ngày/giờ lấy sách mà không xác nhận nhận.',
                                     'updated_at' => $now,
                                 ]);
+                            $userLockService->incrementNoShowAndAutoLockByReservation($model);
                             $data = [
                                 'reader_name' => $model->reader?->ho_ten ?? ($model->user?->name ?? 'Bạn'),
                                 'book_title' => $bookTitle ?: 'Sách',
@@ -257,7 +261,7 @@ class LibraryHousekeeping extends Command
                                 'pickup_time' => $model->pickup_time ?? '',
                             ];
                             // Gửi thông báo (chống trùng trong 60 phút)
-                            $alreadyNotified = empty($bookTitle) ? false : \DB::table('notification_logs')
+                            $alreadyNotified = empty($bookTitle) ? false : DB::table('notification_logs')
                                 ->where('user_id', $userId)
                                 ->where('type', 'reservation_overdue')
                                 ->where('content', 'like', '%' . $bookTitle . '%')
@@ -286,7 +290,7 @@ class LibraryHousekeeping extends Command
                             // Luôn hủy status trước
                             $model->cancel('Tự động hủy: Chưa có bản sao được gán và đã quá 2 giờ kể từ giờ hẹn.', null);
                             // Gửi thông báo (chống trùng trong 60 phút)
-                            $alreadyCancelled = empty($bookTitle) ? false : \DB::table('notification_logs')
+                            $alreadyCancelled = empty($bookTitle) ? false : DB::table('notification_logs')
                                 ->where('user_id', $userId)
                                 ->where('type', 'reservation_cancelled')
                                 ->where('content', 'like', '%' . $bookTitle . '%')
@@ -306,7 +310,7 @@ class LibraryHousekeeping extends Command
 
         // 1) PENDING: pickup_time đã qua mà chưa Ready -> TỰ HỦY + thông báo
         // Ví dụ: hẹn 8h, đã 8h rồi admin chưa nhấn Ready
-        $pendingPastTime = \DB::table('inventory_reservations')
+        $pendingPastTime = DB::table('inventory_reservations')
             ->where('status', 'pending')
             ->whereNotNull('pickup_date')
             ->whereNotNull('pickup_time')
@@ -330,7 +334,7 @@ class LibraryHousekeeping extends Command
                         // Luôn hủy status trước
                         $reservationModel->cancel('Tự động hủy: Đã qua giờ lấy sách mà không nhận.', null);
                         // Gửi thông báo (chống trùng trong 60 phút)
-                        $alreadyCancelled = \DB::table('notification_logs')
+                        $alreadyCancelled = DB::table('notification_logs')
                             ->where('user_id', $reservationModel->reader?->user_id ?? $reservationModel->user_id)
                             ->where('type', 'reservation_cancelled')
                             ->where('content', 'like', '%' . ($reservationModel->book?->ten_sach ?? '') . '%')
@@ -351,7 +355,7 @@ class LibraryHousekeeping extends Command
         // 2) READY (có pickup_time): quá giờ hẹn mà chưa nhận → xử lý
         // QUÁ HẠN: ready + có inventory_id
         // HỦY: ready + không có inventory_id
-        $readyWithTime = \DB::table('inventory_reservations')
+        $readyWithTime = DB::table('inventory_reservations')
             ->where('status', 'ready')
             ->whereNotNull('pickup_date')
             ->whereNotNull('pickup_time')
@@ -375,7 +379,7 @@ class LibraryHousekeeping extends Command
 
                         if ($reservationModel->inventory_id) {
                             // Có bản sao → QUÁ HẠN: luôn cập nhật status trước
-                            \DB::table('inventory_reservations')
+                            DB::table('inventory_reservations')
                                 ->where('id', $reservationModel->id)
                                 ->update([
                                     'status' => 'overdue',
@@ -384,6 +388,7 @@ class LibraryHousekeeping extends Command
                                         : 'Tự động đánh dấu quá hạn: Đã quá 2 giờ kể từ giờ hẹn mà không xác nhận nhận sách.',
                                     'updated_at' => $now,
                                 ]);
+                            $userLockService->incrementNoShowAndAutoLockByReservation($reservationModel);
                             $data = [
                                 'reader_name' => $reservationModel->reader?->ho_ten ?? ($reservationModel->user?->name ?? 'Bạn'),
                                 'book_title' => $bookTitle ?: 'Sách',
@@ -391,7 +396,7 @@ class LibraryHousekeeping extends Command
                                 'pickup_time' => $reservationModel->pickup_time ?? '',
                             ];
                             // Gửi thông báo (chống trùng trong 60 phút)
-                            $alreadyNotified = empty($bookTitle) ? false : \DB::table('notification_logs')
+                            $alreadyNotified = empty($bookTitle) ? false : DB::table('notification_logs')
                                 ->where('user_id', $userId)
                                 ->where('type', 'reservation_overdue')
                                 ->where('content', 'like', '%' . $bookTitle . '%')
@@ -412,7 +417,7 @@ class LibraryHousekeeping extends Command
                             // Không có bản sao → HỦY: luôn hủy status trước
                             $reservationModel->cancel('Tự động hủy: Đã quá 2 giờ kể từ giờ hẹn mà không đến nhận sách.', null);
                             // Gửi thông báo (chống trùng trong 60 phút)
-                            $alreadyCancelled = empty($bookTitle) ? false : \DB::table('notification_logs')
+                            $alreadyCancelled = empty($bookTitle) ? false : DB::table('notification_logs')
                                 ->where('user_id', $userId)
                                 ->where('type', 'reservation_cancelled')
                                 ->where('content', 'like', '%' . $bookTitle . '%')
@@ -434,7 +439,7 @@ class LibraryHousekeeping extends Command
 
         // 3) READY (không có pickup_time): ngày hẹn đã qua hết ngày
         // Có inventory_id → QUÁ HẠN. Không có inventory_id → HỦY
-        $readyNoTime = \DB::table('inventory_reservations')
+        $readyNoTime = DB::table('inventory_reservations')
             ->where('status', 'ready')
             ->whereNotNull('pickup_date')
             ->whereNull('pickup_time')
@@ -457,20 +462,21 @@ class LibraryHousekeeping extends Command
 
                         if ($reservationModel->inventory_id) {
                             // Có bản sao → QUÁ HẠN
-                            \DB::table('inventory_reservations')
+                            DB::table('inventory_reservations')
                                 ->where('id', $reservationModel->id)
                                 ->update([
                                     'status' => 'overdue',
                                     'admin_note' => 'Tự động đánh dấu quá hạn: Đã qua ngày hẹn nhận sách mà không nhận.',
                                     'updated_at' => $now,
                                 ]);
+                            $userLockService->incrementNoShowAndAutoLockByReservation($reservationModel);
                             $data = [
                                 'reader_name' => $reservationModel->reader?->ho_ten ?? ($reservationModel->user?->name ?? 'Bạn'),
                                 'book_title' => $bookTitle,
                                 'pickup_date' => $reservationModel->pickup_date ? $reservationModel->pickup_date->format('d/m/Y') : '',
                                 'pickup_time' => '',
                             ];
-                            $alreadyNotified = empty($bookTitle) ? false : \DB::table('notification_logs')
+                            $alreadyNotified = empty($bookTitle) ? false : DB::table('notification_logs')
                                 ->where('user_id', $userId)
                                 ->where('type', 'reservation_overdue')
                                 ->where('content', 'like', '%' . $bookTitle . '%')

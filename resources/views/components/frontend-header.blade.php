@@ -23,7 +23,7 @@
                     </svg>
                 </div>
                 <div class="logo-text">
-                    <span class="logo-part1">THƯ VIỆN</span>
+                    <span class="logo-part1">THUÊ SÁCH</span>
                     <span class="logo-part2">LibNet</span>
                 </div>
             </a>
@@ -85,14 +85,7 @@
                                 <span class="dropdown-email">{{ auth()->user()->email }}</span>
                             </div>
                         </div>
-                        @if(auth()->user()->reader)
-                            <a href="{{ route('account.borrowed-books') }}" class="dropdown-item">
-                                <i class="fas fa-book-reader"></i> Sách đang mượn
-                            </a>
-                            <a href="{{ route('reservation-cart.history') }}" class="dropdown-item">
-                                <i class="fas fa-calendar-check"></i> Lịch sử đặt trước
-                            </a>
-                        @endif
+          
                         <a href="{{ route('account.favorite-books') }}" class="dropdown-item">
                             <i class="fas fa-heart"></i> Sách yêu thích
                         </a>
@@ -103,8 +96,12 @@
                             <i class="fas fa-key"></i> Đổi mật khẩu
                         </a>
                         <a href="{{ route('orders.index') }}" class="dropdown-item">
-                            <i class="fas fa-history"></i> Lịch sử giao dịch
+                            <i class="fas fa-history"></i> Lịch sử đơn mượn
                         </a>
+                                              <a href="{{ route('reservation-cart.history') }}" class="dropdown-item">
+                            <i class="fas fa-history"></i> Lịch sử đặt trước
+                        </a>
+      
                         @if(auth()->user()->role === 'admin' || auth()->user()->role === 'staff')
                             <div class="dropdown-divider"></div>
                             <a href="{{ route('dashboard') }}" class="dropdown-item dashboard-link">

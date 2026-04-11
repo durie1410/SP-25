@@ -70,8 +70,19 @@ class FinePaymentController extends Controller
         ]);
 
         $pendingFines = Fine::where('reader_id', $reader->id)->where('status', 'pending')->get();
-        if ($pendingFines->isEmpty()) {
-            return back()->with('error', 'Không có khoản phạt nào cần thanh toán.');
+
+        // Lấy thông tin trả sách từ session (nếu có)
+        $pendingReturn = session('pending_return');
+        $returnItemIds = [];
+        $returnItemsData = [];
+        if ($pendingReturn && (int) ($pendingReturn['reader_id'] ?? 0) === $reader->id) {
+            $returnItemsData = collect($pendingReturn['items'] ?? [])->keyBy('id')->toArray();
+            $returnItemIds = collect($pendingReturn['items'] ?? [])->pluck('id')->filter()->values()->all();
+        }
+
+        // Không có phạt + không có sách chờ trả → báo lỗi
+        if ($pendingFines->isEmpty() && empty($returnItemIds)) {
+            return back()->with('error', 'Không có khoản phạt nào cần thanh toán và không có sách nào được chọn để trả.');
         }
 
         $paymentMethod = $request->payment_method;
@@ -80,6 +91,37 @@ class FinePaymentController extends Controller
         if ($paymentMethod === 'online') {
             try {
                 $amount = (int) $pendingFines->sum('amount');
+
+                // Cộng thêm phạt ước tính từ sách đang chờ trả
+                if (!empty($returnItemIds)) {
+                    $items = \App\Models\BorrowItem::with(['book', 'inventory'])
+                        ->whereIn('id', $returnItemIds)
+                        ->get()
+                        ->keyBy('id');
+                    foreach (session('pending_return.items') ?? [] as $itemData) {
+                        $item = $items->get($itemData['id']);
+                        if (!$item) continue;
+                        $condition = $itemData['condition'] ?? 'binh_thuong';
+                        $lateFine = 0;
+                        if ($item->ngay_hen_tra && \Carbon\Carbon::parse($item->ngay_hen_tra)->lt(\Carbon\Carbon::today())) {
+                            $lateFine = \App\Services\PricingService::calculateLateReturnFine($item->ngay_hen_tra, \Carbon\Carbon::today(), 1);
+                        }
+                        $damageFine = 0;
+                        if ($condition !== 'binh_thuong') {
+                            $bookPrice = (float) ($item->book->gia ?? 0);
+                            $bookType = $item->book->loai_sach ?? 'binh_thuong';
+                            $startCondition = $item->inventory->condition ?? 'Trung binh';
+                            if ($condition === 'mat_sach') {
+                                $damageFine = (int) \App\Services\PricingService::calculateLostBookFine($bookPrice, $bookType, $startCondition);
+                            } elseif ($condition === 'hong_nhe') {
+                                $damageFine = (int) round(\App\Services\PricingService::calculateDamagedBookFine($bookPrice, $bookType, $startCondition) * 0.5);
+                            } else {
+                                $damageFine = (int) \App\Services\PricingService::calculateDamagedBookFine($bookPrice, $bookType, $startCondition);
+                            }
+                        }
+                        $amount += $lateFine + $damageFine;
+                    }
+                }
 
                 $endpoint    = config('services.momo.endpoint');
                 $partnerCode = config('services.momo.partner_code');
@@ -92,7 +134,11 @@ class FinePaymentController extends Controller
                 $orderId   = 'FINE_READER_' . $reader->id . '_' . time();
                 $requestId = (string) time();
                 $orderInfo = 'Thanh_toan_phat_doc_gia_' . str_replace(' ', '_', $reader->ho_ten);
-                $extraData = base64_encode(json_encode(['reader_id' => $reader->id, 'type' => 'fine_reader']));
+                $extraData = base64_encode(json_encode([
+                    'reader_id' => $reader->id,
+                    'type' => 'fine_reader',
+                    'return_item_ids' => $returnItemIds,
+                ]));
 
                 $rawHash = "accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=$ipnUrl&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=$redirectUrl&requestId=$requestId&requestType=captureWallet";
                 $signature = hash_hmac('sha256', $rawHash, $secretKey);
@@ -150,31 +196,121 @@ class FinePaymentController extends Controller
         try {
             DB::beginTransaction();
 
-            $finesByBorrow = $pendingFines->groupBy('borrow_id');
-            foreach ($finesByBorrow as $borrowId => $borrowFines) {
-                BorrowPayment::create([
-                    'borrow_id' => $borrowId,
-                    'amount' => $borrowFines->sum('amount'),
-                    'payment_type' => 'damage_fee',
-                    'payment_method' => 'offline',
-                    'payment_status' => 'success',
-                    'transaction_code' => 'CASH-' . $reader->id . '-' . time(),
-                    'note' => 'Thanh toán phạt tại quầy (Tiền mặt) cho độc giả: ' . $reader->ho_ten,
+            // Thanh toán phạt (nếu có)
+            if (!$pendingFines->isEmpty()) {
+                $finesByBorrow = $pendingFines->groupBy('borrow_id');
+                foreach ($finesByBorrow as $borrowId => $borrowFines) {
+                    BorrowPayment::create([
+                        'borrow_id' => $borrowId,
+                        'amount' => $borrowFines->sum('amount'),
+                        'payment_type' => 'damage_fee',
+                        'payment_method' => 'offline',
+                        'payment_status' => 'success',
+                        'transaction_code' => 'CASH-' . $reader->id . '-' . time(),
+                        'note' => 'Thanh toán phạt tại quầy (Tiền mặt) cho độc giả: ' . $reader->ho_ten,
+                    ]);
+                }
+
+                Fine::whereIn('id', $pendingFines->pluck('id'))->update([
+                    'status' => 'paid',
+                    'paid_date' => now(),
                 ]);
             }
 
-            Fine::whereIn('id', $pendingFines->pluck('id'))->update([
-                'status' => 'paid',
-                'paid_date' => now(),
-            ]);
+            // Tạo Fine records + BorrowPayment cho sách từ session (chưa có Fine)
+            if (!empty($returnItemIds)) {
+                $items = BorrowItem::with(['book', 'borrow'])
+                    ->whereIn('id', $returnItemIds)
+                    ->whereIn('trang_thai', ['Dang muon', 'Qua han'])
+                    ->get();
 
-            $finalizeResult = $this->finalizeReturnedItemsAfterFinePayment(
-                $pendingFines->pluck('borrow_item_id')->filter()->unique()->values()->all()
-            );
+                foreach ($items as $item) {
+                    if (!$item->borrow) continue;
+                    $itemData = $returnItemsData[$item->id] ?? [];
+                    $condition = $itemData['condition'] ?? 'binh_thuong';
+                    $today = now();
+
+                    // Tính phạt quá hạn
+                    $lateFine = 0;
+                    if ($item->ngay_hen_tra && \Carbon\Carbon::parse($item->ngay_hen_tra)->lt(\Carbon\Carbon::today())) {
+                        $lateFine = \App\Services\PricingService::calculateLateReturnFine($item->ngay_hen_tra, \Carbon\Carbon::today(), 1);
+                    }
+
+                    // Tính phạt hỏng / mất
+                    $damageFine = 0;
+                    if ($condition !== 'binh_thuong') {
+                        $bookPrice = (float) ($item->book->gia ?? 0);
+                        $bookType = $item->book->loai_sach ?? 'binh_thuong';
+                        $startCondition = $item->inventory->condition ?? 'Trung binh';
+                        if ($condition === 'mat_sach') {
+                            $damageFine = (int) \App\Services\PricingService::calculateLostBookFine($bookPrice, $bookType, $startCondition);
+                        } elseif ($condition === 'hong_nhe') {
+                            $damageFine = (int) round(\App\Services\PricingService::calculateDamagedBookFine($bookPrice, $bookType, $startCondition) * 0.5);
+                        } else {
+                            $damageFine = (int) \App\Services\PricingService::calculateDamagedBookFine($bookPrice, $bookType, $startCondition);
+                        }
+                    }
+
+                    $totalFine = $lateFine + $damageFine;
+
+                    // Chỉ tạo Fine nếu có phạt > 0
+                    if ($totalFine > 0) {
+                        $fineTypes = [];
+                        if ($lateFine > 0) $fineTypes[] = 'late_return';
+                        if ($damageFine > 0) $fineTypes[] = ($condition === 'mat_sach' ? 'lost_book' : 'damaged_book');
+
+                        foreach ($fineTypes as $fineType) {
+                            $fineAmount = $fineType === 'late_return' ? $lateFine : $damageFine;
+                            Fine::create([
+                                'borrow_item_id' => $item->id,
+                                'borrow_id' => $item->borrow_id,
+                                'reader_id' => $reader->id,
+                                'type' => $fineType,
+                                'amount' => $fineAmount,
+                                'status' => 'paid',
+                                'paid_date' => $today,
+                                'due_date' => $today->toDateString(),
+                                'description' => ($fineType === 'late_return'
+                                    ? 'Phạt trễ hạn: ' . ($item->book?->ten_sach ?? '')
+                                    : 'Phạt ' . ($condition === 'mat_sach' ? 'mất' : 'hỏng') . ' sách: ' . ($item->book?->ten_sach ?? '')),
+                                'created_by' => Auth::id() ?? 1,
+                            ]);
+                        }
+
+                        BorrowPayment::create([
+                            'borrow_id' => $item->borrow_id,
+                            'amount' => $totalFine,
+                            'payment_type' => 'damage_fee',
+                            'payment_method' => 'offline',
+                            'payment_status' => 'success',
+                            'transaction_code' => 'CASH-RETURN-' . $reader->id . '-' . $item->id . '-' . time(),
+                            'note' => 'Thanh toán phạt trả sách tại quầy (Tiền mặt) cho: ' . $reader->ho_ten,
+                        ]);
+                    }
+                }
+            }
+
+            // Xử lý trả sách từ session (nếu có)
+            $allItemIds = $returnItemIds;
+            if (!$pendingFines->isEmpty()) {
+                $finesItemIds = $pendingFines->pluck('borrow_item_id')->filter()->unique()->values()->all();
+                $allItemIds = array_unique(array_merge($allItemIds, $finesItemIds));
+            }
+
+            $finalizeResult = $this->finalizeReturnedItemsAfterFinePayment($allItemIds);
+
+            // Xóa session pending return
+            session()->forget('pending_return');
 
             DB::commit();
-            return back()->with('success', 'Đã thanh toán tất cả khoản phạt của độc giả bằng tiền mặt. ' .
-                $this->buildFinalizeSummaryMessage($finalizeResult));
+
+            $msg = $pendingFines->isEmpty() && empty($returnItemIds)
+                ? 'Đã ghi nhận trả sách thành công.'
+                : 'Đã thanh toán tất cả khoản phạt và trả sách thành công. ' .
+                  $this->buildFinalizeSummaryMessage($finalizeResult);
+
+            return redirect()->route('admin.returns.index', ['reader_id' => $reader->id])
+                ->with('success', $msg);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error payCashByReader: ' . $e->getMessage());
@@ -373,13 +509,113 @@ class FinePaymentController extends Controller
                     return response()->json(['message' => 'Missing reader_id'], 200);
                 }
 
-                $pendingBorrowItemIds = Fine::where('reader_id', $readerId)
+                $returnItemIds = $extraData['return_item_ids'] ?? [];
+
+                // Cập nhật trạng thái thanh toán
+                BorrowPayment::where('transaction_code', $orderId)
+                    ->update([
+                        'payment_status' => 'success',
+                        'note' => 'Thanh toán phạt qua MoMo thành công (Độc giả)',
+                    ]);
+
+                // Tạo Fine records từ return_item_ids (items đang chờ trả - Fine chưa có)
+                $allItemIds = $returnItemIds;
+                if (!empty($returnItemIds)) {
+                    $items = BorrowItem::with(['book', 'borrow', 'inventory'])
+                        ->whereIn('id', $returnItemIds)
+                        ->whereIn('trang_thai', ['Dang muon', 'Qua han'])
+                        ->get()
+                        ->keyBy('id');
+
+                    // Lấy condition từ session pending_return
+                    $pendingReturn = session('pending_return');
+                    $itemsData = [];
+                    if ($pendingReturn && ($pendingReturn['reader_id'] ?? 0) == $readerId) {
+                        $itemsData = collect($pendingReturn['items'] ?? [])->keyBy('id');
+                    }
+
+                    foreach ($returnItemIds as $itemId) {
+                        $item = $items->get($itemId);
+                        if (!$item || !$item->borrow) continue;
+
+                        $itemData = $itemsData->get($itemId) ?? [];
+                        $condition = $itemData['condition'] ?? 'binh_thuong';
+                        $today = now();
+
+                        $lateFine = 0;
+                        if ($item->ngay_hen_tra && \Carbon\Carbon::parse($item->ngay_hen_tra)->lt($today->copy()->startOfDay())) {
+                            $lateFine = \App\Services\PricingService::calculateLateReturnFine($item->ngay_hen_tra, $today, 1);
+                        }
+
+                        $damageFine = 0;
+                        if ($condition !== 'binh_thuong') {
+                            $bookPrice = (float) ($item->book->gia ?? 0);
+                            $bookType = $item->book->loai_sach ?? 'binh_thuong';
+                            $startCondition = $item->inventory->condition ?? 'Trung binh';
+                            if ($condition === 'mat_sach') {
+                                $damageFine = (int) \App\Services\PricingService::calculateLostBookFine($bookPrice, $bookType, $startCondition);
+                            } elseif ($condition === 'hong_nhe') {
+                                $damageFine = (int) round(\App\Services\PricingService::calculateDamagedBookFine($bookPrice, $bookType, $startCondition) * 0.5);
+                            } else {
+                                $damageFine = (int) \App\Services\PricingService::calculateDamagedBookFine($bookPrice, $bookType, $startCondition);
+                            }
+                        }
+
+                        if ($lateFine > 0 || $damageFine > 0) {
+                            $type = $lateFine > 0 && $damageFine > 0 ? 'late_return'
+                                : ($damageFine > 0 ? ($condition === 'mat_sach' ? 'lost_book' : 'damaged_book') : 'late_return');
+
+                            Fine::updateOrCreate(
+                                ['borrow_item_id' => $itemId, 'type' => $type, 'status' => 'pending'],
+                                [
+                                    'borrow_id' => $item->borrow_id,
+                                    'reader_id' => $readerId,
+                                    'amount' => $lateFine + $damageFine,
+                                    'description' => ($lateFine > 0 && $damageFine > 0)
+                                        ? 'Phạt trễ hạn + hỏng/mất: ' . ($item->book?->ten_sach ?? '')
+                                        : ($lateFine > 0
+                                            ? 'Phạt trễ hạn: ' . ($item->book?->ten_sach ?? '')
+                                            : 'Phạt hỏng/mất: ' . ($item->book?->ten_sach ?? '')),
+                                    'due_date' => $today->toDateString(),
+                                    'created_by' => Auth::id() ?? 1,
+                                    'status' => 'paid',
+                                    'paid_date' => $today,
+                                ]
+                            );
+                        } else {
+                            Fine::updateOrCreate(
+                                ['borrow_item_id' => $itemId, 'type' => 'late_return', 'status' => 'pending'],
+                                [
+                                    'borrow_id' => $item->borrow_id,
+                                    'reader_id' => $readerId,
+                                    'amount' => 0,
+                                    'description' => 'Trả sách: ' . ($item->book?->ten_sach ?? ''),
+                                    'due_date' => $today->toDateString(),
+                                    'created_by' => Auth::id() ?? 1,
+                                ]
+                            );
+                        }
+                    }
+
+                    // Xóa session pending_return
+                    session()->forget('pending_return');
+                }
+
+                // Đánh dấu Fine pending cũ là đã trả (nếu có)
+                Fine::where('reader_id', $readerId)
                     ->where('status', 'pending')
-                    ->whereNotNull('borrow_item_id')
-                    ->pluck('borrow_item_id')
-                    ->unique()
-                    ->values()
-                    ->all();
+                    ->update(['status' => 'paid', 'paid_date' => now()]);
+
+                $allItemIds = array_unique(array_merge(
+                    $allItemIds,
+                    Fine::where('reader_id', $readerId)
+                        ->where('status', 'paid')
+                        ->whereNotNull('borrow_item_id')
+                        ->pluck('borrow_item_id')
+                        ->unique()
+                        ->values()
+                        ->all()
+                ));
 
                 // Update tất cả BorrowPayment cùng transaction_code
                 BorrowPayment::where('transaction_code', $orderId)
@@ -395,8 +631,10 @@ class FinePaymentController extends Controller
                         'paid_date' => now(),
                     ]);
 
-                $finalizeResult = $this->finalizeReturnedItemsAfterFinePayment($pendingBorrowItemIds);
-                Log::info('Finalize returned items after fine_reader payment', $finalizeResult);
+                if (!empty($allItemIds)) {
+                    $finalizeResult = $this->finalizeReturnedItemsAfterFinePayment($allItemIds);
+                    Log::info('Finalize returned items after fine_reader payment', $finalizeResult);
+                }
 
                 DB::commit();
                 return response()->json(['message' => 'Success']);
@@ -446,7 +684,7 @@ class FinePaymentController extends Controller
     /**
      * Sau khi thanh toán phạt trả sách:
      * - Sách bình thường => đưa về kho.
-     * - Sách hỏng/mất => tạo yêu cầu duyệt xóa (nếu chưa có).
+     * - Sách hỏng/mất => giữ trạng thái, chờ admin xử lý thủ công.
      */
     private function finalizeReturnedItemsAfterFinePayment(array $borrowItemIds): array
     {
@@ -464,10 +702,25 @@ class FinePaymentController extends Controller
 
         $items = BorrowItem::with(['inventory', 'book'])
             ->whereIn('id', $borrowItemIds)
-            ->whereNotNull('ngay_tra_thuc_te')
+            ->whereIn('trang_thai', ['Dang muon', 'Qua han'])
             ->get();
 
         foreach ($items as $item) {
+            // Cập nhật trạng thái sách thành "Đã trả" / "Mất" / "Hỏng"
+            if (in_array($item->trang_thai, ['Dang muon', 'Qua han'])) {
+                $condition = trim((string) ($item->tinh_trang_sach_cuoi ?? ''));
+                $itemStatus = match ($condition) {
+                    'mat_sach' => 'Mat sach',
+                    'hong_nhe', 'hong_nang' => 'Hong',
+                    default => 'Da tra',
+                };
+
+                $item->update([
+                    'trang_thai' => $itemStatus,
+                    'ngay_tra_thuc_te' => now()->toDateString(),
+                ]);
+            }
+
             if (!$item->inventory || !$item->book) {
                 continue;
             }
@@ -486,30 +739,19 @@ class FinePaymentController extends Controller
             if (!in_array($condition, ['hong_nhe', 'hong_nang', 'mat_sach'], true)) {
                 continue;
             }
+        }
 
-            $alreadyPending = BookDeleteRequest::where('inventory_id', $item->inventory->id)
-                ->where('status', 'pending')
-                ->exists();
+        // Cập nhật trạng thái Borrow nếu tất cả items đã trả
+        $borrowIds = $items->pluck('borrow_id')->unique()->filter();
+        foreach ($borrowIds as $borrowId) {
+            $borrow = Borrow::with('items')->find($borrowId);
+            if (!$borrow) continue;
 
-            if ($alreadyPending) {
-                continue;
+            $borrow->recalculateTotals();
+            $remaining = $borrow->items()->whereIn('trang_thai', ['Dang muon', 'Qua han'])->count();
+            if ($remaining === 0) {
+                $borrow->update(['trang_thai' => 'Da tra']);
             }
-
-            $conditionLabel = match ($condition) {
-                'hong_nhe' => 'hỏng nhẹ',
-                'hong_nang' => 'hỏng nặng',
-                'mat_sach' => 'mất sách',
-                default => 'hư hỏng',
-            };
-
-            BookDeleteRequest::create([
-                'book_id' => $item->book_id,
-                'inventory_id' => $item->inventory->id,
-                'requested_by' => Auth::id() ?? 1,
-                'status' => 'pending',
-                'reason' => '[AUTO TRA SACH] Sách ' . $conditionLabel . ' sau khi đã thanh toán trả sách.',
-            ]);
-            $result['moved_to_delete_review']++;
         }
 
         return $result;

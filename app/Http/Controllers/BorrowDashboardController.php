@@ -164,8 +164,8 @@ class BorrowDashboardController extends Controller
             
             // Header
             fputcsv($file, [
-                'ID', 'Độc giả', 'Sách', 'Ngày mượn', 'Hạn trả', 
-                'Ngày trả', 'Trạng thái', 'Số lần gia hạn', 'Thủ thư'
+                'ID', 'Độc giả', 'Sách', 'Ngày mượn', 'Hạn trả',
+                'Ngày trả', 'Trạng thái', 'Thủ thư'
             ]);
 
             // Data
@@ -178,7 +178,6 @@ class BorrowDashboardController extends Controller
                     $borrow->ngay_hen_tra->format('d/m/Y'),
                     $borrow->ngay_tra_thuc_te ? $borrow->ngay_tra_thuc_te->format('d/m/Y') : '',
                     $borrow->trang_thai,
-                    $borrow->so_lan_gia_han,
                     $borrow->librarian ? $borrow->librarian->name : ''
                 ]);
             }

@@ -79,7 +79,6 @@ Route::post('/favorites/toggle', [\App\Http\Controllers\Api\BookApiController::c
 Route::prefix('borrows')->group(function () {
     Route::get('/reader', [BorrowApiController::class, 'getReaderBorrows']);
     Route::get('/{id}', [BorrowApiController::class, 'getBorrowDetail']);
-    Route::post('/{id}/extend', [BorrowApiController::class, 'extendBorrow']);
     Route::post('/{id}/return', [BorrowApiController::class, 'returnBook']);
     Route::get('/reader/stats', [BorrowApiController::class, 'getReaderStats']);
 });
@@ -179,7 +178,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/borrow-history', [\App\Http\Controllers\Api\MobileApiController::class, 'getBorrowHistory']);
         Route::get('/reservations', [\App\Http\Controllers\Api\MobileApiController::class, 'getReservations']);
         Route::get('/fines', [\App\Http\Controllers\Api\MobileApiController::class, 'getFines']);
-        Route::post('/borrow/{id}/extend', [\App\Http\Controllers\Api\MobileApiController::class, 'extendBorrow']);
         Route::post('/reservations', [\App\Http\Controllers\Api\MobileApiController::class, 'createReservation']);
         Route::delete('/reservations/{id}', [\App\Http\Controllers\Api\MobileApiController::class, 'cancelReservation']);
     });

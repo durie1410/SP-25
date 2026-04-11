@@ -86,25 +86,6 @@ class BulkOperationController extends Controller
     }
 
     /**
-     * Bulk extend borrows
-     */
-    public function bulkExtendBorrows(Request $request): JsonResponse
-    {
-        $request->validate([
-            'borrow_ids' => 'required|array|min:1',
-            'borrow_ids.*' => 'exists:borrows,id',
-            'days' => 'nullable|integer|min:1|max:30',
-        ]);
-
-        $borrowIds = $request->input('borrow_ids');
-        $days = $request->input('days', 7);
-
-        $result = $this->bulkOperationService->bulkExtendBorrows($borrowIds, $days);
-
-        return response()->json($result, $result['success'] ? 200 : 500);
-    }
-
-    /**
      * Bulk return books
      */
     public function bulkReturnBooks(Request $request): JsonResponse

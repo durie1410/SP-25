@@ -48,9 +48,11 @@
             @endforeach
         </div>
         
+        @if($orderItems->hasPages())
         <div class="pagination-wrapper">
             {{ $orderItems->links() }}
         </div>
+        @endif
     @else
         <div class="empty-state">
             <div class="empty-icon">📚</div>

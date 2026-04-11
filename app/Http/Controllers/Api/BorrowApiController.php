@@ -40,9 +40,6 @@ class BorrowApiController extends Controller
                     'due_date' => $borrow->ngay_hen_tra->format('d/m/Y'),
                     'return_date' => $borrow->ngay_tra_thuc_te ? $borrow->ngay_tra_thuc_te->format('d/m/Y') : null,
                     'status' => $borrow->trang_thai,
-                    'extensions_count' => $borrow->so_lan_gia_han,
-                    'max_extensions' => 2,
-                    'can_extend' => $borrow->canExtend(),
                     'is_overdue' => $borrow->isOverdue(),
                     'days_overdue' => $borrow->days_overdue,
                     'librarian_name' => $borrow->librarian ? $borrow->librarian->name : null,
@@ -90,9 +87,6 @@ class BorrowApiController extends Controller
             'due_date' => $borrow->ngay_hen_tra->format('d/m/Y'),
             'return_date' => $borrow->ngay_tra_thuc_te ? $borrow->ngay_tra_thuc_te->format('d/m/Y') : null,
             'status' => $borrow->trang_thai,
-            'extensions_count' => $borrow->so_lan_gia_han,
-            'max_extensions' => 2,
-            'can_extend' => $borrow->canExtend(),
             'is_overdue' => $borrow->isOverdue(),
             'days_overdue' => $borrow->days_overdue,
             'librarian' => $borrow->librarian ? [
@@ -115,46 +109,6 @@ class BorrowApiController extends Controller
             'success' => true,
             'data' => $data
         ]);
-    }
-
-    /**
-     * Gia hạn mượn sách
-     */
-    public function extendBorrow(Request $request, $id): JsonResponse
-    {
-        $borrow = Borrow::find($id);
-
-        if (!$borrow) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Borrow record not found'
-            ], 404);
-        }
-
-        if (!$borrow->canExtend()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot extend this borrow'
-            ], 400);
-        }
-
-        $days = $request->get('days', 7);
-
-        if ($borrow->extend($days)) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Borrow extended successfully',
-                'data' => [
-                    'new_due_date' => $borrow->ngay_hen_tra->format('d/m/Y'),
-                    'extensions_count' => $borrow->so_lan_gia_han,
-                ]
-            ]);
-        }
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to extend borrow'
-        ], 500);
     }
 
     /**
@@ -311,7 +265,6 @@ class BorrowApiController extends Controller
                 ->where('trang_thai', 'Dang muon')
                 ->where('ngay_hen_tra', '<', now()->toDateString())
                 ->count(),
-            'total_extensions' => Borrow::where('reader_id', $readerId)->sum('so_lan_gia_han'),
         ];
 
         return response()->json([

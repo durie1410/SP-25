@@ -11,6 +11,7 @@ use App\Services\NotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ReservationCartController extends Controller
 {
@@ -35,11 +36,16 @@ class ReservationCartController extends Controller
 
         $items = $cart->items()->with('book')->orderBy('created_at', 'desc')->get();
 
-        // Tính available stock cho mỗi item để hiển thị giới hạn
-        $items->each(function ($item) {
+        // Tính tổng số lượng đã có của mỗi book trong giỏ
+        $bookTotalQty = $items->groupBy('book_id')->map(fn ($g) => $g->sum('quantity'));
+
+        // Tính max_quantity cho mỗi item = còn có thể tăng thêm bao nhiêu
+        // maxQuantity = tổng cứng (2) - số đã có trong giỏ cho cùng loại
+        // (tất cả các dòng cùng loại đều hiển thị cùng 1 con số)
+        $items->each(function ($item) use ($bookTotalQty) {
             $item->available_stock = $this->getAvailableStock($item->book);
-            // Giới hạn tối đa 2 cuốn/cùng loại hoặc số trong kho (lấy min)
-            $item->max_quantity = min($item->available_stock, 2);
+            $totalForBook = (int) ($bookTotalQty[$item->book_id] ?? 0);
+            $item->max_quantity = max(1, 2 - $totalForBook + (int) ($item->quantity ?? 1)); // còn thêm được bao nhiêu cho dòng này
         });
 
         return view('reservation_cart.index', compact('cart', 'items'));
@@ -256,7 +262,7 @@ class ReservationCartController extends Controller
     public function submit(Request $request)
     {
         // DEBUG
-        \Log::info('DEBUG submit request', [
+        Log::info('DEBUG submit request', [
             'all_input' => $request->all(),
             'pickup_time' => $request->input('pickup_time'),
             'selected_item_ids' => $request->input('selected_item_ids'),
@@ -603,7 +609,7 @@ class ReservationCartController extends Controller
 
     public function updateQuantity(Request $request, $itemId)
     {
-        \Log::info('DEBUG updateQuantity called', [
+        Log::info('DEBUG updateQuantity called', [
             'itemId' => $itemId,
             'quantity' => $request->quantity,
             'all_input' => $request->all()
@@ -680,7 +686,7 @@ class ReservationCartController extends Controller
 
     public function updateDates(Request $request, $itemId)
     {
-        \Log::info('DEBUG updateDates called', [
+        Log::info('DEBUG updateDates called', [
             'itemId' => $itemId,
             'request' => $request->all()
         ]);

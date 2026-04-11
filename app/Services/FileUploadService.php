@@ -90,20 +90,16 @@ class FileUploadService
             throw new \Exception("Kích thước file vượt quá giới hạn ({$maxSize}KB).");
         }
 
-        // Generate unique filename - ensure extension is valid
-        $extension = $file->getClientOriginalExtension();
-        if (empty($extension)) {
-            // Try to detect from mime type
-            $mimeToExt = [
-                'image/jpeg' => 'jpg',
-                'image/jpg' => 'jpg',
-                'image/png' => 'png',
-                'image/gif' => 'gif',
-                'image/webp' => 'webp',
-            ];
-            $extension = $mimeToExt[$mimeType] ?? 'jpg';
-        }
-        $filename = Str::uuid() . '.' . strtolower($extension);
+        // Generate unique filename - detect real MIME to set correct extension
+        // Lấy extension từ MIME thực của file, KHÔNG tin extension từ browser gửi lên
+        $mimeToExt = [
+            'image/jpeg' => 'jpg',
+            'image/png'  => 'png',
+            'image/gif'  => 'gif',
+            'image/webp' => 'webp',
+        ];
+        $extension = $mimeToExt[$mimeType] ?? 'jpg';
+        $filename = Str::uuid() . '.' . $extension;
 
         // Ensure directory is valid and never empty - sanitize properly
         // Store original for logging

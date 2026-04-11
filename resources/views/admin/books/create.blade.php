@@ -80,6 +80,12 @@
             <textarea name="mo_ta" class="form-control" rows="4"></textarea>
         </div>
 
+        <div class="mb-3">
+            <label class="form-label">Nội dung đọc thử</label>
+            <textarea name="preview_content" class="form-control" rows="8" placeholder="Nhập nội dung xem trước (hỗ trợ HTML)..."></textarea>
+            <small class="text-muted">Hỗ trợ HTML: &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;h3&gt;...</small>
+        </div>
+
         <div class="row">
             <div class="col-md-6">
                 <div class="mb-3">

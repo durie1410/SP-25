@@ -124,7 +124,6 @@ tạo phiếu mượn    </a>
                     <th>Tên khách hàng</th>
                     <th style="min-width: 200px;">Trạng thái Items</th>
                     <th style="width: 110px;">Chi tiết</th>
-                    <th style="width: 130px;">Gia hạn</th>
                     <th style="width: 120px;">Tổng tiền</th>
                     <th style="width: 150px;">Thanh toán</th>
                     <th style="width: 200px;">Hành động</th>
@@ -287,21 +286,6 @@ if ($borrow->items && $borrow->items->count() > 0) {
         <span class="text-muted">-</span>
         @endif
     </td>
-    {{-- Cột trạng thái gia hạn --}}
-    <td>
-        @if($borrow->customer_extension_requested)
-            <span class="badge bg-warning text-dark" style="font-size: 11px;">
-                Yêu cầu +{{ $borrow->customer_extension_days ?? 5 }} ngày
-            </span>
-            @if($borrow->customer_extension_requested_at)
-                <div style="font-size: 11px; color: #6c757d; margin-top: 2px;">
-                    {{ $borrow->customer_extension_requested_at->format('d/m H:i') }}
-                </div>
-            @endif
-        @else
-            <span class="text-muted" style="font-size: 11px;">Không có yêu cầu</span>
-        @endif
-    </td>
     <td>
         {{ number_format($tongTien) }}₫
     </td>
@@ -343,21 +327,12 @@ if ($borrow->items && $borrow->items->count() > 0) {
     <td>
         <div style="display: flex; gap: 5px; flex-wrap: wrap;">
             {{-- @if($borrow->trang_thai == 'Dang muon')
-                <a href="{{ route('admin.borrows.return', $borrow->id) }}" 
-                   class="btn btn-sm btn-success" 
+                <a href="{{ route('admin.borrows.return', $borrow->id) }}"
+                   class="btn btn-sm btn-success"
                    onclick="return confirm('Xác nhận trả sách?')"
                    title="Trả sách">
                     <i class="fas fa-undo"></i>
                 </a>
-                {{-- @if($borrow->canExtend())
-                    <button type="button" 
-                            class="btn btn-sm btn-warning" 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#extendModal{{ $borrow->id }}"
-                            title="Gia hạn">
-                        <i class="fas fa-clock"></i>
-                    </button>
-                @endif 
             @endif --}}
             <a href="{{ route('admin.borrows.show', $borrow->id) }}" 
                class="btn btn-sm btn-secondary"
@@ -407,24 +382,7 @@ if ($borrow->items && $borrow->items->count() > 0) {
     </form>
 @endif
 
-{{-- Nút trả sách: hiện khi đã thanh toán thành công và có sách đang mượn hoặc quá hạn --}}
-@if($hasPaidPayment && ($hasDangMuon || $hasQuaHan) && auth()->check() && auth()->user()->can('return-books'))
-    <a href="{{ route('admin.borrows.show', $borrow->id) }}" 
-       class="btn btn-sm btn-info mb-0"
-       title="Xem chi tiết để trả sách">
-        <i class="fas fa-undo"></i> Trả sách
-    </a>
-@endif
 
-{{-- Nút gia hạn: chỉ hiện khi đã thanh toán, có sách đang mượn và có yêu cầu gia hạn từ khách --}}
-@if($borrow->customer_extension_requested && $hasPaidPayment && $hasDangMuon && auth()->check() && auth()->user()->can('edit-borrows'))
-    <form action="{{ route('admin.borrows.extend', $borrow->id) }}" method="POST" style="display:inline-block;">
-        @csrf
-        <button type="submit" class="btn btn-sm btn-warning mb-0" title="Duyệt yêu cầu gia hạn (+5 ngày)" onclick="return confirm('Xác nhận duyệt yêu cầu gia hạn thêm 5 ngày và cộng phí gia hạn vào tiền thuê?')">
-            <i class="fas fa-clock"></i> Gia hạn
-        </button>
-    </form>
-@endif
 
 @if($allChuaNhan)
     <form action="{{ route('admin.borrows.process', $borrow->id) }}" method="POST" style="display:inline-block;">
@@ -592,71 +550,6 @@ if ($borrow->items && $borrow->items->count() > 0) {
         </div>
     @endif
     </div>
-
-<!-- Extension Modals -->
-    {{-- @foreach($borrows as $borrow)
-        @if($borrow->canExtend())
-    <div class="modal fade" id="extendModal{{ $borrow->id }}" tabindex="-1" style="display: none;">
-        <div class="modal-dialog" style="max-width: 500px; margin: 100px auto;">
-            <div class="modal-content" style="background: var(--background-card); border: 1px solid rgba(0, 255, 153, 0.2); border-radius: 15px; color: var(--text-primary);">
-                <div class="modal-header" style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding: 20px 25px;">
-                    <h5 class="modal-title" style="color: var(--primary-color); font-weight: 600;">
-                        <i class="fas fa-clock"></i>
-                        Gia hạn mượn sách
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" style="background: transparent; border: none; color: #888; font-size: 24px; cursor: pointer; opacity: 0.6; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">
-                        <i class="fas fa-times"></i>
-                    </button>
-                    </div>
-                    <form action="{{ route('admin.borrows.extend', $borrow->id) }}" method="POST">
-                        @csrf
-                    <div class="modal-body" style="padding: 25px;">
-                        <div class="form-group">
-                                <label class="form-label">Độc giả:</label>
-                            <div style="padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; margin-top: 5px; color: var(--text-primary);">
-                                {{ $borrow->reader->ho_ten }}
-                            </div>
-                        </div>
-                        <div class="form-group">
-                                <label class="form-label">Sách:</label>
-                            <div style="padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; margin-top: 5px; color: var(--text-primary);">
-                                {{ $borrow->book->ten_sach }}
-                            </div>
-                        </div>
-                        <div class="form-group">
-                                <label class="form-label">Hạn trả hiện tại:</label>
-                            <div style="padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; margin-top: 5px; color: var(--primary-color);">
-                                <i class="fas fa-calendar"></i>
-                                {{ $borrow->ngay_hen_tra->format('d/m/Y') }}
-                            </div>
-                        </div>
-                        <div class="form-group">
-                                <label class="form-label">Số ngày gia hạn:</label>
-                            <select name="days" class="form-select" required style="margin-top: 5px;">
-                                    <option value="7">7 ngày</option>
-                                    <option value="14">14 ngày</option>
-                                </select>
-                            </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                                <label class="form-label">Lần gia hạn:</label>
-                            <div style="padding: 10px; background: rgba(0, 255, 153, 0.1); border-radius: 8px; margin-top: 5px; color: var(--primary-color); font-weight: 600;">
-                                {{ $borrow->so_lan_gia_han + 1 }}/2
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer" style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding: 20px 25px; display: flex; gap: 10px; justify-content: flex-end;">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-check"></i>
-                            Xác nhận gia hạn
-                        </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-        @endif
-    @endforeach --}}
 @endsection
 
 @push('styles')

@@ -4,9 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ request('category_id') ? ($categories->where('id', request('category_id'))->first()->ten_the_loai ?? 'Sách') : 'Tất cả sách' }} - LibNet</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('css/style.css') }}?v={{ time() }}">
+    <title>{{ request('category_id') ? ($categories->where('id', request('category_id'))->first()->ten_the_loai ?? 'Sách') : 'Tất cả sách' }} - Thuê Sách LibNet</title>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <link rel="preload" href="{{ asset('css/style.css') }}?v={{ time() }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="{{ asset('css/style.css') }}?v={{ time() }}">
+    </noscript>
     <style>
         :root {
             --books-accent: #0d9488;
@@ -28,7 +33,10 @@
                 radial-gradient(circle at top left, rgba(13, 148, 136, 0.08), transparent 26%),
                 radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 22%),
                 #f6f8fc;
+            opacity: 0;
+            transition: opacity .2s ease;
         }
+        body.styles-loaded, body { opacity: 1; }
 
         .books-page-container {
             max-width: 1280px;
@@ -431,24 +439,40 @@
             border: 1px solid rgba(226, 232, 240, 0.92);
         }
 
-        .book-card-action {
-            display: inline-flex;
+        .book-card .heart-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #fff;
+            border: none;
+            display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            padding: 11px 14px;
-            border-radius: 14px;
-            background: linear-gradient(135deg, var(--books-accent), #14b8a6);
-            color: #ffffff;
-            font-size: 0.88rem;
-            font-weight: 700;
-            box-shadow: 0 12px 20px rgba(13, 148, 136, 0.18);
-            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 2;
+            transition: transform .2s, background .2s;
+            color: #ef4444;
         }
 
-        .book-card:hover .book-card-action {
-            transform: translateY(-2px);
-            box-shadow: 0 16px 28px rgba(13, 148, 136, 0.22);
+        .book-card .heart-btn:hover {
+            transform: scale(1.15);
+            background: #fee2e2;
+        }
+
+        .book-card .card-link-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+
+        .book-card > *:not(.heart-btn):not(a.card-link-overlay) {
+            position: relative;
+            z-index: 0;
         }
 
         /* Empty state */
@@ -605,7 +629,7 @@
         }
     </style>
 </head>
-<body>
+<body onload="document.body.classList.add('styles-loaded')">
     @include('components.frontend-header')
 
     <div class="books-page-container">
@@ -708,30 +732,33 @@
                 @if($books->count() > 0)
                     <div class="books-grid">
                         @foreach($books as $book)
-                            <article class="book-card">
-                                <a href="{{ route('books.show', $book->id) }}">
-                                    <div class="book-card-cover">
-                                        @if($book->hinh_anh && $book->image_url)
-                                            <img src="{{ $book->image_url }}" alt="{{ $book->ten_sach }}" loading="lazy">
-                                        @else
-                                            <div class="placeholder">
-                                                <i class="fas fa-book"></i>
-                                                <span>Chưa có ảnh</span>
-                                            </div>
-                                        @endif
-                                    </div>
-                                    <h3 class="book-card-title">{{ $book->ten_sach }}</h3>
-                                    @if($book->tac_gia)
-                                        <p class="book-card-author">{{ $book->tac_gia }}</p>
+                            <article class="book-card" onclick="window.location='{{ route('books.show', $book->id) }}'" style="cursor:pointer">
+                                <a href="{{ route('books.show', $book->id) }}" class="card-link-overlay" onclick="event.stopPropagation()"></a>
+                                @auth
+                                    <button type="button" class="heart-btn" onclick="event.preventDefault(); event.stopPropagation(); toggleFavoritePublic({{ $book->id }}, this)">
+                                        {{ $book->is_favorited ? '❤️' : '🤍' }}
+                                    </button>
+                                @endauth
+                                <div class="book-card-cover">
+                                    @if($book->hinh_anh && $book->image_url)
+                                        <img src="{{ $book->image_url }}" alt="{{ $book->ten_sach }}" loading="lazy">
+                                    @else
+                                        <div class="placeholder">
+                                            <i class="fas fa-book"></i>
+                                            <span>Chưa có ảnh</span>
+                                        </div>
                                     @endif
-                                    <div class="book-card-meta">
-                                        <span class="book-card-badge"><i class="fas fa-eye"></i> {{ number_format($book->so_luot_xem ?? 0) }}</span>
-                                        @if(!empty($book->category?->ten_the_loai))
-                                            <span class="book-card-badge"><i class="fas fa-tag"></i> {{ $book->category->ten_the_loai }}</span>
-                                        @endif
-                                    </div>
-                                    <span class="book-card-action">Xem chi tiết <i class="fas fa-arrow-right"></i></span>
-                                </a>
+                                </div>
+                                <h3 class="book-card-title">{{ $book->ten_sach }}</h3>
+                                @if($book->tac_gia)
+                                    <p class="book-card-author">{{ $book->tac_gia }}</p>
+                                @endif
+                                <div class="book-card-meta">
+                                    <span class="book-card-badge"><i class="fas fa-eye"></i> {{ number_format($book->so_luot_xem ?? 0) }}</span>
+                                    @if(!empty($book->category?->ten_the_loai))
+                                        <span class="book-card-badge"><i class="fas fa-tag"></i> {{ $book->category->ten_the_loai }}</span>
+                                    @endif
+                                </div>
                             </article>
                         @endforeach
                     </div>
@@ -906,5 +933,30 @@
         }
     </script>
     @endauth
+
+    <script>
+    function toggleFavoritePublic(bookId, btn) {
+        fetch('{{ route('account.favorites.toggle') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ book_id: bookId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.is_favorited) {
+                btn.textContent = '❤️';
+            } else {
+                btn.textContent = '🤍';
+            }
+        })
+        .catch(() => {
+            window.location.href = '{{ route('login') }}';
+        });
+    }
+    </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Dashboard - Quản Lý Thư Viện LibNet')
+@section('title', 'Dashboard - Quản Lý Thuê Sách LibNet')
 
 @section('content')
 <!-- Page Header -->
@@ -80,6 +80,120 @@
         </div>
     </div>
 </div>
+
+<!-- Sách Hỏng + Sách Hết -->
+<div class="stats-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 24px;">
+    <!-- Sách hỏng -->
+    <div class="stat-card" style="border-left: 4px solid #ef4444;">
+        <div class="stat-header">
+            <div class="stat-title">Sách Hỏng</div>
+            <div class="stat-icon danger">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+        </div>
+        <div class="stat-value">{{ number_format($damagedBooksCount ?? 0) }}</div>
+        <div class="stat-label">Cuốn trong kho</div>
+        @if(($damagedBooks ?? collect())->isNotEmpty())
+            <ul style="margin: 8px 0 0; padding-left: 18px; font-size: 0.8em; color: #64748b;">
+                @foreach($damagedBooks as $b)
+                    <li>{{ Str::limit($b->ten_sach, 30) }}</li>
+                @endforeach
+            </ul>
+        @endif
+    </div>
+
+    <!-- Sách hết -->
+    <div class="stat-card" style="border-left: 4px solid #f59e0b;">
+        <div class="stat-header">
+            <div class="stat-title">Sách Hết Hàng</div>
+            <div class="stat-icon warning">
+                <i class="fas fa-box-open"></i>
+            </div>
+        </div>
+        <div class="stat-value">{{ number_format($outOfStockBooksCount ?? 0) }}</div>
+        <div class="stat-label">Cuốn trong kho</div>
+        @if(($outOfStockBooks ?? collect())->isNotEmpty())
+            <ul style="margin: 8px 0 0; padding-left: 18px; font-size: 0.8em; color: #64748b;">
+                @foreach($outOfStockBooks as $b)
+                    <li>{{ Str::limit($b->ten_sach, 30) }}</li>
+                @endforeach
+            </ul>
+        @endif
+    </div>
+</div>
+
+<!-- Lượt mượn hôm nay / tháng / năm -->
+<div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-chart-bar"></i> Thống Kê Lượt Mượn</h3>
+    </div>
+    <div class="card-body">
+        <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); gap: 20px;">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-title">Hôm Nay</div>
+                    <div class="stat-icon danger"><i class="fas fa-calendar-day"></i></div>
+                </div>
+                <div class="stat-value">{{ number_format($borrowToday ?? 0) }}</div>
+                <div class="stat-label">Lượt mượn</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-title">Tháng Này</div>
+                    <div class="stat-icon warning"><i class="fas fa-calendar-alt"></i></div>
+                </div>
+                <div class="stat-value">{{ number_format($borrowMonth ?? 0) }}</div>
+                <div class="stat-label">Lượt mượn</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-title">Năm Nay</div>
+                    <div class="stat-icon success"><i class="fas fa-calendar"></i></div>
+                </div>
+                <div class="stat-value">{{ number_format($borrowYear ?? 0) }}</div>
+                <div class="stat-label">Lượt mượn</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top 5 sách mượn nhiều nhất -->
+@if(($topBorrowedBooks ?? collect())->isNotEmpty())
+<div class="card" style="margin-bottom: 24px;">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-trophy"></i> Top 5 Sách Mượn Nhiều Nhất</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <table class="table" style="margin: 0;">
+            <thead style="background: #f8fafc;">
+                <tr>
+                    <th style="padding: 12px 20px; text-align: center;">#</th>
+                    <th style="padding: 12px 20px;">Tên Sách</th>
+                    <th style="padding: 12px 20px; text-align: center;">Số lượt mượn</th>
+                    <th style="padding: 12px 20px; text-align: center;">%</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php
+                    $maxBorrows = $topBorrowedBooks->max('borrow_count');
+                @endphp
+                @foreach($topBorrowedBooks as $index => $item)
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 10px 20px; text-align: center; font-weight: bold; color: #64748b;">{{ $index + 1 }}</td>
+                        <td style="padding: 10px 20px;">{{ $item->book->ten_sach ?? 'N/A' }}</td>
+                        <td style="padding: 10px 20px; text-align: center; font-weight: bold; color: #0d9488;">{{ number_format($item->borrow_count) }}</td>
+                        <td style="padding: 10px 20px; text-align: center;">
+                            <div style="background: #e2e8f0; border-radius: 4px; height: 8px; width: 100px; margin: auto;">
+                                <div style="background: #0d9488; height: 8px; border-radius: 4px; width: {{ $maxBorrows > 0 ? round(($item->borrow_count / $maxBorrows) * 100) : 0 }}%;"></div>
+                            </div>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+@endif
 
 <!-- Financial Summary Section - Only for Admin -->
 @if(!auth()->user()->isStaff())

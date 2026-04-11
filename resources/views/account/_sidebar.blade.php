@@ -17,7 +17,6 @@
         <ul>
             @if($user && $user->reader)
                 <li class="{{ $currentRoute === 'account.borrowed-books' ? 'active' : '' }}">
-                    <a href="{{ route('account.borrowed-books') }}"><span class="icon">📚</span><span class="nav-label">Sách đang mượn</span></a>
                 </li>
             @endif
             <li class="{{ $currentRoute === 'account.favorite-books' ? 'active' : '' }}">

@@ -161,55 +161,6 @@ class BulkOperationService
     }
 
     /**
-     * Bulk extend borrows
-     */
-    public function bulkExtendBorrows($borrowIds, $days = 7)
-    {
-        try {
-            DB::beginTransaction();
-            
-            $borrows = Borrow::whereIn('id', $borrowIds)
-                ->where('trang_thai', 'Dang muon')
-                ->get();
-            
-            $extendedCount = 0;
-            
-            foreach ($borrows as $borrow) {
-                if ($borrow->canExtend()) {
-                    $borrow->extend($days);
-                    $extendedCount++;
-                    
-                    // Log extension
-                    AuditService::log('borrow_extended', $borrow, [], [], 
-                        "Borrow extended by {$days} days via bulk operation");
-                }
-            }
-            
-            DB::commit();
-            
-            return [
-                'success' => true,
-                'message' => "Successfully extended {$extendedCount} borrows",
-                'extended_count' => $extendedCount,
-                'skipped_count' => count($borrowIds) - $extendedCount
-            ];
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Bulk extend borrows failed', [
-                'borrow_ids' => $borrowIds,
-                'days' => $days,
-                'error' => $e->getMessage()
-            ]);
-            
-            return [
-                'success' => false,
-                'message' => 'Failed to extend borrows: ' . $e->getMessage()
-            ];
-        }
-    }
-
-    /**
      * Bulk return books
      */
     public function bulkReturnBooks($borrowIds)
@@ -497,8 +448,6 @@ class BulkOperationService
                 'active' => Borrow::where('trang_thai', 'Dang muon')->count(),
                 'overdue' => Borrow::where('trang_thai', 'Dang muon')
                     ->where('ngay_hen_tra', '<', $today)->count(),
-                'can_extend' => Borrow::where('trang_thai', 'Dang muon')
-                    ->where('so_lan_gia_han', '<', 3)->count(),
             ],
             'reservations' => [
                 'pending' => 0, // Reservation model đã bị xóa
