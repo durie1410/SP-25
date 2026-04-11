@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Quản Lý Sách - LibNet Admin')
+@section('title', 'Quản Lý Sách - Thuê Sách LibNet Admin')
 
 @push('styles')
 <style>

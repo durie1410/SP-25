@@ -223,7 +223,7 @@
                     📚
                 </div>
                 <div class="logo-text">
-                    <span class="logo-part1">THƯ VIỆN</span>
+                    <span class="logo-part1">THUÊ SÁCH</span>
                     <span class="logo-part2">LibNet</span>
                 </div>
             </div>

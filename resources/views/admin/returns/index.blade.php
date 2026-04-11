@@ -252,7 +252,7 @@
             </div>
             <div class="card returns-card returns-card--returned">
                 <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-clipboard-check"></i> Sách đã trả</h3>
+                    <h3 class="card-title"><i class="fas fa-clipboard-check"></i> Sách đã trả chờ duyệt về kho</h3>
                 </div>
                 <div class="card-body">
                     @php
@@ -277,7 +277,7 @@
                         ];
                     @endphp
                     @if(empty($returnedItems) || count($returnedItems) === 0)
-                        <div class="alert alert-info mb-0">Chưa có sách đã trả cần sử lí.</div>
+                        <div class="alert alert-info mb-0">Chưa có sách đã trả cần duyệt.</div>
                     @else
                         <div class="returned-table">
                             <div class="returned-table-head">
@@ -297,7 +297,7 @@
                                         $statusLabel = $statusLabels[$item->trang_thai] ?? $item->trang_thai;
                                         $inventoryStatus = $item->inventory->status ?? '---';
                                         $inventoryStatusLabel = $inventoryStatusLabels[$inventoryStatus] ?? $inventoryStatus;
-                                        $canApprove = in_array($item->trang_thai, ['Da tra', 'Hong', 'Mat sach']);
+                                        $canApprove = $item->trang_thai === 'Da tra' && $item->inventory && $inventoryStatus !== 'Co san';
                                         $canDelete = $item->inventory && (in_array($item->trang_thai, ['Hong', 'Mat sach']) || in_array($condition, ['hong_nhe', 'hong_nang', 'mat_sach']));
                                         $hasPendingDelete = $item->inventorie_id && in_array($item->inventorie_id, $pendingDeleteInventoryIds);
                                         $bookImageUrl = ($item->book && $item->book->hinh_anh)
@@ -382,17 +382,15 @@
                                             <span class="badge bg-secondary">{{ $conditionLabel }}</span>
                                         </div>
                                         <div class="returned-actions">
-                                            @if(!in_array($condition, ['hong_nhe', 'hong_nang', 'mat_sach']))
-                                                <form method="POST" action="{{ route('admin.returns.approve-stock', $item->id) }}">
-                                                    @csrf
-                                                    <input type="hidden" name="reader_id" value="{{ $selectedReader->id }}">
-                                                    <button type="submit" class="btn btn-sm btn-success"
-                                                        {{ (!$canApprove || $hasPendingDelete) ? 'disabled' : '' }}
-                                                        onclick="return confirm('Duyệt sách này về kho?')">
-                                                        Duyệt về kho
-                                                    </button>
-                                                </form>
-                                            @endif
+                                            <form method="POST" action="{{ route('admin.returns.approve-stock', $item->id) }}">
+                                                @csrf
+                                                <input type="hidden" name="reader_id" value="{{ $selectedReader->id }}">
+                                                <button type="submit" class="btn btn-sm btn-success"
+                                                    {{ (!$canApprove || $hasPendingDelete) ? 'disabled' : '' }}
+                                                    onclick="return confirm('Duyệt sách này về kho?')">
+                                                    Duyệt về kho
+                                                </button>
+                                            </form>
                                             <form method="POST" action="{{ route('admin.returns.delete-returned', $item->id) }}">
                                                 @csrf
                                                 <input type="hidden" name="reader_id" value="{{ $selectedReader->id }}">

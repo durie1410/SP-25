@@ -136,6 +136,14 @@
                             <span class="status-badge" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">
                                 <i class="fas fa-lock me-1"></i>Đã khóa
                             </span>
+                            <div style="margin-top: 6px; font-size: 12px; color: #b91c1c; max-width: 280px; line-height: 1.4;">
+                                {{ $user->locked_reason ?: 'Không có lý do khóa' }}
+                            </div>
+                            @if($user->locked_at)
+                                <div style="font-size: 11px; color: #6b7280; margin-top: 3px;">
+                                    Khóa lúc: {{ $user->locked_at->format('d/m/Y H:i') }}
+                                </div>
+                            @endif
                         @else
                             <span class="status-badge status-active">
                                 <i class="fas fa-check-circle me-1"></i>Hoạt động
@@ -228,7 +236,6 @@
         console.log('Origin:', origin);
         console.log('Base path:', basePath);
         console.log('Sample show route:', window.adminUsersRoutes.show(1));
-        console.log('Sample destroy route:', window.adminUsersRoutes.destroy(1));
     })();
 </script>
 <style>
@@ -531,6 +538,14 @@
                 ? '<span class="badge" style="background:#ef4444; color:white;"><i class="fas fa-lock me-1"></i>Đã khóa</span>'
                 : '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>Hoạt động</span>';
 
+            const lockReasonHtml = data.is_locked
+                ? `<p class="mb-0" style="color:#b91c1c;">${data.locked_reason || 'Không có lý do khóa'}</p>`
+                : '<p class="mb-0"><span style="color:#9ca3af;">Không áp dụng</span></p>';
+
+            const lockedAtHtml = data.locked_at
+                ? new Date(data.locked_at).toLocaleString('vi-VN')
+                : '<span style="color:#9ca3af;">Không áp dụng</span>';
+
             content.innerHTML = `
                 <div class="user-detail">
                     <div class="text-center mb-4">
@@ -553,6 +568,14 @@
                         <div class="col-md-6 mb-3">
                             <strong><i class="fas fa-shield-alt me-2"></i>Trạng thái:</strong>
                             <p class="mb-0">${lockedBadge}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <strong><i class="fas fa-clock me-2"></i>Thời điểm khóa:</strong>
+                            <p class="mb-0">${lockedAtHtml}</p>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <strong><i class="fas fa-comment-dots me-2"></i>Lý do khóa:</strong>
+                            ${lockReasonHtml}
                         </div>
                         <div class="col-md-6 mb-3">
                             <strong><i class="fas fa-calendar-plus me-2"></i>Ngày tạo:</strong>

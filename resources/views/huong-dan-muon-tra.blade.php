@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Hướng dẫn mượn/trả sách - Thư Viện LibNet')
+@section('title', 'Hướng dẫn mượn/trả sách - Thuê Sách LibNet')
 
 @push('styles')
 <link rel="stylesheet" href="{{ asset('css/style.css') }}">

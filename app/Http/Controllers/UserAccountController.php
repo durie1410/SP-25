@@ -271,9 +271,25 @@ class UserAccountController extends Controller
     public function favoriteBooks()
     {
         $user = auth()->user();
-
         $user->load('reader');
 
+        // Đếm tổng số favorites trước để xác định tổng trang hợp lệ
+        $totalFavorites = Favorite::where('user_id', $user->id)->count();
+
+        // Nếu không còn dữ liệu → luôn về trang 1
+        if ($totalFavorites === 0) {
+            $favorites = Favorite::with(['book.category', 'book.publisher'])
+                ->with(['book' => function ($query) {
+                    $query->withCount('favorites');
+                }])
+                ->where('user_id', $user->id)
+                ->latest()
+                ->paginate(6);
+
+            return view('account.favorite-books', compact('favorites'));
+        }
+
+        // Phân trang với page mặc định (Laravel tự điều chỉnh page > lastPage về lastPage)
         $favorites = Favorite::with(['book.category', 'book.publisher'])
             ->with(['book' => function ($query) {
                 $query->withCount('favorites');
@@ -282,6 +298,13 @@ class UserAccountController extends Controller
             ->latest()
             ->paginate(6)
             ->withQueryString();
+
+        // Sau khi paginate, nếu currentPage bị Laravel điều chỉnh về lastPage
+        // (tức request page > tổng trang) → redirect về URL với page hợp lệ
+        $requestedPage = (int) request()->get('page', 1);
+        if ($requestedPage > $favorites->lastPage()) {
+            return redirect()->route('account.favorite-books', ['page' => $favorites->lastPage()]);
+        }
 
         return view('account.favorite-books', compact('favorites'));
     }

@@ -35,7 +35,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'cccd_image',
         'ngay_sinh',
         'gioi_tinh',
+        'is_locked',
         'locked_at',
+        'locked_reason',
+        'no_show_count',
         'status',
     ];
 
@@ -91,7 +94,9 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $casts = [
         'email_verified_at' => 'datetime',
         'ngay_sinh' => 'date',
+        'is_locked' => 'boolean',
         'locked_at' => 'datetime',
+        'no_show_count' => 'integer',
     ];
 
     /**
@@ -112,7 +117,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function isLocked()
     {
-        return !is_null($this->locked_at);
+        return (bool) ($this->is_locked ?? false) || !is_null($this->locked_at);
     }
 
     public function isAdmin()

@@ -20,6 +20,7 @@ class Book extends Model
         'nam_xuat_ban',
         'hinh_anh',
         'mo_ta',
+        'preview_content',
         'gia',
         'trang_thai',
         'danh_gia_trung_binh',
@@ -28,7 +29,6 @@ class Book extends Model
         'so_luong',
         'is_featured',
        'loai_sach'
-
     ];
 
     public function category()

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\UserLockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -68,6 +69,8 @@ class UserController extends Controller
             'email' => $user->email,
             'role' => $user->role,
             'locked_at' => $user->locked_at,
+            'locked_reason' => $user->locked_reason,
+            'no_show_count' => $user->no_show_count,
             'is_locked' => $user->isLocked(),
             'created_at' => $user->created_at,
             'updated_at' => $user->updated_at,
@@ -186,14 +189,18 @@ class UserController extends Controller
         }
 
         // Toggle lock status
-        if ($user->locked_at) {
-            $user->update(['locked_at' => null]);
+        if ($user->isLocked()) {
+            app(UserLockService::class)->resetLockAndNoShow($user);
             return response()->json([
                 'success' => true,
                 'message' => 'Đã mở khóa tài khoản'
             ]);
         } else {
-            $user->update(['locked_at' => now()]);
+            $user->update([
+                'is_locked' => true,
+                'locked_at' => now(),
+                'locked_reason' => 'Khóa thủ công bởi quản trị viên.',
+            ]);
             return response()->json([
                 'success' => true,
                 'message' => 'Đã khóa tài khoản'
@@ -218,8 +225,11 @@ class UserController extends Controller
             return back()->with('error', 'Không thể khóa chính mình');
         }
 
-        $user->locked_at = now();
-        $user->save();
+        $user->update([
+            'is_locked' => true,
+            'locked_at' => now(),
+            'locked_reason' => 'Khóa thủ công bởi quản trị viên.',
+        ]);
 
         if (request()->expectsJson()) {
             return response()->json(['success' => true, 'message' => 'Đã khóa tài khoản']);
@@ -231,8 +241,7 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
 
-        $user->locked_at = null;
-        $user->save();
+        app(UserLockService::class)->resetLockAndNoShow($user);
 
         if (request()->expectsJson()) {
             return response()->json(['success' => true, 'message' => 'Đã mở khóa tài khoản']);

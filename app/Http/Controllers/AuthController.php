@@ -49,11 +49,11 @@ class AuthController extends Controller
         // Log guard being used
         Log::info('Guard being used: ' . Auth::getDefaultDriver());
 
-        // Kiểm tra khóa TRƯỚC khi đăng nhập
-        if ($user && $user->isLocked()) {
-            Log::info('Account is LOCKED - preventing login');
+        // Kiểm tra tài khoản đang chờ duyệt
+        if ($user && $user->status == 'pending') {
+            Log::info('Account is PENDING - preventing login');
             return back()->withErrors([
-                'email' => 'Tài khoản đã bị khóa'
+                'email' => 'Tài khoản đang chờ quản trị viên duyệt'
             ]);
         }
 
@@ -66,11 +66,16 @@ class AuthController extends Controller
             AuditService::logLogin('User logged in successfully');
 
             // Get the authenticated user
+            /** @var User|null $user */
             $user = Auth::user();
             // Redirect based on user role
+            if (!$user) {
+                return redirect()->route('home');
+            }
+
             if ($user->role === 'admin') {
                 return redirect()->route('admin.dashboard');
-            } elseif ($user->role === 'staff' || $user->isStaff()) {
+            } elseif ($user->role === 'staff' || ($user instanceof User && $user->isStaff())) {
                 // Staff cũng dùng admin dashboard
                 return redirect()->route('admin.dashboard');
             } else {
@@ -106,8 +111,8 @@ class AuthController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'role' => 'user',
-                'status' => 'active'
+                'role' => 'user', // SECURITY FIX: Always 'user'
+                'status' => 'pending'
             ]);
 
             // Assign role using Spatie Permission
@@ -128,16 +133,13 @@ class AuthController extends Controller
 
             return redirect()->route('login')->with(
                 'success',
-                'Đăng ký thành công! Bạn có thể đăng nhập ngay.'
+                'Đăng ký thành công! Tài khoản của bạn đang chờ quản trị viên duyệt.'
             );
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('=== REGISTER FAILED ===');
-            Log::error('Message: ' . $e->getMessage());
-            Log::error('File: ' . $e->getFile() . ':' . $e->getLine());
 
             return back()->withErrors([
-                'email' => 'Lỗi đăng ký: ' . $e->getMessage(),
+                'email' => 'Có lỗi xảy ra khi đăng ký. Vui lòng thử lại.',
             ])->withInput();
         }
     }
@@ -213,7 +215,7 @@ class AuthController extends Controller
         );
 
         if ($status === Password::PASSWORD_RESET) {
-            AuditService::log('password_reset', User::class, null, null, 'User reset password');
+            AuditService::log('password_reset', null, [], [], 'User reset password');
             return redirect()->route('login')->with('status', __($status));
         }
 
@@ -225,7 +227,14 @@ class AuthController extends Controller
      */
     public function showVerificationNotice()
     {
-        return auth()->user()->hasVerifiedEmail()
+        /** @var User|null $user */
+        $user = auth()->user();
+
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        return $user->hasVerifiedEmail()
             ? redirect()->route('home')
             : view('auth.verify-email');
     }
@@ -272,8 +281,11 @@ class AuthController extends Controller
     {
         $user = User::findOrFail($id);
 
-        $user->locked_at = now();
-        $user->save();
+        $user->update([
+            'is_locked' => true,
+            'locked_at' => now(),
+            'locked_reason' => 'Khóa thủ công bởi quản trị viên.',
+        ]);
 
         return back()->with('success', 'Đã khóa tài khoản');
     }
@@ -282,8 +294,12 @@ class AuthController extends Controller
     {
         $user = User::findOrFail($id);
 
-        $user->locked_at = null;
-        $user->save();
+        $user->update([
+            'is_locked' => false,
+            'locked_at' => null,
+            'locked_reason' => null,
+            'no_show_count' => 0,
+        ]);
 
         return back()->with('success', 'Đã mở khóa tài khoản');
     }

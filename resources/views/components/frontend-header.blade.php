@@ -23,7 +23,7 @@
                     </svg>
                 </div>
                 <div class="logo-text">
-                    <span class="logo-part1">THƯ VIỆN</span>
+                    <span class="logo-part1">THUÊ SÁCH</span>
                     <span class="logo-part2">LibNet</span>
                 </div>
             </a>
@@ -96,7 +96,7 @@
                             <i class="fas fa-key"></i> Đổi mật khẩu
                         </a>
                         <a href="{{ route('orders.index') }}" class="dropdown-item">
-                            <i class="fas fa-history"></i> theo dõi đơn mượn
+                            <i class="fas fa-history"></i> Lịch sử đơn mượn
                         </a>
                                               <a href="{{ route('reservation-cart.history') }}" class="dropdown-item">
                             <i class="fas fa-history"></i> Lịch sử đặt trước

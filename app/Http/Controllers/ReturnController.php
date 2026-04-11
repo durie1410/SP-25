@@ -648,31 +648,15 @@ class ReturnController extends Controller
             return back()->with('error', 'Sách không thuộc khách đã chọn.');
         }
 
-        if (!in_array($item->trang_thai, ['Da tra', 'Hong', 'Mat sach'])) {
-            return back()->with('error', 'Sách chưa ở trạng thái đã trả.');
+        if ($item->trang_thai !== 'Da tra') {
+            return back()->with('error', 'Chỉ duyệt về kho với sách đã trả bình thường.');
         }
 
-        // Tái tạo inventory nếu thiếu (sách đã bị xóa khỏi kho)
-        $inventory = $item->inventory;
-        if (!$inventory) {
-            $condition = $item->tinh_trang_sach_cuoi ?? 'binh_thuong';
-            $invCondition = $condition === 'mat_sach' ? 'Hong' : ($condition === 'hong_nang' ? 'Cu' : 'Trung binh');
-            $maxBarcode = \App\Models\Inventory::max('barcode') ?? 'INV000000';
-            $nextNum = (int) preg_replace('/\D/', '', $maxBarcode) + 1;
-            $newBarcode = 'INV' . str_pad($nextNum, 6, '0', STR_PAD_LEFT);
-            $inventory = \App\Models\Inventory::create([
-                'book_id' => $item->book_id,
-                'barcode' => $newBarcode,
-                'status' => 'Co san',
-                'storage_type' => 'Kho',
-                'condition' => $invCondition,
-                'location' => 'Kho chính',
-                'created_by' => auth()->id() ?? 1,
-            ]);
-            $item->update(['inventorie_id' => $inventory->id]);
+        if (!$item->inventory) {
+            return back()->with('error', 'Không tìm thấy sách trong kho để duyệt.');
         }
 
-        $hasPendingDelete = BookDeleteRequest::where('inventory_id', $inventory->id)
+        $hasPendingDelete = BookDeleteRequest::where('inventory_id', $item->inventory->id)
             ->where('status', 'pending')
             ->exists();
         if ($hasPendingDelete) {
@@ -682,7 +666,7 @@ class ReturnController extends Controller
         try {
             DB::beginTransaction();
 
-            $inventory->update([
+            $item->inventory->update([
                 'status' => 'Co san',
                 'storage_type' => 'Kho',
             ]);
@@ -707,7 +691,7 @@ class ReturnController extends Controller
         ]);
 
         $item->load(['borrow', 'inventory', 'book']);
-        if (!$item->borrow || (int) $item->borrow->rephpader_id !== (int) $request->reader_id) {
+        if (!$item->borrow || (int) $item->borrow->reader_id !== (int) $request->reader_id) {
             return back()->with('error', 'Sách không thuộc khách đã chọn.');
         }
 

@@ -558,7 +558,7 @@
             @endforeach
         </div>
         
-        @if($borrows->total() > 0)
+        @if($borrows->hasPages())
             <div class="pagination-wrapper">
                 <nav aria-label="Phân trang sách đang mượn">
                     <ul class="pagination">

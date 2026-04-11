@@ -283,7 +283,7 @@
                         </svg>
                     </div>
                     <div class="footer-brand-text">
-                        <span class="footer-brand-label">THƯ VIỆN</span>
+                        <span class="footer-brand-label">THUÊ SÁCH</span>
                         <span class="footer-brand-name">LibNet</span>
                     </div>
                 </a>
@@ -384,7 +384,7 @@
         <!-- Copyright bar -->
         <div class="footer-copyright">
             <div class="copyright-content">
-                <p>&copy; {{ date('Y') }} <strong>LibNet</strong> - Hệ thống Thư viện Trực tuyến. All rights reserved.</p>
+                <p>&copy; {{ date('Y') }} <strong>Thuê sách LibNet</strong> - Hệ thống cho thuê sách trực tuyến. All rights reserved.</p>
                 <p class="copyright-links">
                     <a href="#">Chính sách</a>
                     <span>•</span>

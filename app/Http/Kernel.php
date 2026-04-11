@@ -73,5 +73,6 @@ class Kernel extends HttpKernel
         'permission' => \App\Http\Middleware\PermissionMiddleware::class,
         'role' => \App\Http\Middleware\EnsureUserHasRole::class,
         'admin-only' => \App\Http\Middleware\AdminOnlyMiddleware::class,
+        'booking.unlocked' => \App\Http\Middleware\EnsureAccountNotLockedForBooking::class,
     ];
 }

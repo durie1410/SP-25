@@ -28,9 +28,11 @@
             @endforeach
         </div>
         
+        @if($documents->hasPages())
         <div class="pagination-wrapper">
             {{ $documents->links() }}
         </div>
+        @endif
     @else
         <div class="empty-state">
             <div class="empty-icon">📝</div>

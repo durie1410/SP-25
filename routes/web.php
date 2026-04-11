@@ -18,6 +18,7 @@ use App\Http\Controllers\AdvancedStatisticsController;
 use App\Http\Controllers\InventoryController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\BorrowItemController;
 use App\Http\Controllers\ShippingLogController;
 use App\Http\Controllers\VnPayController;
@@ -203,16 +204,16 @@ Route::get('/books', [PublicBookController::class, 'index'])->name('books.public
 Route::get('/books/{id}', [PublicBookController::class, 'show'])->name('books.show');
 Route::get('/diem-sach/{id}', [PublicBookController::class, 'showDiemSach'])->name('diem-sach.show');
 Route::get('/tin-tuc/{id}', [PublicBookController::class, 'showTinTuc'])->name('tin-tuc.show');
-Route::post('/borrow-book', [HomeController::class, 'borrowBook'])->name('borrow.book')->middleware('auth');
+Route::post('/borrow-book', [HomeController::class, 'borrowBook'])->name('borrow.book')->middleware(['auth', 'booking.unlocked']);
 
 // Reservation cart (Giỏ đặt trước)
-Route::prefix('reservation-cart')->name('reservation-cart.')->middleware('auth')->group(function () {
+Route::prefix('reservation-cart')->name('reservation-cart.')->middleware(['auth'])->group(function () {
     Route::get('/', [ReservationCartController::class, 'index'])->name('index');
     Route::post('/add', [ReservationCartController::class, 'add'])->name('add');
     Route::post('/add-and-go', [ReservationCartController::class, 'addAndRedirect'])->name('add-and-go');
     Route::post('/remove/{itemId}', [ReservationCartController::class, 'remove'])->name('remove');
     Route::post('/split-item/{itemId}', [ReservationCartController::class, 'splitItem'])->name('split-item');
-    Route::post('/submit', [ReservationCartController::class, 'submit'])->name('submit');
+    Route::post('/submit', [ReservationCartController::class, 'submit'])->middleware('booking.unlocked')->name('submit');
     Route::get('/count', [ReservationCartController::class, 'count'])->name('count');
     Route::post('/update-days/{itemId}', [ReservationCartController::class, 'updateDays'])->name('update-days');
     Route::post('/update-dates/{itemId}', [ReservationCartController::class, 'updateDates'])->name('update-dates');
@@ -295,6 +296,7 @@ Route::get('/logout', [AuthController::class, 'logout']);
 // User Dashboard Route (for authenticated users)
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', function () {
+        /** @var \App\Models\User|null $user */
         $user = auth()->user();
 
         // Redirect based on user role
@@ -979,8 +981,8 @@ Route::post('vnpay-fix-execute', function () {
         file_put_contents($envFile, implode("\n", $lines));
 
         // Clear cache
-        \Artisan::call('config:clear');
-        \Artisan::call('cache:clear');
+        Artisan::call('config:clear');
+        Artisan::call('cache:clear');
 
         return response()->json([
             'success' => true,

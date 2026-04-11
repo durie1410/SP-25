@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sách: {{ $book->ten_sach }}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <style>
@@ -63,7 +64,7 @@
 
         .content-wrapper {
             display: flex;
-            width: 98%;
+            width: 90%;
             max-width: 1300px;
             margin: 20px auto;
             gap: 20px;
@@ -75,7 +76,7 @@
         .main-content {
             flex: 3;
             background-color: white;
-            padding: 20px 15px;
+            padding: 20px 30px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
         }
 
@@ -698,15 +699,8 @@
             background-color: #ffcc00;
         }
 
-        .description-card {
-            padding: 20px;
-            border-radius: 20px;
-            background: #fff;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        }
-
         .description-section {
-            padding: 0 0 20px;
+            padding: 20px 0;
             line-height: 1.8;
             color: #555;
         }
@@ -1411,6 +1405,34 @@
             color: var(--detail-text);
         }
 
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(.95) translateY(10px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .btn-preview:hover {
+            background: #0d9488 !important;
+            color: #fff !important;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(13,148,136,0.25);
+        }
+
+        #previewModalBody::-webkit-scrollbar {
+            width: 6px;
+        }
+        #previewModalBody::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
+        }
+        #previewModalBody::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        #previewModalBody::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        }
+
         .content-wrapper {
             max-width: 1280px;
             gap: 28px;
@@ -1827,14 +1849,14 @@
                 font-size: 1.8rem;
             }
 
-            .description-card {
+            .description-section,
+            .metadata-table,
+            .comment-section,
+            .related-books-section,
+            .buy-options,
+            .sidebar-block {
                 padding: 18px;
                 border-radius: 20px;
-            }
-
-            .description-section,
-            .metadata-table {
-                padding: 0;
             }
         }
     </style>
@@ -1851,7 +1873,7 @@
                     📚
                 </div>
                 <div class="logo-text">
-                    <span class="logo-part1">THƯ VIỆN</span>
+                    <span class="logo-part1">THUÊ SÁCH</span>
                     <span class="logo-part2">LibNet</span>
                 </div>
             </div>
@@ -2113,71 +2135,70 @@
                                     </div>
                                 </div>
 
-                                <div class="action-buttons" style="display: flex; gap: 10px;">
+                                <div class="action-buttons" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                    <button class="btn-preview" onclick="openPreviewModal()" style="flex: 1; min-width: 130px; padding: 12px 16px; border: 2px solid #0d9488; border-radius: 12px; background: white; color: #0d9488; font-weight: 700; font-size: 0.9em; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all .2s;">
+                                        📖 Đọc thử
+                                    </button>
                                     @auth
-                                        @if(($stats['available_copies'] ?? 0) > 0)
-                                            <button class="btn btn-buy" onclick="addToCart()" style="flex: 1; background: #6C63FF;">
-                                                <span style="font-size: 1.2em;">🛒</span> Thêm vào giỏ sách
-                                            </button>
-                                        @endif
-                                        <button class="btn btn-buy" onclick="borrowNow()" style="flex: 1;">
+                                        <button class="btn btn-buy btn-add-to-cart" onclick="addToCart()" style="flex: 1; background: #6C63FF; border-radius: 12px;">
+                                            <span style="font-size: 1.2em;">🛒</span> Thêm vào giỏ sách
+                                        </button>
+                                        <button class="btn btn-buy" onclick="borrowNow()" style="flex: 1; border-radius: 12px;">
                                             <span style="font-size: 1.2em;">📖</span> Mượn ngay
                                         </button>
                                     @else
                                         <button class="btn btn-buy"
-                                            onclick="alert('Vui lòng đăng nhập để mượn sách!'); window.location.href='{{ route('login') }}';"
-                                            style="opacity: 0.7; cursor: pointer; width: 100%;">
+                                            onclick="Swal.fire({icon:'warning',title:'Vui lòng đăng nhập',text:'Bạn cần đăng nhập để mượn sách!'}).then(()=>{window.location.href='{{ route('login') }}';})"
+                                            style="opacity: 0.7; cursor: pointer; width: 100%; border-radius: 12px;">
                                             <span style="font-size: 1.2em;">📖</span> Mượn sách
                                         </button>
                                     @endauth
                                 </div>
                             @else
-                                @if(($stats['available_copies'] ?? 0) > 0)
+                                <label>Đặt trước</label>
 
-                                    <!-- Sách giấy -->
-                                    <div class="option-row">
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                            <span class="type">📚 Sách</span>
-                                            <span style="font-size: 0.9em; color: #666; font-weight: normal;">
-                                                (Còn {{ $stats['available_copies'] ?? 0 }} cuốn có sẵn{{ $cartQuantity > 0 ? ' · Đã đặt ' . $cartQuantity . ' cuốn' : '' }})
-                                            </span>
-                                        </div>
-                                        <div style="display: flex; align-items: center; gap: 5px;">
-                                            <button type="button" onclick="changeQuantity('paper', -1)"
-                                                style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">-</button>
-                                            <input type="number" id="paper-quantity" value="1" min="1"
-                                                max="{{ min(($stats['available_copies'] ?? 999) - ($cartQuantity ?? 0), 2) > 0 ? min(($stats['available_copies'] ?? 999) - ($cartQuantity ?? 0), 2) : 0 }}"
-                                                style="width: 50px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; text-align: center;"
-                                                onchange="validateReservationQuantity(); updateTotalPrice();">
-                                            <button type="button" onclick="changeQuantity('paper', 1)"
-                                                style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">+</button>
-                                        </div>
-                                        <span class="price"
-                                            id="paper-price">{{ number_format($book->gia ?? 111000, 0, ',', '.') }}₫</span>
+                                <!-- Sách giấy -->
+                                <div class="option-row">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span class="type">📚 Sách giấy</span>
+                                        <span style="font-size: 0.9em; color: #666; font-weight: normal;">
+                                            (Còn {{ $stats['stock_quantity'] ?? 0 }} cuốn trong kho)
+                                        </span>
                                     </div>
+                                    <div style="display: flex; align-items: center; gap: 5px;">
+                                        <button type="button" onclick="changeQuantity('paper', -1)"
+                                            style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">-</button>
+                                        <input type="number" id="paper-quantity" value="1" min="1"
+                                            max="{{ $stats['stock_quantity'] ?? 999 }}"
+                                            style="width: 50px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; text-align: center;"
+                                            onchange="validateReservationQuantity(); updateTotalPrice();">
+                                        <button type="button" onclick="changeQuantity('paper', 1)"
+                                            style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">+</button>
+                                    </div>
+                                    <span class="price"
+                                        id="paper-price">{{ number_format($book->gia ?? 111000, 0, ',', '.') }}₫</span>
+                                </div>
 
-                                    <div class="total-price">
-                                        <span>Thành tiền</span>
-                                        <span class="final-price"
-                                            id="reservation-total">{{ number_format($book->gia ?? 111000, 0, ',', '.') }}₫</span>
-                                    </div>
-                                    <div class="total-price">
-                                        <span>Thành tiền</span>
-                                        <span class="final-price"
-                                            id="total-price">{{ number_format($book->gia ?? 111000, 0, ',', '.') }}₫</span>
-                                    </div>
-
-                                    <div class="action-buttons">
-                                        <button class="btn btn-buy" onclick="addToReservationCart()" style="width: 100%; background: #0d9488;">
-                                            <span style="font-size: 1.2em;">📌</span> Thêm vào giỏ đặt trước
-                                        </button>
-                                    </div>
-                                @else
+                                @if(($stats['stock_quantity'] ?? 0) == 0)
                                     <div
-                                        style="padding: 15px; background: #fff3cd; border-radius: 4px; margin-top: 10px; border: 1px solid #ffc107; color: #856404;">
+                                        style="padding: 15px; background: #fff3cd; border-radius: 4px; margin: 15px 0; border: 1px solid #ffc107; color: #856404;">
                                         <strong>⚠️ Hết hàng:</strong> Sách này hiện đã hết hàng. Vui lòng quay lại sau!
                                     </div>
                                 @endif
+
+                                <div class="total-price">
+                                    <span>Thành tiền</span>
+                                    <span class="final-price"
+                                        id="total-price">{{ number_format($book->gia ?? 111000, 0, ',', '.') }}₫</span>
+                                </div>
+
+                                <div class="action-buttons" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                    <button class="btn-preview" onclick="openPreviewModal()" style="flex: 1; min-width: 140px; padding: 12px 16px; border: 2px solid #0d9488; border-radius: 12px; background: white; color: #0d9488; font-weight: 700; font-size: 0.95em; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all .2s;">
+                                        📖 Đọc thử
+                                    </button>
+                                    <button class="btn btn-buy" onclick="addToReservationCart()" style="flex: 2; background: #0d9488; border-radius: 12px;">
+                                        <span style="font-size: 1.2em;">📌</span> Thêm vào giỏ đặt trước
+                                    </button>
                                 </div>
                             @endif
                         </div>
@@ -2188,13 +2209,12 @@
                     <a href="#" class="tab-link active" onclick="switchTab('intro'); return false;">Giới thiệu</a>
                 </div>
 
-                <div class="description-card">
-                    <div class="description-section" id="intro-content">
-                        {{ $book->formatted_description }}
-                    </div>
+                <div class="description-section" id="intro-content">
+                    {{ $book->formatted_description }}
+                </div>
 
-                    <div class="metadata-table">
-                        <h2>Thông tin xuất bản</h2>
+                <div class="metadata-table">
+                    <h2>Thông tin xuất bản</h2>
                     <table class="book-metadata">
                         <tr>
                             <td class="label">Tác giả:</td>
@@ -2223,7 +2243,6 @@
                         </tr>
                         @endif
                     </table>
-                </div>
                 </div>
 
                 <div class="comment-section">
@@ -2540,22 +2559,14 @@
                 const maxBorrowQuantity = availableCopies;
                 if (currentQuantity > maxBorrowQuantity) {
                     currentQuantity = maxBorrowQuantity;
-                    alert(`Chỉ còn ${maxBorrowQuantity} cuốn sách có sẵn.`);
+                    Swal.fire({icon:'warning',title:'Giới hạn số lượng',text:`Chỉ còn ${maxBorrowQuantity} cuốn sách có sẵn.`,confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 }
             } else {
-                // Chế độ đặt trước: tính cả số đã có trong giỏ
+                // Chế độ mua: sử dụng stock_quantity
                 const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
-                const cartQuantity = {{ $cartQuantity ?? 0 }};
-                const maxPerBook = 2;
-                const remaining = Math.max(0, maxPerBook - cartQuantity);
-                const maxAllowed = Math.min(stockQuantity, remaining);
-                if (currentQuantity > maxAllowed) {
-                    currentQuantity = maxAllowed;
-                    if (remaining <= 0) {
-                        alert(`Mỗi loại sách chỉ được đặt tối đa ${maxPerBook} cuốn theo quy định thư viện. Bạn đã có ${cartQuantity} cuốn trong giỏ.`);
-                    } else {
-                        alert(`Chỉ còn ${maxAllowed} cuốn có thể đặt thêm.`);
-                    }
+                if (currentQuantity > stockQuantity) {
+                    currentQuantity = stockQuantity;
+                    Swal.fire({icon:'warning',title:'Giới hạn số lượng',text:`Chỉ còn ${stockQuantity} cuốn trong kho.`,confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 }
             }
 
@@ -2565,27 +2576,18 @@
 
         function validateReservationQuantity() {
             const quantityInput = document.getElementById('paper-quantity');
-            if (!quantityInput) return 0;
+            if (!quantityInput) return 1;
 
             const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
-            const cartQuantity = {{ $cartQuantity ?? 0 }};
-            const maxPerBook = 2;
-            const remainingQuota = maxPerBook - cartQuantity;
-            const maxAllowed = Math.min(stockQuantity > 0 ? stockQuantity : 999, remainingQuota > 0 ? remainingQuota : 0);
             let quantity = parseInt(quantityInput.value) || 1;
 
             if (quantity < 1) {
                 quantity = 1;
             }
 
-            if (quantity > maxAllowed) {
-                if (remainingQuota <= 0) {
-                    alert(`Mỗi loại sách chỉ được đặt tối đa ${maxPerBook} cuốn theo quy định thư viện. Bạn đã có ${cartQuantity} cuốn trong giỏ.`);
-                } else {
-                    alert(`Mỗi loại sách chỉ được đặt tối đa ${maxPerBook} cuốn. Bạn có thể thêm tối đa ${remainingQuota} cuốn nữa.`);
-                }
-                quantityInput.value = remainingQuota > 0 ? remainingQuota : 1;
-                return 0;
+            if (stockQuantity > 0 && quantity > stockQuantity) {
+                quantity = stockQuantity;
+                Swal.fire({icon:'warning',title:'Giới hạn số lượng',text:`Chỉ còn ${stockQuantity} cuốn trong kho.`,confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
             }
 
             quantityInput.value = quantity;
@@ -2612,7 +2614,7 @@
             if (paperPriceElement) {
                 paperPriceElement.textContent = new Intl.NumberFormat('vi-VN').format(paperTotal) + '₫';
             }
-        
+
             if (paperQuantity < 1) {
                 document.getElementById('paper-quantity').value = 1;
             }
@@ -2628,7 +2630,7 @@
             if (typeof window.showToast === 'function') {
                 window.showToast(type === 'success' ? 'Thành công' : 'Thông báo', message, type);
             } else {
-                alert(message);
+                Swal.fire({icon: type === 'success' ? 'success' : 'info', title: type === 'success' ? 'Thành công' : 'Thông báo', text: message, confirmButtonText: 'Đã hiểu', confirmButtonColor: '#6C63FF'});
             }
         }
 
@@ -2666,22 +2668,34 @@
             });
         }
 
-        function addToReservationCart() {
+        function openPreviewModal() {
+            var modal = document.getElementById('previewModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closePreviewModal() {
+            var modal = document.getElementById('previewModal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closePreviewModal();
+        });
+
+        async function addToReservationCart() {
             @guest
-                if (typeof window.showToast === 'function') {
-                    window.showToast('Thông báo', 'Vui lòng đăng nhập để đặt trước sách!', 'warning');
-                } else {
-                    alert('Vui lòng đăng nhập để đặt trước sách!');
-                }
-                window.location.href = '{{ route("login") }}';
+                Swal.fire({icon:'warning',title:'Vui lòng đăng nhập',text:'Bạn cần đăng nhập để đặt trước sách!',confirmButtonText:'Đăng nhập',confirmButtonColor:'#6C63FF'}).then(() => { window.location.href = '{{ route("login") }}'; });
                 return;
             @endguest
 
             const quantity = validateReservationQuantity();
-            if (!quantity) return;
             const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
-            const maxPerBook = 2;
-            const cartQuantity = {{ $cartQuantity ?? 0 }};
 
             if (stockQuantity === 0) {
                 if (typeof window.showToast === 'function') {
@@ -2689,24 +2703,29 @@
                 }
             }
 
-            const remainingQuota = maxPerBook - cartQuantity;
-
-            if ((cartQuantity + quantity) > maxPerBook) {
-                if (remainingQuota <= 0) {
-                    alert(`Mỗi loại sách chỉ được đặt tối đa ${maxPerBook} cuốn theo quy định thư viện. Bạn đã có ${cartQuantity} cuốn trong giỏ.`);
-                } else {
-                    alert(`Mỗi loại sách chỉ được đặt tối đa ${maxPerBook} cuốn. Bạn có thể thêm tối đa ${remainingQuota} cuốn nữa.`);
+            if (quantity > stockQuantity && stockQuantity > 0) {
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Thông báo', `Bạn chọn ${quantity} cuốn nhưng kho chỉ còn ${stockQuantity} cuốn.`, 'warning');
                 }
 
                 return;
             }
 
-            if (quantity > stockQuantity && stockQuantity > 0) {
-                if (typeof window.showToast === 'function') {
-                    window.showToast('Thông báo', `Vượt quá số lượng quy định! Chỉ còn ${stockQuantity} cuốn có sẵn.`, 'warning');
-                }
+            let splitReservationItems = false;
 
-                return;
+            if (quantity > 1) {
+                const result = await Swal.fire({
+                    title: `Bạn đang thêm ${quantity} cuốn cùng một đầu sách.`,
+                    text: 'Bạn có muốn trả 2 cuốn cùng một ngày không?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Cùng ngày trả',
+                    cancelButtonText: 'Tách riêng',
+                    confirmButtonColor: '#6C63FF',
+                    cancelButtonColor: '#f8f9fa',
+                    reverseButtons: true,
+                });
+                splitReservationItems = !result.isConfirmed;
             }
 
             fetch('{{ route("reservation-cart.add") }}', {
@@ -2715,7 +2734,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
-                body: JSON.stringify({ book_id: {{ $book->id }}, quantity, add_new_line: true })
+                body: JSON.stringify({ book_id: {{ $book->id }}, quantity, split_items: splitReservationItems })
             })
             .then(res => res.json())
             .then(data => {
@@ -2723,15 +2742,17 @@
                     if (typeof window.showToast === 'function') {
                         window.showToast('Thành công', data.message || 'Đã thêm vào giỏ đặt trước.', 'success');
                     } else {
-                        alert(data.message || 'Đã thêm vào giỏ đặt trước.');
+                        Swal.fire({icon:'success',title:'Thành công',text:data.message || 'Đã thêm vào giỏ đặt trước.',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                     }
 
                     if (typeof window.loadReservationCartCount === 'function') {
                         window.loadReservationCartCount();
                     }
                 } else {
-                    if (data.message) {
-                        alert(data.message);
+                    if (typeof window.showToast === 'function') {
+                        window.showToast('Có lỗi', data.message || 'Không thể thêm vào giỏ.', 'error');
+                    } else {
+                        Swal.fire({icon:'error',title:'Có lỗi xảy ra',text:data.message || 'Không thể thêm vào giỏ.',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                     }
 
                     if (data.redirect) {
@@ -2740,7 +2761,11 @@
                 }
             })
             .catch(() => {
-                // Bỏ qua lỗi mạng/server
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Có lỗi', 'Không thể thêm vào giỏ. Vui lòng thử lại.', 'error');
+                } else {
+                    Swal.fire({icon:'error',title:'Lỗi kết nối',text:'Không thể thêm vào giỏ. Vui lòng thử lại.',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
+                }
             });
         }
 
@@ -2817,7 +2842,7 @@
             const code = discountInput?.value.trim();
 
             if (!code) {
-                alert('Vui lòng nhập mã giảm giá!');
+                Swal.fire({icon:'warning',title:'Chưa nhập mã',text:'Vui lòng nhập mã giảm giá!',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 return;
             }
 
@@ -2830,13 +2855,13 @@
             // Gọi API kiểm tra mã giảm giá (tạm thời giả lập)
             setTimeout(() => {
                 // Giả lập kiểm tra mã giảm giá
-                const validCodes = ['LibNet2024', 'FREESHIP', 'DISCOUNT10'];
+                const validCodes = ['ThuêSách2024', 'FREESHIP', 'DISCOUNT10'];
 
                 if (validCodes.includes(code.toUpperCase())) {
-                    alert('Áp dụng mã giảm giá thành công!\n\nLưu ý: Chức năng giảm giá đang được phát triển.');
+                    Swal.fire({icon:'success',title:'Thành công',text:'Áp dụng mã giảm giá thành công!\n\nLưu ý: Chức năng giảm giá đang được phát triển.',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                     discountInput.value = '';
                 } else {
-                    alert('Mã giảm giá không hợp lệ hoặc đã hết hạn!');
+                    Swal.fire({icon:'error',title:'Mã không hợp lệ',text:'Mã giảm giá không hợp lệ hoặc đã hết hạn!',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 }
 
                 btn.disabled = false;
@@ -2879,7 +2904,7 @@
                 currentQuantity = 1;
             } else if (currentQuantity > availableCopies) {
                 currentQuantity = availableCopies;
-                alert(`Chỉ còn ${availableCopies} cuốn sách có sẵn.`);
+                Swal.fire({icon:'warning',title:'Giới hạn số lượng',text:`Chỉ còn ${availableCopies} cuốn sách có sẵn.`,confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
             }
 
             quantityInput.value = currentQuantity;
@@ -2904,7 +2929,7 @@
             } else if (quantity > availableCopies) {
                 quantity = availableCopies;
                 quantityInput.value = availableCopies;
-                alert(`Chỉ còn ${availableCopies} cuốn sách có sẵn.`);
+                Swal.fire({icon:'warning',title:'Giới hạn số lượng',text:`Chỉ còn ${availableCopies} cuốn sách có sẵn.`,confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
             }
 
             // Cập nhật tóm tắt đơn hàng
@@ -2916,15 +2941,14 @@
         // Hàm mượn sách ngay
         function borrowNow() {
             @guest
-                alert('Vui lòng đăng nhập để mượn sách!');
-                window.location.href = '{{ route("login") }}';
+                Swal.fire({icon:'warning',title:'Vui lòng đăng nhập',text:'Bạn cần đăng nhập để mượn sách!',confirmButtonText:'Đăng nhập',confirmButtonColor:'#6C63FF'}).then(() => { window.location.href = '{{ route("login") }}'; });
                 return;
             @endguest
 
             const availableCopies = {{ $stats['available_copies'] ?? 0 }};
 
             if (availableCopies <= 0) {
-                alert('Hiện tại không còn sách có sẵn để mượn. Vui lòng thử lại sau.');
+                Swal.fire({icon:'info',title:'Hết sách',text:'Hiện tại không còn sách có sẵn để mượn. Vui lòng thử lại sau.',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 return;
             }
 
@@ -2934,17 +2958,16 @@
         }
 
         // Thêm sách vào giỏ sách
-        function addToCart() {
+        async function addToCart() {
             @guest
-                alert('Vui lòng đăng nhập để thêm sách vào giỏ sách!');
-                window.location.href = '{{ route("login") }}';
+                Swal.fire({icon:'warning',title:'Vui lòng đăng nhập',text:'Bạn cần đăng nhập để thêm sách vào giỏ sách!',confirmButtonText:'Đăng nhập',confirmButtonColor:'#6C63FF'}).then(() => { window.location.href = '{{ route("login") }}'; });
                 return;
             @endguest
 
             const availableCopies = {{ $stats['available_copies'] ?? 0 }};
 
             if (availableCopies <= 0) {
-                alert('Hiện tại không còn sách có sẵn để mượn. Vui lòng thử lại sau.');
+                Swal.fire({icon:'info',title:'Hết sách',text:'Hiện tại không còn sách có sẵn để mượn. Vui lòng thử lại sau.',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 return;
             }
 
@@ -2953,59 +2976,72 @@
             const distance = 0; // Mặc định 0 km
 
             if (quantity > availableCopies) {
-                alert(`Chỉ còn ${availableCopies} cuốn sách có sẵn. Vui lòng chọn lại số lượng.`);
+                Swal.fire({icon:'warning',title:'Vượt quá số lượng',text:`Chỉ còn ${availableCopies} cuốn sách có sẵn. Vui lòng chọn lại số lượng.`,confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 return;
             }
 
             // Hỏi xác nhận TRƯỚC KHI thêm vào giỏ
-            if (!confirm('Bạn có muốn thêm sách này vào giỏ sách không?')) {
-                return; // Nếu hủy thì không làm gì cả
-            }
+            const result = await Swal.fire({
+                title: 'Xác nhận thêm vào giỏ',
+                text: 'Bạn có muốn thêm sách này vào giỏ sách không?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Có, thêm vào',
+                cancelButtonText: 'Không',
+                confirmButtonColor: '#6C63FF',
+                cancelButtonColor: '#f8f9fa',
+                reverseButtons: true,
+            });
+
+            if (!result.isConfirmed) return;
 
             // Hiển thị loading
-            const btn = event.target;
-            const originalText = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<span style="font-size: 1.2em;">⏳</span> Đang thêm...';
+            const btn = document.querySelector('.btn-add-to-cart');
+            const originalText = btn ? btn.innerHTML : '';
 
-            fetch('{{ route("reservation-cart.add") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
-                body: JSON.stringify({
-                    book_id: {{ $book->id }},
-                    quantity: quantity,
-                    borrow_days: borrowDays,
-                    distance: distance,
-                    note: ''
-                })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Cập nhật số lượng trong giỏ sách nếu có icon giỏ sách
-                        updateCartCount(data.cart_count);
-                    } else {
-                        if (data.redirect) {
-                            // Nếu có redirect, hỏi người dùng có muốn chuyển đến trang đó không
-                            if (confirm(data.message + '\n\nBạn có muốn đăng ký ngay không?')) {
-                                window.location.href = data.redirect;
-                            }
-                        } else {
-                            alert(data.message || 'Có lỗi xảy ra khi thêm sách vào giỏ sách');
-                        }
-                    }
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Có lỗi xảy ra khi thêm sách vào giỏ sách');
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
+            try {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<span style="font-size: 1.2em;">⏳</span> Đang thêm...';
+                }
+
+                const response = await fetch('{{ route("reservation-cart.add") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        book_id: {{ $book->id }},
+                        quantity: quantity,
+                        borrow_days: borrowDays,
+                        distance: distance,
+                        note: ''
+                    })
                 });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateCartCount(data.cart_count);
+                    Swal.fire({icon:'success',title:'Thành công',text:data.message || 'Đã thêm vào giỏ sách.',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
+                } else {
+                    if (data.redirect) {
+                        const r = await Swal.fire({icon:'warning',title:'Cần đăng ký',text:data.message + '\n\nBạn có muốn đăng ký ngay không?',showCancelButton:true,confirmButtonText:'Đăng ký ngay',cancelButtonText:'Không',confirmButtonColor:'#6C63FF'});
+                        if (r.isConfirmed) window.location.href = data.redirect;
+                    } else {
+                        Swal.fire({icon:'error',title:'Có lỗi xảy ra',text:data.message || 'Không thể thêm vào giỏ sách.',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire({icon:'error',title:'Lỗi kết nối',text:'Có lỗi xảy ra khi thêm sách vào giỏ sách.',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            }
         }
 
         // Cập nhật số lượng trong giỏ sách (nếu có icon giỏ sách)
@@ -3142,7 +3178,7 @@
         }
 
         // Hiển thị tóm tắt phiếu mượn thống nhất
-        function displayUnifiedBorrowSummary(quantity, days, distance, totalRentalFee, totalDeposit, shippingFee, payableNow, returnDate) {
+        function displayUnifiedBorrowSummary(borrowQuantity, days, distance, totalRentalFee, totalDeposit, shippingFee, payableNow, returnDate) {
             const formatCurrency = (amount) => {
                 return new Intl.NumberFormat('vi-VN').format(amount) + '₫';
             };
@@ -3153,7 +3189,7 @@
                     <h3><i class="fas fa-info-circle" style="color:#3b82f6"></i> Thông tin mượn</h3>
                     <div class="info-row">
                         <span>Số lượng mượn:</span>
-                        <span class="info-value text-primary">${quantity} cuốn</span>
+                        <span class="info-value text-primary">${borrowQuantity} cuốn</span>
                     </div>
                     <div class="info-row">
                         <span>Số ngày mượn:</span>
@@ -3171,11 +3207,11 @@
             let pricingHtml = `
                 <div class="price-breakdown">
                     <div class="price-row">
-                        <span>Phí thuê (${quantity} cuốn × ${days} ngày):</span>
+                        <span>Phí thuê (${borrowQuantity} cuốn × ${days} ngày):</span>
                         <span>${formatCurrency(totalRentalFee)}</span>
                     </div>
                     <div class="price-row">
-                        <span>Tiền cọc (${quantity} cuốn):</span>
+                        <span>Tiền cọc (${borrowQuantity} cuốn):</span>
                         <span>${formatCurrency(totalDeposit)}</span>
                     </div>
                     <div class="price-row">
@@ -3236,7 +3272,7 @@
             const availableCopies = {{ $stats['available_copies'] ?? 0 }};
 
             if (!daysInput) {
-                alert('Không có thông tin mượn sách!');
+                Swal.fire({icon:'error',title:'Lỗi dữ liệu',text:'Không có thông tin mượn sách!',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 return;
             }
 
@@ -3245,12 +3281,12 @@
             const distance = 0;
 
             if (days < 0 || days > 30) {
-                alert('Số ngày mượn phải từ 0 đến 30 ngày!');
+                Swal.fire({icon:'warning',title:'Số ngày không hợp lệ',text:'Số ngày mượn phải từ 0 đến 30 ngày!',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 return;
             }
 
             if (borrowQuantity > availableCopies) {
-                alert(`Số lượng mượn vượt quá số lượng có sẵn. Chỉ còn ${availableCopies} cuốn.`);
+                Swal.fire({icon:'warning',title:'Vượt quá số lượng',text:`Số lượng mượn vượt quá số lượng có sẵn. Chỉ còn ${availableCopies} cuốn.`,confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 return;
             }
 
@@ -3693,12 +3729,12 @@
             const availableCopies = {{ $stats['available_copies'] ?? 0 }};
 
             if (daysInputs.length === 0) {
-                alert('Không có thông tin mượn sách!');
+                Swal.fire({icon:'error',title:'Lỗi dữ liệu',text:'Không có thông tin mượn sách!',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 return;
             }
 
             if (daysInputs.length > availableCopies) {
-                alert(`Số lượng mượn vượt quá số lượng có sẵn. Chỉ còn ${availableCopies} cuốn.`);
+                Swal.fire({icon:'warning',title:'Vượt quá số lượng',text:`Số lượng mượn vượt quá số lượng có sẵn. Chỉ còn ${availableCopies} cuốn.`,confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 return;
             }
 
@@ -3710,7 +3746,7 @@
                 const distance = 0;
 
                 if (days < 1 || days > 30) {
-                    alert(`Quyển ${index + 1}: Số ngày mượn phải từ 7 đến 30 ngày!`);
+                    Swal.fire({icon:'warning',title:'Số ngày không hợp lệ',text:`Quyển ${index + 1}: Số ngày mượn phải từ 1 đến 30 ngày!`,confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                     return;
                 }
 
@@ -3722,7 +3758,7 @@
             });
 
             if (items.length === 0) {
-                alert('Không có thông tin mượn sách hợp lệ!');
+                Swal.fire({icon:'error',title:'Lỗi dữ liệu',text:'Không có thông tin mượn sách hợp lệ!',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 return;
             }
 
@@ -3752,7 +3788,7 @@
 
             // Kiểm tra số lượng hợp lệ
             if (quantity < 1 || quantity > availableCopies) {
-                alert(`Số lượng mượn không hợp lệ. Vui lòng chọn từ 1 đến ${availableCopies} cuốn.`);
+                Swal.fire({icon:'warning',title:'Số lượng không hợp lệ',text:`Số lượng mượn không hợp lệ. Vui lòng chọn từ 1 đến ${availableCopies} cuốn.`,confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                 confirmBtn.disabled = false;
                 confirmBtn.textContent = 'Xác nhận mượn sách';
                 return;
@@ -3777,12 +3813,12 @@
                     console.log('Response status:', response.status);
                     if (response.status === 401) {
                         return response.json().then(data => {
-                            alert(data.message || 'Vui lòng đăng nhập để mượn sách!');
-                            if (data.redirect) {
-                                window.location.href = data.redirect;
-                            } else {
-                                window.location.href = '{{ route("login") }}';
-                            }
+                            Swal.fire({icon:'warning',title:'Vui lòng đăng nhập',text:data.message || 'Bạn cần đăng nhập để mượn sách!',confirmButtonText:'Đăng nhập',confirmButtonColor:'#6C63FF'}).then(() => {
+                                if (data.redirect) window.location.href = data.redirect;
+                                else window.location.href = '{{ route("login") }}';
+                            });
+                            confirmBtn.disabled = false;
+                            confirmBtn.textContent = 'Xác nhận mượn sách';
                             return;
                         });
                     }
@@ -3792,7 +3828,7 @@
                     console.log('Response data:', data);
                     if (!data) {
                         console.error('No data returned from server');
-                        alert('Không nhận được phản hồi từ server!');
+                        Swal.fire({icon:'error',title:'Lỗi server',text:'Không nhận được phản hồi từ server!',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                         confirmBtn.disabled = false;
                         confirmBtn.textContent = 'Xác nhận mượn sách';
                         return;
@@ -3802,7 +3838,6 @@
                         console.log('Borrow created successfully:', data.data);
                         closeBorrowModal();
 
-                        // Hiển thị thông báo thành công với thông tin chi tiết
                         const quantity = data.data?.quantity || 1;
                         const message = (data.message || 'Đã gửi yêu cầu mượn sách thành công!') +
                             '\n\nSố lượng mượn: ' + quantity + ' cuốn' +
@@ -3810,23 +3845,21 @@
                             '\nMã chi tiết: ' + (data.data?.borrow_item_id || 'N/A') +
                             '\n\nYêu cầu đã được gửi và sẽ hiển thị trong trang "Quản lý mượn sách" của admin.';
 
-                        alert(message);
-
-                        // Redirect đến trang sách đang mượn để xem yêu cầu vừa tạo
-                        window.location.href = '{{ route("reservation-cart.index") }}';
+                        Swal.fire({icon:'success',title:'Thành công',text:message,confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'}).then(() => {
+                            window.location.href = '{{ route("reservation-cart.index") }}';
+                        });
                     } else {
                         console.error('Borrow creation failed:', data.message);
-                        alert(data.message || 'Có lỗi xảy ra khi gửi yêu cầu mượn sách!');
+                        Swal.fire({icon:'error',title:'Có lỗi xảy ra',text:data.message || 'Có lỗi khi gửi yêu cầu mượn sách!',confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'}).then(() => {
+                            if (data.redirect) window.location.href = data.redirect;
+                        });
                         confirmBtn.disabled = false;
                         confirmBtn.textContent = 'Xác nhận mượn sách';
-                        if (data.redirect) {
-                            window.location.href = data.redirect;
-                        }
                     }
                 })
                 .catch(error => {
                     console.error('Fetch Error:', error);
-                    alert('Có lỗi xảy ra khi gửi yêu cầu mượn sách: ' + error.message);
+                    Swal.fire({icon:'error',title:'Lỗi kết nối',text:'Có lỗi xảy ra: ' + error.message,confirmButtonText:'Đã hiểu',confirmButtonColor:'#6C63FF'});
                     confirmBtn.disabled = false;
                     confirmBtn.textContent = 'Xác nhận mượn sách';
                 });
@@ -3893,6 +3926,34 @@
 
             <!-- Container cho các nút hành động -->
             <div id="borrowModalActions"></div>
+        </div>
+    </div>
+
+    <!-- Modal Đọc Thử -->
+    <div id="previewModal" style="display:none; position:fixed; inset:0; z-index:10000; align-items:center; justify-content:center;">
+        <div style="position:absolute; inset:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);" onclick="closePreviewModal()"></div>
+        <div style="position:relative; width:90%; max-width:680px; max-height:85vh; background:#fff; border-radius:20px; box-shadow:0 25px 60px rgba(0,0,0,0.25); display:flex; flex-direction:column; animation:modalFadeIn .25s ease;">
+            <!-- Header -->
+            <div style="padding:20px 24px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+                <div>
+                    <h2 style="margin:0; font-size:1.2rem; color:#111827; font-weight:700;">📖 Đọc thử - {{ $book->ten_sach }}</h2>
+                    <p style="margin:4px 0 0; font-size:0.85rem; color:#6b7280;">Xem trước nội dung sách</p>
+                </div>
+                <button onclick="closePreviewModal()" style="width:36px; height:36px; border-radius:50%; border:none; background:#f3f4f6; cursor:pointer; font-size:1.2rem; color:#6b7280; display:flex; align-items:center; justify-content:center; transition:all .2s;">&times;</button>
+            </div>
+            <!-- Body -->
+            <div id="previewModalBody" style="flex:1; overflow-y:auto; padding:24px; font-size:0.95rem; line-height:1.8; color:#374151;">
+                {!! $book->preview_content ?? '<p style="text-align:center; color:#9ca3af; padding:40px;">Nội dung xem trước đang được cập nhật...</p>' !!}
+            </div>
+            <!-- Footer -->
+            <div style="padding:16px 24px; border-top:1px solid #e5e7eb; display:flex; gap:12px; justify-content:flex-end; flex-shrink:0; background:#f9fafb; border-radius:0 0 20px 20px;">
+                <button onclick="closePreviewModal()" style="padding:10px 24px; border-radius:10px; border:1px solid #d1d5db; background:#fff; color:#374151; font-weight:600; cursor:pointer; font-size:0.9rem; transition:all .2s;">
+                    Đóng
+                </button>
+                <button onclick="addToReservationCart(); closePreviewModal();" style="padding:10px 24px; border-radius:10px; border:none; background:#0d9488; color:#fff; font-weight:600; cursor:pointer; font-size:0.9rem; box-shadow:0 4px 12px rgba(13,148,136,0.3); transition:all .2s;">
+                    📌 Đặt trước sách này
+                </button>
+            </div>
         </div>
     </div>
 

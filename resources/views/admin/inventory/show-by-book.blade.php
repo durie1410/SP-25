@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Chi Tiết Sách Trong Kho - LibNet Admin')
+@section('title', 'Chi Tiết Sách Trong Kho - Thuê Sách LibNet Admin')
 
 @section('content')
 
@@ -29,10 +29,8 @@
             <div class="form-group" style="margin-bottom:0;">
                 <label style="font-weight:600; margin-bottom:6px; display:block; color:var(--text-primary);">Ảnh minh chứng</label>
                 <input type="file" name="proof_images[]" id="damage_proof_images" accept="image/*" multiple
-                       style="font-size:13px; color:#495057;"
-                       onchange="previewDamageImages(this)">
+                       style="font-size:13px; color:#495057;">
                 <small class="form-text text-muted">Có thể chọn nhiều ảnh (tối đa 6 ảnh, mỗi ảnh tối đa 4MB).</small>
-                <div id="damage-preview" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;"></div>
             </div>
         </div>
         <div style="padding:16px 24px; border-top:1px solid var(--border-color); display:flex; justify-content:flex-end; gap:10px;">
@@ -50,38 +48,15 @@ function openDamageModal(inventoryId, barcode) {
     document.getElementById('damage_book_info').innerHTML =
         '<strong>Mã vạch:</strong> <code>' + barcode + '</code>';
     document.getElementById('damage_reason').value = '';
-    document.getElementById('damage_proof_images').value = '';
-    document.getElementById('damage-preview').innerHTML = '';
     document.getElementById('damageModal').style.display = 'block';
     document.getElementById('damageModalOverlay').style.display = 'block';
     document.body.style.overflow = 'hidden';
-}
-
-function previewDamageImages(input) {
-    const container = document.getElementById('damage-preview');
-    container.innerHTML = '';
-    if (!input.files) return;
-    Array.from(input.files).forEach(file => {
-        if (!file.type.startsWith('image/')) return;
-        const reader = new FileReader();
-        reader.onload = function (e) {
-            const div = document.createElement('div');
-            div.style.cssText = 'width:80px; height:80px; border-radius:8px; overflow:hidden; border:1px solid #ddd; flex-shrink:0;';
-            const img = document.createElement('img');
-            img.src = e.target.result;
-            img.style.cssText = 'width:100%; height:100%; object-fit:cover;';
-            div.appendChild(img);
-            container.appendChild(div);
-        };
-        reader.readAsDataURL(file);
-    });
 }
 
 function closeDamageModal() {
     document.getElementById('damageModal').style.display = 'none';
     document.getElementById('damageModalOverlay').style.display = 'none';
     document.body.style.overflow = '';
-    document.getElementById('damage-preview').innerHTML = '';
 }
 </script>
 

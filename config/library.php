@@ -29,6 +29,9 @@ return [
 	'borrow_max_days' => env('LIB_BORROW_MAX_DAYS', 14),
 	'borrow_min_books' => env('LIB_BORROW_MIN_BOOKS', 1),
 	'borrow_max_books' => env('LIB_BORROW_MAX_BOOKS', 5),
+	'no_show_lock_threshold' => env('LIB_NO_SHOW_LOCK_THRESHOLD', 3),
+	'cancel_lock_daily_threshold' => env('LIB_CANCEL_LOCK_DAILY_THRESHOLD', 3),
+	'cancel_lock_weekly_threshold' => env('LIB_CANCEL_LOCK_WEEKLY_THRESHOLD', 7),
 	'capacity_target_ratio' => env('LIB_CAPACITY_TARGET_RATIO', 1.1), // e.g., 50 seats -> 55/h
 
 	// Notification timings (days)
