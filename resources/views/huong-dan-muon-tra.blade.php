@@ -115,71 +115,89 @@
         <div class="guide-hero">
             <div>
                 <h1>Hướng dẫn mượn & trả sách</h1>
-                <p>4 bước đơn giản: tìm sách → thêm vào giỏ mượn → gửi yêu cầu → nhận sách và trả sách đúng hạn.</p>
+                <p>Quy trình rõ ràng, thao tác nhanh và minh bạch để bạn đặt mượn, nhận sách và trả sách đúng quy định.</p>
                 <div class="guide-tags">
-                    <span class="guide-tag">🕒 Thời gian xử lý: 5-15 phút</span>
-                    <span class="guide-tag">💳 COD / MOMO</span>
+                    <span class="guide-tag">🕒 Giờ đặt sách: 08:00 - 18:00</span>
+                    <span class="guide-tag">🏢 Giờ nhận sách: 08:00 - 20:00</span>
                 </div>
             </div>
             <div class="guide-badge">
-                📚 Gợi ý: Đăng nhập trước để lưu giỏ mượn và theo dõi trạng thái dễ dàng
+                📚 Vui lòng đọc kỹ quy định trước khi gửi yêu cầu để tránh vi phạm không cần thiết.
             </div>
         </div>
 
-        <h2 class="guide-section-title">Quy trình mượn sách</h2>
+        <h2 class="guide-section-title">1. Quy định mượn sách</h2>
         <div class="guide-steps" style="margin-top: 16px;">
             <div class="guide-card">
-                <h3>Quy định mượn sách</h3>
-                <p>- Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '20:00') }}.<br>- Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày</p>
+                <h3>Thời gian áp dụng</h3>
+                <p>- Giờ đặt sách: 08:00 - 18:00.<br>- Giờ nhận sách tại quầy: 08:00 - 20:00 (giờ đóng cửa).</p>
             </div>
             <div class="guide-card">
-                <h3>Đặt trước & hàng chờ</h3>
-                <p>- Nếu sách đã hết, hệ thống sẽ chuyển bạn vào hàng chờ.<br>- Khi có sách trống, hệ thống tự động giữ sách cho người tiếp theo.</p>
+                <h3>Yêu cầu nhận sách đúng hẹn</h3>
+                <p>- Người dùng cần đến nhận sách đúng thời gian đã đặt.<br>- Được phép đến trễ tối đa 2 giờ, nhưng không vượt quá 20:00.<br>- Quá thời gian trên, đơn tự động hủy và được tính là vi phạm.</p>
             </div>
         </div>
 
+        <h2 class="guide-section-title">2. Đặt trước & hàng chờ</h2>
+        <div class="guide-steps" style="margin-top: 16px;">
+            <div class="guide-card">
+                <h3>Khi sách tạm hết</h3>
+                <p>Nếu sách không còn sẵn, yêu cầu của bạn sẽ được đưa vào hàng chờ theo thứ tự.</p>
+            </div>
+            <div class="guide-card">
+                <h3>Khi có sách trở lại</h3>
+                <p>Hệ thống giữ sách trong một khoảng thời gian theo quy định. Nếu bạn không đến nhận, quyền nhận sẽ chuyển cho người kế tiếp.</p>
+            </div>
+        </div>
+
+        <h2 class="guide-section-title">3. Quy trình mượn sách</h2>
         <div class="guide-steps">
             <div class="guide-card">
-                <h3>1) Tìm & chọn sách</h3>
-                <p>- Tìm theo tên sách/tác giả hoặc vào danh mục.<br>- Kiểm tra số lượng còn trong kho.</p>
+                <h3>Bước 1: Tìm & chọn sách</h3>
+                <p>Tìm theo tên sách, tác giả hoặc danh mục và kiểm tra tình trạng còn sách trước khi đặt.</p>
             </div>
             <div class="guide-card">
-                <h3>2) Thêm vào giỏ mượn</h3>
-                <p>- Chọn số lượng muốn mượn.<br>- Kiểm tra phí thuê/đặt cọc hiển thị (nếu có).</p>
+                <h3>Bước 2: Thêm vào giỏ</h3>
+                <p>Chọn sách cần mượn, thêm vào giỏ đặt trước và kiểm tra lại thông tin đơn.</p>
             </div>
             <div class="guide-card">
-                <h3>3) Gửi yêu cầu</h3>
-                <p>- Điền thông tin nhận sách (địa chỉ/số điện thoại).</p>
+                <h3>Bước 3: Gửi yêu cầu</h3>
+                <p>Điền đầy đủ thông tin cần thiết, xác nhận quy định mượn trả và gửi yêu cầu.</p>
             </div>
             <div class="guide-card">
-                <h3>4) Nhận & trả sách</h3>
-                <p>- Nhận sách tại quầy<br>- Trả sách đúng hạn để tránh phí trễ/hư hỏng.</p>
+                <h3>Bước 4: Nhận & trả sách</h3>
+                <p>Nhận sách tại quầy theo lịch hẹn và trả sách đúng hạn theo thông tin đơn mượn.</p>
             </div>
         </div>
 
-        <h2 class="guide-section-title">Trả sách & phí liên quan</h2>
+        <h2 class="guide-section-title">4. Trả sách & phí</h2>
         <div class="guide-steps">
             <div class="guide-card">
-                <h3>Thời hạn & gia hạn</h3>
-                <p>- Xem ngày trả trong đơn mượn.<br>- Liên hệ thư viện nếu cần gia hạn (tùy chính sách).</p>
+                <h3>Hình thức trả sách</h3>
+                <p>Bạn có thể trả trực tiếp tại quầy hoặc qua vận chuyển (nếu hệ thống đang hỗ trợ).</p>
             </div>
             <div class="guide-card">
-                <h3>Trả sách</h3>
-                <p>- Trả trực tiếp tại quầy hoặc gửi lại qua đơn vị vận chuyển (nếu được hỗ trợ).<br>- Kiểm tra tình trạng sách trước khi trả.</p>
+                <h3>Phí trễ hạn</h3>
+                <p>Trả sách quá hạn sẽ phát sinh phí theo số ngày trễ theo chính sách hiện hành của thư viện.</p>
             </div>
             <div class="guide-card">
-                <h3>Phí trễ hạn / hư hỏng</h3>
-                <p>- Trễ hạn: tính theo ngày (xem mục chính sách giá nếu áp dụng).<br>- Hư hỏng/mất sách: bồi thường theo giá sách hoặc thỏa thuận của thư viện.</p>
+                <h3>Hư hỏng hoặc mất sách</h3>
+                <p>Người dùng có trách nhiệm bồi thường theo giá trị sách và quy định bồi thường của thư viện.</p>
             </div>
         </div>
 
-        <h2 class="guide-section-title">Mẹo sử dụng nhanh</h2>
+        <h2 class="guide-section-title">5. Quy định vi phạm</h2>
+        <ul class="guide-list">
+            <li>Không đến nhận sách và không hủy đơn đúng cách sẽ bị ghi nhận là vi phạm.</li>
+            <li>Vi phạm lặp lại nhiều lần có thể dẫn đến giới hạn quyền mượn hoặc khóa tài khoản theo chính sách hệ thống.</li>
+        </ul>
+
+        <h2 class="guide-section-title">6. Mẹo sử dụng</h2>
         <ul class="guide-list">
             <li>Đăng nhập để lưu giỏ mượn và theo dõi trạng thái đơn.</li>
             <li>Kiểm tra số lượng còn trong kho và tình trạng sách trước khi đặt.</li>
-            <li>Chọn phương thức nhận sách phù hợp (nhận tại chỗ).</li>
-            <li>Trả sách đúng hạn, bảo quản sách tránh ẩm/mốc/rách.</li>
-            <li>Nếu cần hỗ trợ, liên hệ Thủ thư hoặc hotline hiển thị trên trang.</li>
+            <li>Đến nhận sách đúng hẹn để tránh bị hủy đơn và phát sinh vi phạm.</li>
+            <li>Trả sách đúng hạn, bảo quản sách cẩn thận để không phát sinh phí.</li>
         </ul>
         
     </div>

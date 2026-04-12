@@ -68,10 +68,6 @@
             line-height: 1.5;
         }
 
-        .container-fluid {
-            padding: 24px 16px;
-        }
-
         .mobile-nav {
             position: fixed;
             bottom: 0;
@@ -209,12 +205,6 @@
             body { padding-bottom: 70px; }
         }
 
-        @media (min-width:1025px) {
-            .container-fluid {
-                max-width: 1280px;
-                margin: 0 auto;
-            }
-        }
     </style>
 
     @yield('styles')
@@ -233,9 +223,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <!-- Main Content -->
-    <div class="container-fluid">
-        @yield('content')
-    </div>
+    @yield('content')
 
     <!-- Mobile Navigation -->
     <nav class="mobile-nav">
