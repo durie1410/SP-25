@@ -177,7 +177,7 @@
         </div>
     </div>
 
-    <form id="borrowCheckoutForm" method="POST" action="{{ route('borrow-cart.process-checkout') }}" novalidate>
+    <form id="borrowCheckoutForm" method="POST" action="{{ route('borrow-cart.process-checkout') }}" novalidate data-no-global-loading="true">
         @csrf
 
         {{-- Hidden source if items came from URL params --}}
@@ -678,9 +678,12 @@
                                     Tôi đồng ý với <a href="#" onclick="event.preventDefault(); showTermsModal();" style="color: #3b82f6; text-decoration: underline;">chính sách và điều khoản</a> của Thư Viện Online
                                 </label>
                             </div>
-                            <div class="invalid-feedback" id="agreeTermsError" style="display: none;">
-                                Vui lòng đồng ý với chính sách và điều khoản để tiếp tục
+                            <div class="invalid-feedback" id="agreeTermsError" style="display: {{ $errors->has('agree_terms') ? 'block' : 'none' }};">
+                                Bạn phải đồng ý quy định mượn trả trước khi gửi yêu cầu
                             </div>
+                            @error('agree_terms')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="d-grid gap-2">
@@ -1372,8 +1375,27 @@ console.log('📄 Checkout page script loaded');
             else alert(message);
         }
 
+        const AGREEMENT_ERROR_MESSAGE = 'Bạn phải đồng ý quy định mượn trả trước khi gửi yêu cầu';
+
+        function hideGlobalLoading(){
+            if(window.MobileUtils && typeof window.MobileUtils.hideLoading === 'function'){
+                window.MobileUtils.hideLoading();
+            }
+        }
+
+        function showAgreeTermsError(){
+            const agreeTerms = document.getElementById('agreeTerms');
+            const errorDiv = document.getElementById('agreeTermsError');
+            if(errorDiv) errorDiv.style.display = 'block';
+            if(agreeTerms) {
+                agreeTerms.classList.add('is-invalid');
+                agreeTerms.focus();
+            }
+        }
+
         form.addEventListener('submit', async function(e){
-            e.preventDefault(); e.stopPropagation();
+            e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+            hideGlobalLoading();
             const original = btn.innerHTML;
             const name = document.getElementById('reader_name')?.value?.trim();
             const phone = document.getElementById('reader_phone')?.value?.trim();
@@ -1384,34 +1406,30 @@ console.log('📄 Checkout page script loaded');
             const xa = document.getElementById('xa')?.value?.trim();
             const payment = document.querySelector('input[name="payment_method"]:checked');
 
-            if(!name){ showToast('error','Vui lòng nhập họ và tên'); return; }
-            if(!phone){ showToast('error','Vui lòng nhập số điện thoại'); return; }
-            if(!email){ showToast('error','Vui lòng nhập email'); return; }
-            if(!birthday){ showToast('error','Vui lòng nhập ngày sinh'); return; }
-            if(!gender){ showToast('error','Vui lòng chọn giới tính'); return; }
-            if(!tinhThanh){ showToast('error','Vui lòng chọn tỉnh/thành phố'); return; }
-            if(!xa){ showToast('error','Vui lòng nhập phường/xã/địa chỉ'); return; }
-            if(!payment){ showToast('error','Vui lòng chọn phương thức thanh toán'); return; }
+            if(!name){ showToast('error','Vui lòng nhập họ và tên'); hideGlobalLoading(); return; }
+            if(!phone){ showToast('error','Vui lòng nhập số điện thoại'); hideGlobalLoading(); return; }
+            if(!email){ showToast('error','Vui lòng nhập email'); hideGlobalLoading(); return; }
+            if(!birthday){ showToast('error','Vui lòng nhập ngày sinh'); hideGlobalLoading(); return; }
+            if(!gender){ showToast('error','Vui lòng chọn giới tính'); hideGlobalLoading(); return; }
+            if(!tinhThanh){ showToast('error','Vui lòng chọn tỉnh/thành phố'); hideGlobalLoading(); return; }
+            if(!xa){ showToast('error','Vui lòng nhập phường/xã/địa chỉ'); hideGlobalLoading(); return; }
+            if(!payment){ showToast('error','Vui lòng chọn phương thức thanh toán'); hideGlobalLoading(); return; }
             
             // Kiểm tra checkbox đồng ý điều khoản
             const agreeTerms = document.getElementById('agreeTerms');
             if(!agreeTerms || !agreeTerms.checked){
-                showToast('error','Vui lòng đồng ý với chính sách và điều khoản để tiếp tục');
-                agreeTerms?.focus();
-                const errorDiv = document.getElementById('agreeTermsError');
-                if(errorDiv) {
-                    errorDiv.style.display = 'block';
-                    agreeTerms.classList.add('is-invalid');
-                }
+                showToast('error', AGREEMENT_ERROR_MESSAGE);
+                showAgreeTermsError();
+                hideGlobalLoading();
                 return;
             }
             
-            if(!confirm('Bạn có chắc chắn muốn mượn tất cả các sách này?')) return;
+            if(!confirm('Bạn có chắc chắn muốn mượn tất cả các sách này?')) { hideGlobalLoading(); return; }
 
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...'; btn.disabled = true;
 
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="_token"]')?.value;
-            if(!csrfToken){ showToast('error','Không tìm thấy token bảo mật. Vui lòng tải lại trang.'); btn.innerHTML = original; btn.disabled = false; return; }
+            if(!csrfToken){ showToast('error','Không tìm thấy token bảo mật. Vui lòng tải lại trang.'); btn.innerHTML = original; btn.disabled = false; hideGlobalLoading(); return; }
 
             // Đảm bảo tính phí ship trước khi submit nếu chưa có
             if (window.currentShippingFee === undefined || window.currentShippingFee === null) {
@@ -1444,15 +1462,19 @@ console.log('📄 Checkout page script loaded');
                         const m = text.match(/https?:\/\/[\w\-\./?&=:%]+vnpayment\.vn[^\s"']*/);
                         if(m && m[0]){ showToast('success','Chuyển đến cổng thanh toán...'); setTimeout(()=>window.location.href = m[0], 800); return; }
                     }
-                    showToast('error','Phản hồi từ server không đúng định dạng'); btn.innerHTML = original; btn.disabled = false; return;
+                    showToast('error','Phản hồi từ server không đúng định dạng'); btn.innerHTML = original; btn.disabled = false; hideGlobalLoading(); return;
                 }
                 const json = await res.json();
                 if(!res.ok){
                     let err = json.message || 'Có lỗi xảy ra';
                     if(json.errors){ err = Object.values(json.errors).flat().join(', '); }
+                    if(json.errors && json.errors.agree_terms){
+                        err = AGREEMENT_ERROR_MESSAGE;
+                        showAgreeTermsError();
+                    }
                     showToast('error', err);
                     if(json.redirect) setTimeout(()=>window.location.href = json.redirect, 1200);
-                    else { btn.innerHTML = original; btn.disabled = false; }
+                    else { btn.innerHTML = original; btn.disabled = false; hideGlobalLoading(); }
                     return;
                 }
                 if(json.success){
@@ -1460,13 +1482,14 @@ console.log('📄 Checkout page script loaded');
                     showToast('success', json.message || 'Tạo yêu cầu thành công');
                     setTimeout(()=>window.location.href = json.redirect_url || '{{ route("account.borrowed-books") }}', 900);
                 } else {
-                    showToast('error', json.message || 'Có lỗi xảy ra'); btn.innerHTML = original; btn.disabled = false;
+                    showToast('error', json.message || 'Có lỗi xảy ra'); btn.innerHTML = original; btn.disabled = false; hideGlobalLoading();
                 }
             })
             .catch(err=>{
                 console.error('Fetch Error:', err);
                 showToast('error', 'Lỗi kết nối: ' + (err.message || err));
                 btn.innerHTML = original; btn.disabled = false;
+                hideGlobalLoading();
             });
         });
 

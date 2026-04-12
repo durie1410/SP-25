@@ -321,8 +321,15 @@
             handleFormSubmit: function (formSelector) {
                 const forms = document.querySelectorAll(formSelector);
                 forms.forEach(form => {
-                    form.addEventListener('submit', function () {
-                        MobileUtils.showLoading();
+                    form.addEventListener('submit', function (event) {
+                        if (this.hasAttribute('data-no-global-loading')) {
+                            return;
+                        }
+                        setTimeout(() => {
+                            if (!event.defaultPrevented) {
+                                MobileUtils.showLoading();
+                            }
+                        }, 0);
                     });
                 });
             },
