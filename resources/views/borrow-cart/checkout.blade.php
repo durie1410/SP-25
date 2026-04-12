@@ -675,7 +675,7 @@
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="agreeTerms" name="agree_terms" required>
                                 <label class="form-check-label" for="agreeTerms" style="font-size: 0.9rem; color: #64748b;">
-                                    Tôi đồng ý với <a href="#" onclick="event.preventDefault(); showTermsModal();" style="color: #3b82f6; text-decoration: underline;">chính sách và điều khoản</a> của Thư Viện Online
+                                    Tôi đồng ý với <a href="{{ route('guide.borrow-return') }}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline;">chính sách và điều khoản</a> của Thư Viện Online
                                 </label>
                             </div>
                             <div class="invalid-feedback" id="agreeTermsError" style="display: {{ $errors->has('agree_terms') ? 'block' : 'none' }};">
