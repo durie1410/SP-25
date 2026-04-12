@@ -955,16 +955,17 @@
                                 <input type="hidden" id="pickup-time-hidden" value="{{ $items->first()?->pickup_time ?? '' }}">
                             </div>
                         </div>
-                        <div style="font-weight: 700; margin-bottom: 8px;">Quy định mượn trả</div>
-                        <ul style="margin: 0 0 12px 18px; color: var(--reserve-muted); font-size: 12px; line-height: 1.6;">
-                            <li>Giờ nhận sách: {{ config('library.open_hour', '08:00') }} - {{ config('library.close_hour', '18:00') }}.</li>
-                            <li>Thời gian mượn: {{ config('library.borrow_min_days', 1) }} - {{ config('library.borrow_max_days', 14) }} ngày.</li>
-                            <li>Số lượng: tối thiểu {{ config('library.borrow_min_books', 1) }} cuốn, tối đa {{ config('library.borrow_max_books', 5) }} cuốn/đơn.</li>
-                            <li>Trả đúng hạn, giữ sách nguyên vẹn để được hoàn cọc đầy đủ.</li>
-                        </ul>
-                        <label style="display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--reserve-text);">
+                        <div style="border: 1px solid #dbe4dc; background: #f8fffd; border-radius: 12px; padding: 10px 12px; margin-bottom: 10px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+                                <span style="font-size: 12px; color: var(--reserve-muted);">Vui lòng xem và xác nhận quy định mượn trả trước khi gửi yêu cầu.</span>
+                                <a href="{{ route('guide.borrow-return') }}" target="_blank" rel="noopener noreferrer" style="font-size: 12px; font-weight: 700; color: var(--reserve-primary); text-decoration: none;">
+                                    Xem quy định chi tiết <i class="fas fa-external-link-alt" style="font-size: 10px;"></i>
+                                </a>
+                            </div>
+                        </div>
+                        <label style="display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--reserve-text); margin-bottom: 0;">
                             <input type="checkbox" id="agree-reservation-rules" name="agree_terms" value="1" form="reservation-submit-form" class="form-check-input" style="margin-top: 2px;" {{ old('agree_terms') ? 'checked' : '' }}>
-                            Tôi đã đọc và hiểu quy định mượn trả
+                            Tôi đã đọc và đồng ý với quy định mượn trả
                         </label>
                         <div id="agree-reservation-rules-error" style="margin-top: 6px; color: #dc2626; font-size: 12px; display: {{ $errors->has('agree_terms') ? 'block' : 'none' }};">
                             Bạn phải đồng ý quy định mượn trả trước khi gửi yêu cầu
