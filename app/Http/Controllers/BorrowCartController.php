@@ -1044,8 +1044,8 @@ class BorrowCartController extends Controller
             'manual_shipping_fee' => 'nullable|numeric|min:0',
             'agree_terms' => 'required|accepted',
         ], [
-            'agree_terms.required' => 'Vui lòng đồng ý với chính sách và điều khoản để tiếp tục.',
-            'agree_terms.accepted' => 'Bạn phải đồng ý với chính sách và điều khoản để tiếp tục.',
+            'agree_terms.required' => 'Bạn phải đồng ý quy định mượn trả trước khi gửi yêu cầu',
+            'agree_terms.accepted' => 'Bạn phải đồng ý quy định mượn trả trước khi gửi yêu cầu',
         ]);
 
         $nowTime = now()->format('H:i');

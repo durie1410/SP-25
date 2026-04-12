@@ -284,6 +284,10 @@ class ReservationCartController extends Controller
             'selected_item_ids' => 'required|array|min:1',
             'selected_item_ids.*' => 'integer',
             'pickup_time' => 'nullable|date_format:H:i',
+            'agree_terms' => 'required|accepted',
+        ], [
+            'agree_terms.required' => 'Bạn phải đồng ý quy định mượn trả trước khi gửi yêu cầu',
+            'agree_terms.accepted' => 'Bạn phải đồng ý quy định mượn trả trước khi gửi yêu cầu',
         ]);
 
         $openHour = config('library.open_hour', '08:00');

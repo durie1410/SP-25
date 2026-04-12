@@ -963,14 +963,21 @@
                             <li>Trả đúng hạn, giữ sách nguyên vẹn để được hoàn cọc đầy đủ.</li>
                         </ul>
                         <label style="display: flex; gap: 10px; align-items: center; font-size: 12px; color: var(--reserve-text);">
-                            <input type="checkbox" id="agree-reservation-rules" class="form-check-input" style="margin-top: 2px;">
+                            <input type="checkbox" id="agree-reservation-rules" name="agree_terms" value="1" form="reservation-submit-form" class="form-check-input" style="margin-top: 2px;" {{ old('agree_terms') ? 'checked' : '' }}>
                             Tôi đã đọc và hiểu quy định mượn trả
                         </label>
+                        <div id="agree-reservation-rules-error" style="margin-top: 6px; color: #dc2626; font-size: 12px; display: {{ $errors->has('agree_terms') ? 'block' : 'none' }};">
+                            Bạn phải đồng ý quy định mượn trả trước khi gửi yêu cầu
+                        </div>
+                        @error('agree_terms')
+                            <div style="margin-top: 4px; color: #dc2626; font-size: 12px;">{{ $message }}</div>
+                        @enderror
                     </div>
 
                     <form id="reservation-submit-form"
                           method="POST"
                           action="{{ route('reservation-cart.submit') }}"
+                          data-no-global-loading="true"
                           onsubmit="return validateCartBeforeSubmit()">
                         @csrf
                         <!-- DEBUG -->
@@ -1742,14 +1749,30 @@ function validateCartBeforeSubmit(){
     // Check agreement
     const agreed = document.getElementById('agree-reservation-rules');
     if(!agreed || !agreed.checked){
+        if(agreed){
+            agreed.classList.add('is-invalid');
+            agreed.focus();
+        }
+        const agreeError = document.getElementById('agree-reservation-rules-error');
+        if(agreeError){
+            agreeError.style.display = 'block';
+        }
         Swal.fire({
             icon: 'warning',
             title: 'Chưa đồng ý quy định',
-            text: 'Vui lòng tick "Tôi đã đọc và hiểu quy định mượn trả" trước khi gửi yêu cầu.',
+            text: 'Bạn phải đồng ý quy định mượn trả trước khi gửi yêu cầu',
             confirmButtonText: 'Đã hiểu',
             confirmButtonColor: '#0d9488',
         });
         return false;
+    }
+
+    if(agreed){
+        agreed.classList.remove('is-invalid');
+    }
+    const agreeError = document.getElementById('agree-reservation-rules-error');
+    if(agreeError){
+        agreeError.style.display = 'none';
     }
 
     // Submit form - sẽ gọi API
@@ -1769,6 +1792,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Disable các giờ đã qua nếu ngày lấy là hôm nay
     initPickupTimeValidation();
+
+    const agreeCheckbox = document.getElementById('agree-reservation-rules');
+    if(agreeCheckbox){
+        agreeCheckbox.addEventListener('change', function(){
+            if(this.checked){
+                this.classList.remove('is-invalid');
+                const agreeError = document.getElementById('agree-reservation-rules-error');
+                if(agreeError){
+                    agreeError.style.display = 'none';
+                }
+            }
+        });
+    }
 });
 
 // Khởi tạo validation giờ lấy dựa trên ngày
