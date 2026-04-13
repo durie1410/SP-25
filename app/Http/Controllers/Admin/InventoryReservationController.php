@@ -124,6 +124,20 @@ class InventoryReservationController extends Controller
             return back()->with('error', 'Yêu cầu đã quá hạn ngày lấy. Vui lòng xử lý ở thao tác "Quá hạn".');
         }
 
+        if ($reservation->status === 'ready') {
+            return redirect()->route('admin.inventory-reservations.proof', $reservation->id)
+                ->with('success', 'Đơn đã sẵn sàng. Bạn có thể xem/thêm ảnh chứng minh tại đây.');
+        }
+
+        if ($reservation->status !== 'pending') {
+            return back()->with('error', 'Yêu cầu này không còn ở trạng thái chờ.');
+        }
+
+        if ($reservation->inventory_id && is_null($reservation->ready_at)) {
+            return redirect()->route('admin.inventory-reservations.proof', $reservation->id)
+                ->with('success', 'Đã gán bản sao. Vui lòng tải ảnh chứng minh để hoàn tất xác nhận Ready.');
+        }
+
         DB::beginTransaction();
         try {
             // Tự chọn 1 bản copy đang có sẵn (lock để không ai khác lấy mất)
@@ -139,26 +153,18 @@ class InventoryReservationController extends Controller
                 return back()->with('error', 'Không có bản sao nào đang "Có sẵn" để xác nhận đặt trước.');
             }
 
-            // Kiểm tra status lần 1 trước khi update
-            if ($reservation->status !== 'pending') {
-                DB::rollBack();
-                Log::info('markAsReady - Status not pending', ['id' => $id, 'status' => $reservation->status]);
-                return back()->with('error', 'Yêu cầu này không còn ở trạng thái chờ.');
-            }
-
             Log::info('markAsReady - About to update', ['id' => $id, 'status_before' => $reservation->status]);
 
-            // UPDATE với điều kiện status = 'pending'
-            // dùng ready_at làm cờ chống trùng: nếu ready_at đã có giá trị → đã xử lý rồi
+            // Chỉ gán bản sao và chuyển sang bước chụp ảnh.
+            // Trạng thái ready sẽ được chốt sau khi ảnh chứng minh được lưu thành công.
             $affected = InventoryReservation::where('id', $id)
                 ->where('status', 'pending')
                 ->whereNull('ready_at')
+                ->whereNull('inventory_id')
                 ->update([
                     'inventory_id' => $inventory->id,
-                    'status' => 'ready',
                     'admin_note' => $request->admin_note,
                     'processed_by' => Auth::id(),
-                    'ready_at' => now(),
                 ]);
 
             Log::info('markAsReady - Update result', ['id' => $id, 'affected' => $affected]);
@@ -172,18 +178,8 @@ class InventoryReservationController extends Controller
             DB::commit();
             Log::info('markAsReady - Committed', ['id' => $id]);
 
-            // Kiểm tra lại ready_at sau commit — nếu đã có giá trị thì bỏ qua gửi notification
-            $reservation->refresh();
-            if (!$reservation->ready_at) {
-                Log::info('markAsReady - SKIPPING notification (ready_at is null after refresh)', ['id' => $id]);
-            } else {
-                $reservation->load(['book', 'reader.user', 'user']);
-                Log::info('markAsReady - SENDING notification', ['id' => $id]);
-                app(NotificationService::class)->sendReservationReadyNotification($reservation);
-            }
-
             return redirect()->route('admin.inventory-reservations.proof', $reservation->id)
-                ->with('success', 'Đã xác nhận: sách sẵn sàng tại quầy. Vui lòng chụp ảnh chứng minh.');
+                ->with('success', 'Đã gán bản sao. Vui lòng tải ảnh chứng minh để hoàn tất xác nhận Ready.');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('markAsReady - Exception', ['id' => $id, 'error' => $e->getMessage()]);
@@ -202,11 +198,30 @@ class InventoryReservationController extends Controller
     {
         $reservation = InventoryReservation::with(['book', 'inventory', 'reader', 'user'])->findOrFail($id);
 
+        if ($reservation->status === 'pending' && !$reservation->inventory_id) {
+            return back()->with('error', 'Vui lòng nhấn Ready để gán bản sao trước khi tải ảnh chứng minh.');
+        }
+
+        $files = $request->file('proof_images', []);
+        if (!is_array($files)) {
+            $files = [];
+        }
+
+        if (empty($files)) {
+            return back()
+                ->withInput()
+                ->withErrors(['proof_images' => 'Vui lòng tải lên ít nhất 1 ảnh chứng minh.']);
+        }
+
         // Validate cơ bản - KHÔNG dùng 'image|mimes|file' vì chúng gọi isValid()
         // gây lỗi "tải lên thất bại" khi file upload PHP có vấn đề.
         // Thay vào đó kiểm tra thủ công bên dưới.
         $request->validate([
             'proof_images' => 'required|array|min:1',
+        ], [
+            'proof_images.required' => 'Vui lòng tải lên ít nhất 1 ảnh chứng minh.',
+            'proof_images.array' => 'Dữ liệu ảnh chứng minh không hợp lệ.',
+            'proof_images.min' => 'Vui lòng tải lên ít nhất 1 ảnh chứng minh.',
         ]);
 
         $uploadedPaths = [];
@@ -229,7 +244,7 @@ class InventoryReservationController extends Controller
                 $errorCode = $file->getError();
                 $failedCount++;
                 $uploadErrors[] = "Trường proof_images.{$index} tải lên thất bại (mã lỗi: {$errorCode}). ";
-                \Log::warning('File upload PHP error', [
+                Log::warning('File upload PHP error', [
                     'index'      => $index,
                     'error_code' => $errorCode,
                     'name'       => $file->getClientOriginalName(),
@@ -268,9 +283,10 @@ class InventoryReservationController extends Controller
                 );
                 if (!empty($result['path'])) {
                     $uploadedPaths[] = $result['path'];
+                    $this->syncPublicStorageMirror($result['path']);
                 }
             } catch (\Exception $e) {
-                \Log::warning('Upload ảnh thất bại', [
+                Log::warning('Upload ảnh thất bại', [
                     'file'  => $file->getClientOriginalName(),
                     'error' => $e->getMessage(),
                 ]);
@@ -293,8 +309,42 @@ class InventoryReservationController extends Controller
             'proof_images' => array_values(array_unique(array_merge($existing, $uploadedPaths))),
         ]);
 
+        if ($reservation->status === 'pending') {
+            $reservation->update([
+                'status' => 'ready',
+                'processed_by' => Auth::id(),
+                'ready_at' => now(),
+            ]);
+
+            $reservation->refresh()->load(['book', 'reader.user', 'user']);
+            app(NotificationService::class)->sendReservationReadyNotification($reservation);
+        }
+
         return redirect()->route('admin.inventory-reservations.index')
             ->with('success', 'Đã lưu ' . count($uploadedPaths) . ' ảnh chứng minh cho yêu cầu đặt trước.');
+    }
+
+    private function syncPublicStorageMirror(?string $relativePath): void
+    {
+        if (empty($relativePath)) {
+            return;
+        }
+
+        $normalized = ltrim(str_replace('\\', '/', (string) $relativePath), '/');
+        $source = storage_path('app/public/' . $normalized);
+        $target = public_path('storage/' . $normalized);
+
+        if (!is_file($source)) {
+            return;
+        }
+
+        $targetDir = dirname($target);
+        if (!is_dir($targetDir)) {
+            @mkdir($targetDir, 0755, true);
+        }
+
+        // Keep public/storage mirror updated in environments without storage symlink.
+        @copy($source, $target);
     }
 
     public function markAsFulfilled(Request $request, $id)
@@ -318,6 +368,11 @@ class InventoryReservationController extends Controller
             if ($nowTime < $openHour || $nowTime > $closeHour) {
                 return back()->with('error', "Chỉ được phát sách trong giờ {$openHour} - {$closeHour}.");
             }
+        }
+
+        if (count($reservation->getProofImages()) < 1) {
+            return redirect()->route('admin.inventory-reservations.proof', $reservation->id)
+                ->with('error', 'Không thể xác nhận đơn khi chưa có ảnh chứng minh. Vui lòng tải lên ít nhất 1 ảnh.');
         }
 
         // Chuyển hướng sang trang tạo phiếu mượn kèm dữ liệu pre-fill
@@ -387,6 +442,11 @@ class InventoryReservationController extends Controller
             foreach ($reservations as $reservation) {
                 if ($reservation->status !== 'ready') {
                     throw new \Exception('Có sách chưa ở trạng thái sẵn sàng.');
+                }
+
+                if (count($reservation->getProofImages()) < 1) {
+                    $bookTitle = $reservation->book?->ten_sach ?? ('#' . $reservation->id);
+                    throw new \Exception('Sách "' . $bookTitle . '" chưa có ảnh chứng minh nên không thể Fulfill.');
                 }
 
                 // Lấy giá đã lưu từ khi đặt trước
