@@ -17,6 +17,7 @@ use App\Services\FileUploadService;
 use App\Services\NotificationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -81,12 +82,13 @@ class BorrowController extends Controller
         $borrows = $query->paginate(10);
 
         // Đảm bảo refresh lại items cho mỗi borrow để có dữ liệu mới nhất từ database
-        $borrows->getCollection()->transform(function ($borrow) {
-            // Reload hoàn toàn từ database để tránh cache
-            $borrow = Borrow::with(['reader', 'librarian', 'items.book', 'items.inventory', 'voucher'])->find($borrow->id);
+        foreach ($borrows as $borrow) {
+            $freshBorrow = Borrow::with(['reader', 'librarian', 'items.book', 'items.inventory', 'voucher'])->find($borrow->id);
+            if (!$freshBorrow) {
+                continue;
+            }
 
-            // Tính lại tiền nếu chưa có
-            foreach ($borrow->items as $item) {
+            foreach ($freshBorrow->items as $item) {
                 if ($item->tien_thue == 0 && $item->book) {
                     $inventory = $item->inventory;
                     if (!$inventory) {
@@ -96,7 +98,7 @@ class BorrowController extends Controller
                             'gia' => $item->book->gia ?? 0,
                         ]);
                     }
-                    $hasCard = $borrow->reader ? true : false;
+                    $hasCard = $freshBorrow->reader ? true : false;
                     $fees = \App\Services\PricingService::calculateFees(
                         $item->book,
                         $inventory,
@@ -109,11 +111,8 @@ class BorrowController extends Controller
                 }
             }
 
-            // Cập nhật tổng tiền
-            $borrow->recalculateTotals();
-
-            return $borrow;
-        });
+            $freshBorrow->recalculateTotals();
+        }
 
         // Tính toán thống kê từ toàn bộ database thay vì từ collection đã paginate
         $stats = [
@@ -177,6 +176,11 @@ class BorrowController extends Controller
         $reservation = null;
         if ($request->filled('reservation_id')) {
             $reservation = \App\Models\InventoryReservation::with('book')->find($request->reservation_id);
+            if ($reservation && count($reservation->getProofImages()) < 1) {
+                return redirect()
+                    ->route('admin.inventory-reservations.proof', $reservation->id)
+                    ->with('error', 'Không thể Fulfill khi chưa có ảnh chứng minh. Vui lòng tải lên ít nhất 1 ảnh trước.');
+            }
         }
 
         $borrowCode = $reservation?->reservation_code;
@@ -288,7 +292,7 @@ class BorrowController extends Controller
                 ->with('success', 'Cho mượn sách thành công!');
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error storing borrow: ' . $e->getMessage());
+            Log::error('Error storing borrow: ' . $e->getMessage());
             return back()->with('error', 'Có lỗi khi lưu phiếu mượn: ' . $e->getMessage());
         }
     }
@@ -522,7 +526,7 @@ class BorrowController extends Controller
                     'updated_at' => now()
                 ]);
 
-            \Log::info('Updated inventory status after returning book', [
+            Log::info('Updated inventory status after returning book', [
                 'inventory_id' => $item->inventorie_id,
                 'borrow_item_id' => $item->id
             ]);
@@ -544,7 +548,7 @@ class BorrowController extends Controller
         $borrow = Borrow::with('items')->findOrFail($id);
 
         // Kiểm tra xem có items nào đang ở trạng thái "Chua nhan" không
-        $chuaNhanItems = $borrow->items->where('trang_thai', 'Chua nhan');
+        $chuaNhanItems = collect($borrow->items)->where('trang_thai', 'Chua nhan');
 
         if ($chuaNhanItems->isEmpty()) {
             return back()->with('error', 'Không có sách nào đang ở trạng thái "Chưa nhận" để xử lý!');
@@ -566,7 +570,7 @@ class BorrowController extends Controller
                         'updated_at' => now()
                     ]);
 
-                \Log::info('Updated inventory status after processing borrow', [
+                Log::info('Updated inventory status after processing borrow', [
                     'inventory_id' => $item->inventorie_id,
                     'borrow_item_id' => $item->id
                 ]);
@@ -601,21 +605,21 @@ class BorrowController extends Controller
     public function approve($id)
     {
         // Cho phép người dùng có quyền chỉnh sửa đơn mượn duyệt phiếu
-        if (!auth()->check() || !auth()->user()->can('edit-borrows')) {
+        if (!Auth::check() || !Gate::allows('edit-borrows')) {
             return back()->with('error', 'Bạn không có quyền thực hiện thao tác này.');
         }
 
         $borrow = Borrow::with('items')->findOrFail($id);
 
         // Kiểm tra xem có items nào đang ở trạng thái "Cho duyet" không
-        $pendingItems = $borrow->items->where('trang_thai', 'Cho duyet');
+        $pendingItems = collect($borrow->items)->where('trang_thai', 'Cho duyet');
 
         if ($pendingItems->isEmpty()) {
             return back()->with('error', 'Không có sách nào đang chờ duyệt trong phiếu mượn này!');
         }
 
         // Tính số tiền cần thanh toán (ưu tiên borrow->tien_thue; fallback sum từ items)
-        $tienThueFromItems = (float) $borrow->items->sum('tien_thue');
+        $tienThueFromItems = (float) collect($borrow->items)->sum('tien_thue');
         $amountToPay = (float) ($borrow->tien_thue ?? 0);
         if ($amountToPay <= 0 && $tienThueFromItems > 0) {
             $amountToPay = $tienThueFromItems;
@@ -665,7 +669,7 @@ class BorrowController extends Controller
     ============================================================ */
     public function payment($id)
     {
-        if (!auth()->check() || !auth()->user()->can('edit-borrows')) {
+        if (!Auth::check() || !Gate::allows('edit-borrows')) {
             return back()->with('error', 'Bạn không có quyền thực hiện thao tác này.');
         }
 
@@ -688,7 +692,7 @@ class BorrowController extends Controller
     ============================================================ */
     public function confirmCashPayment(Request $request, $id)
     {
-        if (!auth()->check() || !auth()->user()->can('edit-borrows')) {
+        if (!Auth::check() || !Gate::allows('edit-borrows')) {
             return back()->with('error', 'Bạn không có quyền thực hiện thao tác này.');
         }
 
@@ -860,7 +864,7 @@ class BorrowController extends Controller
      */
     public function saveReceiveEvidenceAfterPayment(Request $request, $id)
     {
-        if (!auth()->check() || !auth()->user()->can('edit-borrows')) {
+        if (!Auth::check() || !Gate::allows('edit-borrows')) {
             return back()->with('error', 'Bạn không có quyền thực hiện thao tác này.');
         }
 
@@ -1478,7 +1482,7 @@ class BorrowController extends Controller
 
             $oldStatus = $borrow->trang_thai_chi_tiet;
 
-            \Log::info('Customer confirming delivery', [
+            Log::info('Customer confirming delivery', [
                 'borrow_id' => $borrow->id,
                 'current_status' => $oldStatus,
                 'reader_id' => $borrow->reader_id
@@ -1507,7 +1511,7 @@ class BorrowController extends Controller
                     ->whereIn('payment_type', ['deposit', 'borrow_fee', 'shipping_fee'])
                     ->update([
                         'payment_status' => 'success',
-                        'note' => \DB::raw("CONCAT(COALESCE(note, ''), ' - Đã thanh toán COD khi khách hàng xác nhận nhận sách')"),
+                        'note' => DB::raw("CONCAT(COALESCE(note, ''), ' - Đã thanh toán COD khi khách hàng xác nhận nhận sách')"),
                         'updated_at' => now()
                     ]);
 
@@ -1519,7 +1523,7 @@ class BorrowController extends Controller
                     ->whereIn('payment_type', ['deposit', 'borrow_fee', 'shipping_fee'])
                     ->update([
                         'payment_status' => 'success',
-                        'note' => \DB::raw("CONCAT(COALESCE(note, ''), ' - Xác nhận thanh toán online khi khách hàng xác nhận nhận sách')"),
+                        'note' => DB::raw("CONCAT(COALESCE(note, ''), ' - Xác nhận thanh toán online khi khách hàng xác nhận nhận sách')"),
                         'updated_at' => now()
                     ]);
 
@@ -1537,12 +1541,12 @@ class BorrowController extends Controller
                     ->whereIn('payment_type', ['deposit', 'borrow_fee', 'shipping_fee'])
                     ->update([
                         'payment_status' => 'success',
-                        'note' => \DB::raw("CONCAT(COALESCE(note, ''), ' - Đã thanh toán khi khách hàng xác nhận nhận sách')"),
+                        'note' => DB::raw("CONCAT(COALESCE(note, ''), ' - Đã thanh toán khi khách hàng xác nhận nhận sách')"),
                         'updated_at' => now()
                     ]);
             }
 
-            \Log::info('Customer confirmed delivery and status transitioned successfully', [
+            Log::info('Customer confirmed delivery and status transitioned successfully', [
                 'borrow_id' => $borrow->id,
                 'old_status' => $oldStatus,
                 'new_status' => $borrow->trang_thai_chi_tiet,
@@ -1551,7 +1555,7 @@ class BorrowController extends Controller
 
             return back()->with('success', 'Bạn đã xác nhận nhận sách thành công. Trạng thái đã chuyển sang "Đang mượn".');
         } catch (\Exception $e) {
-            \Log::error('Error in customerConfirmDelivery', [
+            Log::error('Error in customerConfirmDelivery', [
                 'borrow_id' => $borrow->id ?? null,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
@@ -1628,7 +1632,7 @@ class BorrowController extends Controller
 
             $oldStatus = $borrow->trang_thai_chi_tiet;
 
-            \Log::info('Customer rejecting delivery', [
+            Log::info('Customer rejecting delivery', [
                 'borrow_id' => $borrow->id,
                 'current_status' => $oldStatus,
                 'reader_id' => $borrow->reader_id,
@@ -1663,7 +1667,7 @@ class BorrowController extends Controller
 
             DB::commit();
 
-            \Log::info('Customer rejected delivery successfully', [
+            Log::info('Customer rejected delivery successfully', [
                 'borrow_id' => $borrow->id,
                 'old_status' => $oldStatus,
                 'new_status' => $borrow->trang_thai_chi_tiet,
@@ -1678,7 +1682,7 @@ class BorrowController extends Controller
             return back()->with('warning', $message);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error in customerRejectDelivery', [
+            Log::error('Error in customerRejectDelivery', [
                 'borrow_id' => $borrow->id ?? null,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
@@ -1717,7 +1721,7 @@ class BorrowController extends Controller
         try {
             $ghiChu = request('ghi_chu', '');
 
-            \Log::info('Customer requesting return', [
+            Log::info('Customer requesting return', [
                 'borrow_id' => $borrow->id,
                 'current_status' => $borrow->trang_thai_chi_tiet,
                 'reader_id' => $borrow->reader_id,
@@ -1731,14 +1735,14 @@ class BorrowController extends Controller
                 auth()->id()
             );
 
-            \Log::info('Customer return request created', [
+            Log::info('Customer return request created', [
                 'borrow_id' => $borrow->id,
                 'new_status' => $borrow->trang_thai_chi_tiet
             ]);
 
             return back()->with('success', 'Đã tạo yêu cầu trả sách thành công. Vui lòng chờ admin xử lý.');
         } catch (\Exception $e) {
-            \Log::error('Error in customerRequestReturn', [
+            Log::error('Error in customerRequestReturn', [
                 'borrow_id' => $borrow->id ?? null,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
@@ -1793,7 +1797,7 @@ class BorrowController extends Controller
                         );
                         $anhHoanTraPaths[] = $uploadResult['url'];
                     } catch (\Exception $e) {
-                        \Log::error('Error uploading return image', [
+                        Log::error('Error uploading return image', [
                             'borrow_id' => $borrow->id,
                             'error' => $e->getMessage(),
                         ]);
@@ -1805,7 +1809,7 @@ class BorrowController extends Controller
             // Lưu trạng thái cũ trước khi thay đổi
             $oldStatus = $borrow->trang_thai_chi_tiet;
 
-            \Log::info('Customer returning book', [
+            Log::info('Customer returning book', [
                 'borrow_id' => $borrow->id,
                 'current_status' => $oldStatus,
                 'reader_id' => $borrow->reader_id,
@@ -1836,7 +1840,7 @@ class BorrowController extends Controller
                 auth()->id()
             );
 
-            \Log::info('Customer return book confirmed, status changed', [
+            Log::info('Customer return book confirmed, status changed', [
                 'borrow_id' => $borrow->id,
                 'old_status' => $oldStatus,
                 'new_status' => $borrow->trang_thai_chi_tiet,
@@ -1850,7 +1854,7 @@ class BorrowController extends Controller
 
             return back()->with('success', $message);
         } catch (\Exception $e) {
-            \Log::error('Error in customerReturnBook', [
+            Log::error('Error in customerReturnBook', [
                 'borrow_id' => $borrow->id ?? null,
                 'error' => $e->getMessage(),
                 'file' => $e->getFile(),
@@ -1986,8 +1990,9 @@ class BorrowController extends Controller
             
             // Kiểm tra và xử lý trễ lâu (khóa tài khoản)
             $isLongOverdue = false;
-            if ($borrow->items->count() > 0) {
-                foreach ($borrow->items as $item) {
+            $borrowItemsForOverdue = collect($borrow->items);
+            if ($borrowItemsForOverdue->count() > 0) {
+                foreach ($borrowItemsForOverdue as $item) {
                     if ($item->ngay_hen_tra) {
                         $dueDate = Carbon::parse($item->ngay_hen_tra);
                         $returnDate = now();
@@ -2088,7 +2093,7 @@ class BorrowController extends Controller
             $borrow->refresh();
 
             // Log thông tin ban đầu để debug
-            \Log::info('Starting completeOrder', [
+            Log::info('Starting completeOrder', [
                 'borrow_id' => $borrow->id,
                 'tien_coc' => $borrow->tien_coc,
                 'phi_hong_sach' => $borrow->phi_hong_sach,
@@ -2103,7 +2108,8 @@ class BorrowController extends Controller
             
             // Kiểm tra và tính toán hoàn lại phí thuê nếu trả sớm
             $earlyReturnRefund = 0;
-            if ($borrow->ngay_muon && $borrow->items->count() > 0) {
+            $borrowItems = collect($borrow->items);
+            if ($borrow->ngay_muon && $borrowItems->count() > 0) {
                 $ngayMuon = Carbon::parse($borrow->ngay_muon);
                 $ngayTraThucTe = now();
                 
@@ -2111,9 +2117,8 @@ class BorrowController extends Controller
                 $daysBorrowed = $ngayMuon->diffInDays($ngayTraThucTe);
                 
                 // Lấy số ngày dự kiến mượn từ items (lấy max)
-                $daysExpected = $borrow->items->max(function($item) {
+                $daysExpected = $borrowItems->max(function($item) use ($ngayMuon) {
                     if ($item->ngay_hen_tra) {
-                        $ngayMuon = Carbon::parse($borrow->ngay_muon);
                         $ngayHenTra = Carbon::parse($item->ngay_hen_tra);
                         return $ngayMuon->diffInDays($ngayHenTra);
                     }
@@ -2171,7 +2176,7 @@ class BorrowController extends Controller
             return back()->with('success', 'Đã hoàn tất đơn hàng. Tiền cọc hoàn trả: ' . number_format($borrow->tien_coc_hoan_tra) . ' VNĐ đã được chuyển vào ví của bạn.');
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error completing order and refunding to wallet: ' . $e->getMessage(), [
+            Log::error('Error completing order and refunding to wallet: ' . $e->getMessage(), [
                 'borrow_id' => $id,
                 'trace' => $e->getTraceAsString()
             ]);
@@ -2295,7 +2300,7 @@ class BorrowController extends Controller
 
             DB::commit();
 
-            \Log::info('Manually refunded cancelled order', [
+            Log::info('Manually refunded cancelled order', [
                 'borrow_id' => $borrow->id,
                 'user_id' => $borrow->reader->user_id,
                 'amount' => $refundAmount,
@@ -2308,7 +2313,7 @@ class BorrowController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error refunding cancelled order', [
+            Log::error('Error refunding cancelled order', [
                 'borrow_id' => $id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
@@ -2428,7 +2433,7 @@ class BorrowController extends Controller
 
                     $results['fixed']++;
 
-                    \Log::info('Fixed refund for completed order', [
+                    Log::info('Fixed refund for completed order', [
                         'borrow_id' => $borrow->id,
                         'user_id' => $borrow->reader->user_id,
                         'amount' => $borrow->tien_coc_hoan_tra,
@@ -2441,7 +2446,7 @@ class BorrowController extends Controller
                     $detail['message'] = 'Lỗi: ' . $e->getMessage();
                     $results['errors']++;
 
-                    \Log::error('Error fixing refund for order', [
+                    Log::error('Error fixing refund for order', [
                         'borrow_id' => $borrow->id,
                         'error' => $e->getMessage(),
                         'trace' => $e->getTraceAsString()
@@ -2460,7 +2465,7 @@ class BorrowController extends Controller
             return view('admin.borrows.check_refunds_result', compact('results'));
 
         } catch (\Exception $e) {
-            \Log::error('Error in checkAndFixRefunds: ' . $e->getMessage());
+            Log::error('Error in checkAndFixRefunds: ' . $e->getMessage());
 
             if (request()->wantsJson() || request()->ajax()) {
                 return response()->json([
@@ -2647,7 +2652,7 @@ class BorrowController extends Controller
 
 
 
-                    \Log::info('Auto-created fine for damaged/lost book', [
+                    Log::info('Auto-created fine for damaged/lost book', [
                         'borrow_id' => $borrow->id,
                         'borrow_item_id' => $item->id,
                         'fine_type' => $fineType,
@@ -2656,7 +2661,7 @@ class BorrowController extends Controller
                 }
             }
         } catch (\Exception $e) {
-            \Log::error('Error in handleBookDamageOrLoss', [
+            Log::error('Error in handleBookDamageOrLoss', [
                 'borrow_id' => $borrow->id ?? null,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
@@ -2666,5 +2671,7 @@ class BorrowController extends Controller
     }
 
 }
+
+
 
 

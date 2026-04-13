@@ -101,12 +101,13 @@
         @endif
 
         @if(empty($proofImages) && !$isLocked)
-            <form action="{{ route('admin.inventory-reservations.proof.store', $reservation->id) }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('admin.inventory-reservations.proof.store', $reservation->id) }}" method="POST" enctype="multipart/form-data" class="proof-upload-form" data-require-file="1">
                 @csrf
                 <div class="mb-3">
                     <label class="form-label">Tải ảnh chứng minh (có thể chọn nhiều ảnh) <span class="text-danger">*</span></label>
-                    <input type="file" name="proof_images[]" class="form-control" accept="image/*" multiple required>
+                    <input type="file" name="proof_images[]" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" multiple required>
                     <small class="text-muted">Hỗ trợ JPG/PNG/GIF/WebP, tối đa 4MB mỗi ảnh.</small>
+                    <div class="text-danger mt-2 proof-client-error" style="display: none;"></div>
                 </div>
 
                 <div id="proof-preview" class="d-flex flex-wrap gap-3 mb-3"></div>
@@ -116,12 +117,13 @@
                 </button>
             </form>
         @elseif(!empty($proofImages) && !$isLocked)
-            <form action="{{ route('admin.inventory-reservations.proof.store', $reservation->id) }}" method="POST" enctype="multipart/form-data">
+            <form action="{{ route('admin.inventory-reservations.proof.store', $reservation->id) }}" method="POST" enctype="multipart/form-data" class="proof-upload-form" data-require-file="0">
                 @csrf
                 <div class="mb-3">
                     <label class="form-label">Thêm ảnh chứng minh</label>
-                    <input type="file" name="proof_images[]" class="form-control" accept="image/*" multiple>
+                    <input type="file" name="proof_images[]" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" multiple>
                     <small class="text-muted">Hỗ trợ JPG/PNG/GIF/WebP, tối đa 4MB mỗi ảnh.</small>
+                    <div class="text-danger mt-2 proof-client-error" style="display: none;"></div>
                 </div>
                 <div id="proof-preview" class="d-flex flex-wrap gap-3 mb-3"></div>
                 <button type="submit" class="btn btn-primary">
@@ -138,6 +140,55 @@
 document.addEventListener('DOMContentLoaded', function () {
     const input = document.querySelector('input[name="proof_images[]"]');
     const preview = document.getElementById('proof-preview');
+    const forms = document.querySelectorAll('.proof-upload-form');
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    const maxSizeBytes = 4 * 1024 * 1024;
+
+    forms.forEach(function (form) {
+        const fileInput = form.querySelector('input[name="proof_images[]"]');
+        const errorBox = form.querySelector('.proof-client-error');
+        const requireFile = form.dataset.requireFile === '1';
+
+        if (!fileInput || !errorBox) {
+            return;
+        }
+
+        form.addEventListener('submit', function (event) {
+            const files = Array.from(fileInput.files || []);
+            errorBox.style.display = 'none';
+            errorBox.textContent = '';
+
+            if (requireFile && files.length < 1) {
+                event.preventDefault();
+                errorBox.textContent = 'Vui lòng tải lên ít nhất 1 ảnh chứng minh.';
+                errorBox.style.display = 'block';
+                return;
+            }
+
+            for (const file of files) {
+                const parts = file.name ? file.name.split('.') : [];
+                const extension = parts.length > 1 ? parts.pop().toLowerCase() : '';
+                const hasValidMime = file.type && allowedMimeTypes.includes(file.type);
+                const hasValidExtension = extension && allowedExtensions.includes(extension);
+
+                if (!hasValidMime && !hasValidExtension) {
+                    event.preventDefault();
+                    errorBox.textContent = 'File "' + file.name + '" không đúng định dạng. Chỉ chấp nhận JPG, PNG, GIF, WebP.';
+                    errorBox.style.display = 'block';
+                    return;
+                }
+
+                if (file.size > maxSizeBytes) {
+                    event.preventDefault();
+                    errorBox.textContent = 'File "' + file.name + '" vượt quá 4MB.';
+                    errorBox.style.display = 'block';
+                    return;
+                }
+            }
+        });
+    });
+
     if (!input || !preview) return;
 
     input.addEventListener('change', function () {

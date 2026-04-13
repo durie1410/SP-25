@@ -85,7 +85,7 @@ use Illuminate\Support\Str;
                 $groupId = 'group-' . Str::slug($groupCode);
 
                 // Chỉ ready + khách đã xác nhận + chưa quá hạn mới có thể Fulfill
-                $hasReadyItems = $group->contains(fn($item) => $item->status === 'ready' && !$item->is_pickup_overdue && !empty($item->customer_confirmed_at));
+                $hasReadyItems = $group->contains(fn($item) => $item->status === 'ready' && !$item->is_pickup_overdue && !empty($item->customer_confirmed_at) && count($item->getProofImages()) > 0);
                 // Chỉ pending và ready mới có thể hủy, nhưng loại trừ pending đã quá giờ hẹn (sẽ tự hủy)
                 $hasCancellableItems = $group->contains(fn($item) => $item->status === 'ready' || ($item->status === 'pending' && !$item->is_pickup_overdue));
                 $hasOverdueItems = $group->contains(fn($item) => $item->is_pickup_overdue);
@@ -99,7 +99,7 @@ use Illuminate\Support\Str;
                         @if($hasReadyItems)
                             <input type="checkbox" class="select-all-checkbox fulfill-select-all" data-group="{{ $groupId }}" onclick="event.stopPropagation();" style="width: 18px; height: 18px; cursor: pointer;" title="Chọn tất cả để Fulfill">
                         @else
-                            <input type="checkbox" disabled style="width: 18px; height: 18px; opacity: 0.4; cursor: not-allowed;" title="Chỉ sách Ready mới có thể tích để Fulfill">
+                            <input type="checkbox" disabled style="width: 18px; height: 18px; opacity: 0.4; cursor: not-allowed;" title="Chỉ sách Ready, khách đã xác nhận và có ảnh chứng minh mới có thể tích để Fulfill">
                         @endif
                         <span class="badge badge-info">{{ $groupLabel }}</span>
                         <div>
@@ -139,7 +139,7 @@ use Illuminate\Support\Str;
                                 <i class="fas fa-check"></i> Fulfill
                             </button>
                         @else
-                            <button type="button" class="btn btn-sm btn-secondary" disabled style="opacity: 0.4; cursor: not-allowed;" title="Không có sách nào sẵn sàng để Fulfill">
+                            <button type="button" class="btn btn-sm btn-secondary" disabled style="opacity: 0.4; cursor: not-allowed;" title="Không có sách đủ điều kiện Fulfill (cần Ready + khách xác nhận + có ảnh chứng minh)">
                                 <i class="fas fa-check"></i> Fulfill
                             </button>
                         @endif
@@ -163,6 +163,7 @@ use Illuminate\Support\Str;
                     @php
                         // Chưa có bản sao + quá 2h → coi như đã hủy tự động, không cho tích
                         $autoWillCancel = !$r->inventory_id && $r->is_pickup_overdue;
+                        $hasProofImages = count($r->getProofImages()) > 0;
 
                         $badgeClass = $autoWillCancel ? 'badge-danger' : ($r->is_pickup_overdue ? 'badge-danger' : match($r->status) {
                             'pending' => 'badge-warning',
@@ -181,8 +182,10 @@ use Illuminate\Support\Str;
                                 @if($autoWillCancel)
                                     {{-- Chưa có bản sao + quá 2h → sẽ tự hủy, không cho tích --}}
                                     <input type="checkbox" disabled style="width: 18px; height: 18px; opacity: 0.4; cursor: not-allowed;" title="Đơn này sẽ tự động hủy (chưa có bản sao, đã quá 2 giờ)">
-                                @elseif($r->status === 'ready' && !$r->is_pickup_overdue && !empty($r->customer_confirmed_at))
+                                @elseif($r->status === 'ready' && !$r->is_pickup_overdue && !empty($r->customer_confirmed_at) && $hasProofImages)
                                     <input type="checkbox" name="reservation_ids[]" value="{{ $r->id }}" class="reservation-checkbox fulfill-checkbox cancel-checkbox group-{{ $groupId }}" data-customer-confirmed="1" style="width: 18px; height: 18px; cursor: pointer;" title="Tích để Fulfill/Hủy">
+                                @elseif($r->status === 'ready' && !$r->is_pickup_overdue && !empty($r->customer_confirmed_at) && !$hasProofImages)
+                                    <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox fulfill-checkbox group-{{ $groupId }}" data-customer-confirmed="0" style="width: 18px; height: 18px; cursor: pointer;" title="Chưa có ảnh chứng minh nên chỉ tích để Hủy">
                                 @elseif($r->status === 'ready' && !$r->is_pickup_overdue && empty($r->customer_confirmed_at))
                                     <input type="checkbox" name="cancel_ids[]" value="{{ $r->id }}" class="cancel-checkbox fulfill-checkbox group-{{ $groupId }}" data-customer-confirmed="0" style="width: 18px; height: 18px; cursor: pointer;" title="Chỉ tích để Hủy (khách chưa xác nhận)">
                                 @elseif($r->status === 'pending')
@@ -228,6 +231,11 @@ use Illuminate\Support\Str;
                                         @else
                                             <span class="badge badge-warning" style="font-size: 10px;">Chờ khách xác nhận</span>
                                         @endif
+                                        @if($hasProofImages)
+                                            <span class="badge badge-success" style="font-size: 10px;">Đã có ảnh chứng minh</span>
+                                        @else
+                                            <span class="badge badge-danger" style="font-size: 10px;">Thiếu ảnh chứng minh</span>
+                                        @endif
                                     </div>
                                 @endif
                             </div>
@@ -256,11 +264,13 @@ use Illuminate\Support\Str;
                                         </form>
                                     @endif
                                     @if($r->status === 'ready' && !$r->is_pickup_overdue)
-                                        @if(!empty($r->customer_confirmed_at))
+                                        @if(!empty($r->customer_confirmed_at) && $hasProofImages)
                                             <form method="POST" action="{{ route('admin.inventory-reservations.fulfill', $r->id) }}" style="display:inline;">
                                                 @csrf
                                                 <button type="submit" class="btn btn-sm btn-primary" style="padding: 4px 8px; font-size: 11px;">Fulfill</button>
                                             </form>
+                                        @elseif(!empty($r->customer_confirmed_at) && !$hasProofImages)
+                                            <button type="button" class="btn btn-sm btn-secondary" disabled style="padding: 4px 8px; font-size: 11px; opacity: 0.5; cursor: not-allowed;" title="Cần tải ít nhất 1 ảnh chứng minh trước khi Fulfill">Fulfill</button>
                                         @else
                                             <button type="button" class="btn btn-sm btn-secondary" disabled style="padding: 4px 8px; font-size: 11px; opacity: 0.5; cursor: not-allowed;" title="Khách chưa xác nhận sẽ đến lấy sách">Fulfill</button>
                                         @endif
