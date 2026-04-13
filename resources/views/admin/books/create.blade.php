@@ -17,8 +17,8 @@
             </div>
             
             <div class="col-md-6">
-                <div class="mb-3">
-                    <label class="form-label">Thể loại</label>
+             <input type="file" name="hinh_anh" id="hinh_anh_input" class="form-control @error('hinh_anh') is-invalid @enderror" accept="image/jpeg,image/png,image/jpg,image/webp">
+             <small class="form-text text-muted">Chọn ảnh bìa sách (tối đa 2MB, định dạng: JPG, PNG, WEBP)</small>
                     <select name="category_id" class="form-control" required>
                         <option value="">-- Chọn thể loại --</option>
                         @foreach($categories as $cate)
@@ -155,10 +155,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const file = e.target.files[0];
             
             if (file) {
-                // Validate file type
-                const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
-                if (!validTypes.includes(file.type)) {
-                    alert('Vui lòng chọn file ảnh định dạng JPG hoặc PNG');
+                // Validate file type (fallback theo extension khi browser không trả MIME chính xác)
+                const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+                const fileName = (file.name || '').toLowerCase();
+                const hasValidExtension = /\.(jpe?g|png|webp)$/i.test(fileName);
+                const hasValidMime = !file.type || validTypes.includes(file.type);
+                if (!(hasValidMime && hasValidExtension)) {
+                        alert('Chỉ chấp nhận file JPG, JPEG, PNG hoặc WEBP');
                     imageInput.value = '';
                     previewContainer.style.display = 'none';
                     return;

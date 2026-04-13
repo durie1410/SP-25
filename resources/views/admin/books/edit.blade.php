@@ -201,10 +201,10 @@
                         </div>
                     @endif
                 </div>
-                <input type="file" name="hinh_anh" id="hinh_anh_input" class="form-control @error('hinh_anh') is-invalid @enderror" accept="image/jpeg,image/png,image/jpg">
+                <input type="file" name="hinh_anh" id="hinh_anh_input" class="form-control @error('hinh_anh') is-invalid @enderror" accept="image/jpeg,image/png,image/jpg,image/webp">
                 <small class="form-text text-muted">
                     <i class="fas fa-info-circle"></i> 
-                    Chọn ảnh mới để thay thế ảnh hiện tại (tối đa 2MB, định dạng: JPG, PNG)
+                    Chọn ảnh mới để thay thế ảnh hiện tại (tối đa 2MB, định dạng: JPG, PNG, WEBP)
                 </small>
                 @error('hinh_anh')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -315,10 +315,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                // Validate file type
-                const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-                if (!validTypes.includes(file.type)) {
-                    alert('Chỉ chấp nhận file ảnh định dạng JPEG, PNG hoặc JPG.');
+                // Validate file type (fallback theo extension khi browser không trả MIME chính xác)
+                const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+                const fileName = (file.name || '').toLowerCase();
+                const hasValidExtension = /\.(jpe?g|png|webp)$/i.test(fileName);
+                const hasValidMime = !file.type || validTypes.includes(file.type);
+                if (!(hasValidMime && hasValidExtension)) {
+                    alert('Chỉ chấp nhận file ảnh định dạng JPEG, PNG, JPG hoặc WEBP.');
                     imageInput.value = '';
                     hasNewImage = false;
                     return;

@@ -150,7 +150,6 @@ class Book extends Model
     public function getImageUrlAttribute()
     {
         $path = $this->hinh_anh;
-
         if (!$path) {
             return asset('images/default-book.png');
         }
@@ -161,9 +160,17 @@ class Book extends Model
         $path = preg_replace('#^\./+#', '', $path);
         $path = ltrim($path, '/');
 
-        // Full URL (Cloudinary, etc.)
+        // Full URL (Cloudinary, legacy malformed local URL, etc.)
         if (preg_match('#^https?://#i', $path)) {
-            return $path;
+            $urlPath = parse_url($path, PHP_URL_PATH) ?: '';
+            $urlPath = str_replace('\\', '/', $urlPath);
+
+            // Normalize legacy malformed URLs like .../public/storage/books/xxx.jpg
+            if (preg_match('#/(?:public/)?storage/(.+)$#i', $urlPath, $matches)) {
+                $path = ltrim($matches[1], '/');
+            } else {
+                return $path;
+            }
         }
 
         // Normalize common legacy prefixes from migrated data
@@ -181,6 +188,13 @@ class Book extends Model
                 $path = ltrim($path, '/');
                 break;
             }
+
+            $pos = stripos($path, $prefix);
+            if ($pos !== false) {
+                $path = substr($path, $pos + strlen($prefix));
+                $path = ltrim($path, '/');
+                break;
+            }
         }
 
         // Public assets
@@ -189,7 +203,7 @@ class Book extends Model
         }
 
         // Default: store everything under public storage
-        return asset('storage/' . $path);
+        return asset('storage/' . ltrim($path, '/'));
     }
 
 

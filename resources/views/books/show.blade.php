@@ -62,6 +62,103 @@
             font-size: 20px;
         }
 
+        .swal2-popup .swal2-actions .swal-split-return-btn {
+            background: #f8fafc !important;
+            color: #526070 !important;
+            border: 1px solid #dbe5ef !important;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+            opacity: 1 !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.005em;
+        }
+
+        .swal2-popup .swal2-actions .swal-split-return-btn:hover {
+            background: #eef3f8 !important;
+        }
+
+        .swal2-popup .swal2-actions .swal-same-return-btn {
+            background: #7079f7 !important;
+            color: #ffffff !important;
+            border: 1px solid #7079f7 !important;
+            box-shadow: 0 8px 16px rgba(112, 121, 247, 0.22) !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.005em;
+        }
+
+        .swal2-popup.swal-split-choice-popup {
+            border-radius: 20px !important;
+            padding: 1.6rem 1.5rem 1.3rem !important;
+            background: #ffffff !important;
+            box-shadow: 0 22px 45px rgba(15, 23, 42, 0.14) !important;
+        }
+
+        .swal2-popup.swal-split-choice-popup .swal2-icon.swal2-question {
+            border-color: #98b5c8 !important;
+            color: #7ea1b7 !important;
+        }
+
+        .swal2-title.swal-split-choice-title {
+            font-size: 1.85rem !important;
+            line-height: 1.4 !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.01em;
+            color: #344255 !important;
+        }
+
+        .swal2-html-container.swal-split-choice-text {
+            font-size: 1.03rem !important;
+            line-height: 1.72 !important;
+            font-weight: 400 !important;
+            color: #637286 !important;
+            margin-top: 0.6rem !important;
+            margin-bottom: 0.35rem !important;
+        }
+
+        .quantity-stepper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .quantity-step-btn {
+            width: 34px;
+            height: 34px;
+            border: 1px solid #d9e0e8;
+            border-radius: 9px;
+            background: #fdfefe;
+            color: #2f3a4a;
+            font-size: 1rem;
+            line-height: 1;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+
+        .quantity-step-btn:hover {
+            background: #f3f7fb;
+            border-color: #c8d4e0;
+        }
+
+        .quantity-step-input {
+            width: 52px;
+            height: 34px;
+            padding: 4px 6px;
+            border: 1px solid #d9e0e8;
+            border-radius: 9px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.98rem;
+            color: #253244;
+            background: #ffffff;
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
+
+        .quantity-step-input::-webkit-inner-spin-button,
+        .quantity-step-input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
         .content-wrapper {
             display: flex;
             width: 90%;
@@ -2165,15 +2262,15 @@
                                             (Còn {{ $stats['stock_quantity'] ?? 0 }} cuốn trong kho)
                                         </span>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 5px;">
+                                    <div class="quantity-stepper">
                                         <button type="button" onclick="changeQuantity('paper', -1)"
-                                            style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">-</button>
+                                            class="quantity-step-btn">-</button>
                                         <input type="number" id="paper-quantity" value="1" min="1"
                                             max="{{ $stats['stock_quantity'] ?? 999 }}"
-                                            style="width: 50px; padding: 5px; border: 1px solid #ddd; border-radius: 4px; text-align: center;"
+                                            class="quantity-step-input"
                                             onchange="validateReservationQuantity(); updateTotalPrice();">
                                         <button type="button" onclick="changeQuantity('paper', 1)"
-                                            style="padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">+</button>
+                                            class="quantity-step-btn">+</button>
                                     </div>
                                     <span class="price"
                                         id="paper-price">{{ number_format($book->gia ?? 111000, 0, ',', '.') }}₫</span>
@@ -2574,16 +2671,31 @@
             updateTotalPrice();
         }
 
+        function clampInputQuantity(inputElement, maxAllowed) {
+            if (!inputElement) return 1;
+
+            const safeMax = Math.max(1, parseInt(maxAllowed, 10) || 1);
+            const digitsOnly = String(inputElement.value ?? '').replace(/[^0-9]/g, '');
+
+            let quantity = parseInt(digitsOnly, 10);
+            if (!Number.isFinite(quantity) || quantity < 1) {
+                quantity = 1;
+            }
+
+            if (quantity > safeMax) {
+                quantity = safeMax;
+            }
+
+            inputElement.value = quantity;
+            return quantity;
+        }
+
         function validateReservationQuantity() {
             const quantityInput = document.getElementById('paper-quantity');
             if (!quantityInput) return 1;
 
             const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
-            let quantity = parseInt(quantityInput.value) || 1;
-
-            if (quantity < 1) {
-                quantity = 1;
-            }
+            let quantity = clampInputQuantity(quantityInput, stockQuantity > 0 ? stockQuantity : 1);
 
             if (stockQuantity > 0 && quantity > stockQuantity) {
                 quantity = stockQuantity;
@@ -2716,13 +2828,20 @@
             if (quantity > 1) {
                 const result = await Swal.fire({
                     title: `Bạn đang thêm ${quantity} cuốn cùng một đầu sách.`,
-                    text: 'Bạn có muốn trả 2 cuốn cùng một ngày không?',
+                    text: `Bạn có muốn trả ${quantity} cuốn cùng một ngày không?`,
                     icon: 'question',
                     showCancelButton: true,
                     confirmButtonText: 'Cùng ngày trả',
                     cancelButtonText: 'Tách riêng',
                     confirmButtonColor: '#6C63FF',
                     cancelButtonColor: '#f8f9fa',
+                    customClass: {
+                        popup: 'swal-split-choice-popup',
+                        title: 'swal-split-choice-title',
+                        htmlContainer: 'swal-split-choice-text',
+                        confirmButton: 'swal-same-return-btn',
+                        cancelButton: 'swal-split-return-btn',
+                    },
                     reverseButtons: true,
                 });
                 splitReservationItems = !result.isConfirmed;
@@ -2780,6 +2899,29 @@
             }
         }
 
+
+        // Chặn nhập tay vượt giới hạn số lượng ngay khi gõ/paste
+        document.addEventListener('DOMContentLoaded', function () {
+            const paperInput = document.getElementById('paper-quantity');
+            if (paperInput) {
+                paperInput.addEventListener('input', function () {
+                    const stockQuantity = {{ $stats['stock_quantity'] ?? 0 }};
+                    clampInputQuantity(paperInput, stockQuantity > 0 ? stockQuantity : 1);
+                    updateTotalPrice();
+                });
+            }
+
+            const borrowInput = document.getElementById('borrow-quantity');
+            if (borrowInput) {
+                borrowInput.addEventListener('input', function () {
+                    const availableCopies = {{ $stats['available_copies'] ?? 0 }};
+                    clampInputQuantity(borrowInput, availableCopies > 0 ? availableCopies : 1);
+                    if (isBorrowMode) {
+                        updateBorrowSummary();
+                    }
+                });
+            }
+        });
 
         // Khởi tạo giá khi trang load
         updateTotalPrice();
@@ -2920,8 +3062,8 @@
             const quantityInput = document.getElementById('borrow-quantity');
             if (!quantityInput) return;
 
-            let quantity = parseInt(quantityInput.value) || 1;
             const availableCopies = {{ $stats['available_copies'] ?? 0 }};
+            let quantity = clampInputQuantity(quantityInput, availableCopies > 0 ? availableCopies : 1);
 
             if (quantity < 1) {
                 quantity = 1;
