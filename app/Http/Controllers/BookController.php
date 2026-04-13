@@ -156,6 +156,7 @@ class BookController extends Controller
                     ]
                 );
                 $path = $result['path'];
+                $this->syncPublicStorageMirror($path);
             } catch (\Exception $e) {
                 Log::error('Upload error:', ['message' => $e->getMessage()]);
                 return redirect()->back()
@@ -244,7 +245,7 @@ class BookController extends Controller
                 'category_id' => 'required',
                 'tac_gia' => 'required',
                 'nam_xuat_ban' => 'required|digits:4',
-                'hinh_anh' => 'nullable|file|image|mimes:jpeg,png,jpg|max:2048',
+                'hinh_anh' => 'nullable|file|image|mimes:jpeg,png,jpg,webp|max:2048',
                 'gia' => 'nullable|numeric|min:0',
                 'trang_thai' => 'required|in:active,inactive',
                 'nha_xuat_ban_id' => 'nullable|exists:publishers,id',
@@ -278,6 +279,7 @@ class BookController extends Controller
                     
                     $newImagePath = $result['path'];
                     $path = $newImagePath;
+                    $this->syncPublicStorageMirror($newImagePath);
                     
                     // Verify file exists after upload
                     if (!Storage::disk('public')->exists($path)) {
@@ -511,6 +513,29 @@ class BookController extends Controller
         AuditService::logUpdated($book, $oldValues, "Book '{$book->ten_sach}' unhidden");
         
         return redirect()->route('admin.books.index')->with('success', 'Hiển thị sách thành công!');
+    }
+
+    private function syncPublicStorageMirror(?string $relativePath): void
+    {
+        if (empty($relativePath)) {
+            return;
+        }
+
+        $normalized = ltrim(str_replace('\\', '/', (string) $relativePath), '/');
+        $source = storage_path('app/public/' . $normalized);
+        $target = public_path('storage/' . $normalized);
+
+        if (!is_file($source)) {
+            return;
+        }
+
+        $targetDir = dirname($target);
+        if (!is_dir($targetDir)) {
+            @mkdir($targetDir, 0755, true);
+        }
+
+        // Keep public/storage mirror updated in environments without storage symlink.
+        @copy($source, $target);
     }
 
     // Giữ lại method destroy để tương thích (nếu cần)

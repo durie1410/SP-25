@@ -529,16 +529,55 @@
                                             <span class="schedule-value">{{ $reservation->return_date ? \Carbon\Carbon::parse($reservation->return_date)->format('d/m/Y') : 'N/A' }}</span>
                                         </div>
                                     </div>
-                                    @php $proofImgs = $reservation->getProofImages(); @endphp
-                                    @if(!empty($proofImgs))
+                                    @php
+                                        $proofImgs = collect($reservation->getProofImages())
+                                            ->filter()
+                                            ->values()
+                                            ->all();
+                                        $proofUrls = collect($proofImgs)
+                                            ->map(function ($img) {
+                                                $img = trim((string) $img, " \t\n\r\0\x0B\"'");
+                                                if ($img === '') {
+                                                    return null;
+                                                }
+
+                                                if (preg_match('/^https?:\/\//i', $img)) {
+                                                    return $img;
+                                                }
+
+                                                $normalized = str_replace('\\', '/', $img);
+
+                                                // Legacy formats: absolute local path or paths containing storage/app/public.
+                                                foreach (['/storage/app/public/', '/public/storage/', 'storage/app/public/'] as $marker) {
+                                                    $pos = stripos($normalized, $marker);
+                                                    if ($pos !== false) {
+                                                        $normalized = substr($normalized, $pos + strlen($marker));
+                                                        break;
+                                                    }
+                                                }
+
+                                                $normalized = ltrim($normalized, '/');
+                                                $normalized = preg_replace('/^(app\/public\/|public\/|storage\/)+/i', '', $normalized);
+
+                                                if ($normalized === '') {
+                                                    return null;
+                                                }
+
+                                                return asset('storage/' . $normalized);
+                                            })
+                                            ->filter()
+                                            ->values()
+                                            ->all();
+                                    @endphp
+                                    @if(!empty($proofUrls))
                                         <div style="margin-top: 10px;">
-                                            <div style="font-size: 12px; font-weight: 600; color: var(--reserve-muted); margin-bottom: 6px;">📷 Ảnh chứng minh ({{ count($proofImgs) }})</div>
+                                            <div style="font-size: 12px; font-weight: 600; color: var(--reserve-muted); margin-bottom: 6px;">📷 Ảnh chứng minh ({{ count($proofUrls) }})</div>
                                             <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                                                @foreach($proofImgs as $idx => $img)
-                                                    <img src="{{ asset('storage/' . $img) }}"
+                                                @foreach($proofUrls as $idx => $imgUrl)
+                                                    <img src="{{ $imgUrl }}"
                                                          alt="Ảnh {{ $idx + 1 }}"
                                                          style="width: 64px; height: 64px; object-fit: cover; border-radius: 6px; border: 1px solid var(--reserve-border); cursor: pointer;"
-                                                         onclick="showReservationGallery({{ json_encode(array_values($proofImgs)) }}, {{ $idx }})">
+                                                         onclick="showReservationGallery({{ json_encode($proofUrls) }}, {{ $idx }})">
                                                 @endforeach
                                             </div>
                                         </div>
@@ -587,7 +626,7 @@ function showReservationGallery(images, startIndex) {
     img.style.cssText = 'max-width:90%;max-height:80vh;object-fit:contain;border-radius:8px;box-shadow:0 4px 32px rgba(0,0,0,0.5);';
 
     function render() {
-        img.src = '/storage/' + images[current];
+        img.src = images[current];
         counter.textContent = (current + 1) + ' / ' + images.length;
     }
     render();
