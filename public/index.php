@@ -7,6 +7,23 @@ define('LARAVEL_START', microtime(true));
 
 /*
 |--------------------------------------------------------------------------
+| Fix upload_tmp_dir for Apache (Laragon) - error code 6
+|--------------------------------------------------------------------------
+|
+| Apache module PHP không có quyền ghi vào Windows Temp mặc định.
+| Set upload_tmp_dir về thư mục storage/temp_uploads trong project.
+|
+*/
+$tmpDir = dirname(__DIR__) . '/storage/temp_uploads';
+if (!is_dir($tmpDir)) {
+    @mkdir($tmpDir, 0755, true);
+}
+if (is_dir($tmpDir) && is_writable($tmpDir)) {
+    ini_set('upload_tmp_dir', $tmpDir);
+}
+
+/*
+|--------------------------------------------------------------------------
 | Check If The Application Is Under Maintenance
 |--------------------------------------------------------------------------
 |
