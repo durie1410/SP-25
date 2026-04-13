@@ -12,6 +12,7 @@ use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class InventoryReservationController extends Controller
 {
@@ -105,7 +106,7 @@ class InventoryReservationController extends Controller
         ]);
 
         // Log bắt đầu
-        \Log::info('markAsReady START', ['reservation_id' => $id, 'time' => now()]);
+        Log::info('markAsReady START', ['reservation_id' => $id, 'time' => now()]);
 
         // Lấy reservation TRƯỚC để check quá hạn (không cần lock vì chỉ đọc)
         $reservation = InventoryReservation::find($id);
@@ -113,7 +114,7 @@ class InventoryReservationController extends Controller
             return back()->with('error', 'Không tìm thấy yêu cầu đặt trước.');
         }
 
-        \Log::info('markAsReady - Found reservation', [
+        Log::info('markAsReady - Found reservation', [
             'id' => $id,
             'status' => $reservation->status,
             'book' => $reservation->book_id
@@ -134,18 +135,18 @@ class InventoryReservationController extends Controller
 
             if (!$inventory) {
                 DB::rollBack();
-                \Log::info('markAsReady - No inventory', ['id' => $id]);
+                Log::info('markAsReady - No inventory', ['id' => $id]);
                 return back()->with('error', 'Không có bản sao nào đang "Có sẵn" để xác nhận đặt trước.');
             }
 
             // Kiểm tra status lần 1 trước khi update
             if ($reservation->status !== 'pending') {
                 DB::rollBack();
-                \Log::info('markAsReady - Status not pending', ['id' => $id, 'status' => $reservation->status]);
+                Log::info('markAsReady - Status not pending', ['id' => $id, 'status' => $reservation->status]);
                 return back()->with('error', 'Yêu cầu này không còn ở trạng thái chờ.');
             }
 
-            \Log::info('markAsReady - About to update', ['id' => $id, 'status_before' => $reservation->status]);
+            Log::info('markAsReady - About to update', ['id' => $id, 'status_before' => $reservation->status]);
 
             // UPDATE với điều kiện status = 'pending'
             // dùng ready_at làm cờ chống trùng: nếu ready_at đã có giá trị → đã xử lý rồi
@@ -160,24 +161,24 @@ class InventoryReservationController extends Controller
                     'ready_at' => now(),
                 ]);
 
-            \Log::info('markAsReady - Update result', ['id' => $id, 'affected' => $affected]);
+            Log::info('markAsReady - Update result', ['id' => $id, 'affected' => $affected]);
 
             if ($affected === 0) {
                 DB::rollBack();
-                \Log::info('markAsReady - Update affected = 0, rolling back', ['id' => $id]);
+                Log::info('markAsReady - Update affected = 0, rolling back', ['id' => $id]);
                 return back()->with('error', 'Yêu cầu này không còn ở trạng thái chờ (đã được xử lý bởi request khác).');
             }
 
             DB::commit();
-            \Log::info('markAsReady - Committed', ['id' => $id]);
+            Log::info('markAsReady - Committed', ['id' => $id]);
 
             // Kiểm tra lại ready_at sau commit — nếu đã có giá trị thì bỏ qua gửi notification
             $reservation->refresh();
             if (!$reservation->ready_at) {
-                \Log::info('markAsReady - SKIPPING notification (ready_at is null after refresh)', ['id' => $id]);
+                Log::info('markAsReady - SKIPPING notification (ready_at is null after refresh)', ['id' => $id]);
             } else {
                 $reservation->load(['book', 'reader.user', 'user']);
-                \Log::info('markAsReady - SENDING notification', ['id' => $id]);
+                Log::info('markAsReady - SENDING notification', ['id' => $id]);
                 app(NotificationService::class)->sendReservationReadyNotification($reservation);
             }
 
@@ -185,7 +186,7 @@ class InventoryReservationController extends Controller
                 ->with('success', 'Đã xác nhận: sách sẵn sàng tại quầy. Vui lòng chụp ảnh chứng minh.');
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('markAsReady - Exception', ['id' => $id, 'error' => $e->getMessage()]);
+            Log::error('markAsReady - Exception', ['id' => $id, 'error' => $e->getMessage()]);
             return back()->with('error', 'Có lỗi khi xử lý: ' . $e->getMessage());
         }
     }
@@ -201,34 +202,90 @@ class InventoryReservationController extends Controller
     {
         $reservation = InventoryReservation::with(['book', 'inventory', 'reader', 'user'])->findOrFail($id);
 
+        // Validate cơ bản - KHÔNG dùng 'image|mimes|file' vì chúng gọi isValid()
+        // gây lỗi "tải lên thất bại" khi file upload PHP có vấn đề.
+        // Thay vào đó kiểm tra thủ công bên dưới.
         $request->validate([
             'proof_images' => 'required|array|min:1',
-            'proof_images.*' => 'file|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
         ]);
 
         $uploadedPaths = [];
-        foreach ($request->file('proof_images', []) as $file) {
+        $failedCount = 0;
+        $uploadErrors = [];
+
+        $allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $maxSizeKb = 4096;
+
+        foreach ($request->file('proof_images', []) as $index => $file) {
+            // Bước 1: Kiểm tra file có tồn tại trong request không
             if (!$file) {
+                $failedCount++;
+                $uploadErrors[] = "File thứ " . ($index + 1) . " không có trong yêu cầu.";
                 continue;
             }
 
-            $result = FileUploadService::uploadImage(
-                $file,
-                'reservation_proofs',
-                [
-                    'max_size' => 4096,
-                    'resize' => true,
-                    'width' => 1200,
-                    'height' => 1200,
-                    'disk' => 'public',
-                ]
-            );
-            $uploadedPaths[] = $result['path'] ?? null;
+            // Bước 2: Kiểm tra isValid() - lỗi upload PHP
+            if (!$file->isValid()) {
+                $errorCode = $file->getError();
+                $failedCount++;
+                $uploadErrors[] = "Trường proof_images.{$index} tải lên thất bại (mã lỗi: {$errorCode}). ";
+                \Log::warning('File upload PHP error', [
+                    'index'      => $index,
+                    'error_code' => $errorCode,
+                    'name'       => $file->getClientOriginalName(),
+                ]);
+                continue;
+            }
+
+            // Bước 3: Kiểm tra MIME type thủ công
+            $mimeType = $file->getMimeType();
+            if (!in_array($mimeType, $allowedMimes)) {
+                $failedCount++;
+                $uploadErrors[] = "File \"{$file->getClientOriginalName()}\" không đúng định dạng ảnh (chỉ chấp nhận JPG, PNG, GIF, WebP).";
+                continue;
+            }
+
+            // Bước 4: Kiểm tra kích thước thủ công (4MB = 4096KB)
+            $fileSizeKb = $file->getSize() / 1024;
+            if ($fileSizeKb > $maxSizeKb) {
+                $failedCount++;
+                $uploadErrors[] = "File \"{$file->getClientOriginalName()}\" vượt quá 4MB.";
+                continue;
+            }
+
+            // Bước 5: Upload qua FileUploadService
+            try {
+                $result = FileUploadService::uploadImage(
+                    $file,
+                    'reservation_proofs',
+                    [
+                        'max_size' => $maxSizeKb,
+                        'resize'   => true,
+                        'width'    => 1200,
+                        'height'   => 1200,
+                        'disk'     => 'public',
+                    ]
+                );
+                if (!empty($result['path'])) {
+                    $uploadedPaths[] = $result['path'];
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Upload ảnh thất bại', [
+                    'file'  => $file->getClientOriginalName(),
+                    'error' => $e->getMessage(),
+                ]);
+                $failedCount++;
+                $uploadErrors[] = "Không thể lưu ảnh \"{$file->getClientOriginalName()}\": " . $e->getMessage();
+            }
         }
 
-        $uploadedPaths = array_values(array_filter($uploadedPaths));
+        // Nếu tất cả đều thất bại
         if (empty($uploadedPaths)) {
-            return back()->with('error', 'Không có ảnh hợp lệ để lưu.');
+            $errorMsg = 'Không có ảnh nào được tải lên thành công.';
+            if (!empty($uploadErrors)) {
+                $errorMsg .= ' Chi tiết: ' . implode(' ', $uploadErrors);
+            }
+            return back()->with('error', $errorMsg);
         }
 
         $existing = is_array($reservation->proof_images) ? $reservation->proof_images : [];
@@ -237,7 +294,7 @@ class InventoryReservationController extends Controller
         ]);
 
         return redirect()->route('admin.inventory-reservations.index')
-            ->with('success', 'Đã lưu ảnh chứng minh cho yêu cầu đặt trước.');
+            ->with('success', 'Đã lưu ' . count($uploadedPaths) . ' ảnh chứng minh cho yêu cầu đặt trước.');
     }
 
     public function markAsFulfilled(Request $request, $id)

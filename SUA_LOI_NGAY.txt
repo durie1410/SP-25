@@ -1,0 +1,73 @@
+════════════════════════════════════════════════════════════════
+   SỬA LỖI: Unknown column 'customer_confirmed_delivery'
+════════════════════════════════════════════════════════════════
+
+VẤN ĐỀ:
+Bạn đang gặp lỗi vì các cột xác nhận khách hàng chưa được thêm vào database.
+
+GIẢI PHÁP NHANH NHẤT:
+────────────────────────────────────────────────────────────────
+
+CÁCH 1: Chạy SQL trong phpMyAdmin (KHUYẾN NGHỊ)
+
+1. Mở trình duyệt, vào: http://localhost/phpmyadmin
+   (hoặc link phpMyAdmin của bạn)
+
+2. Chọn database của project (thường là "quanlythuviennn")
+
+3. Click vào tab "SQL" ở menu trên
+
+4. Copy và dán đoạn SQL sau vào ô:
+
+────────────────────────────────────────────────────────────────
+ALTER TABLE borrows 
+ADD COLUMN customer_confirmed_delivery TINYINT(1) NOT NULL DEFAULT 0 
+COMMENT 'Khách hàng đã xác nhận nhận sách';
+
+ALTER TABLE borrows 
+ADD COLUMN customer_confirmed_delivery_at TIMESTAMP NULL DEFAULT NULL 
+COMMENT 'Thời gian khách hàng xác nhận nhận sách';
+────────────────────────────────────────────────────────────────
+
+5. Click nút "Go" hoặc nhấn Ctrl+Enter
+
+6. Nếu thành công, bạn sẽ thấy thông báo màu xanh:
+   "2 rows affected"
+
+────────────────────────────────────────────────────────────────
+
+CÁCH 2: Sử dụng Artisan Command
+
+Mở Command Prompt/Terminal trong thư mục project và chạy:
+
+    php artisan borrows:add-confirmation-columns
+
+────────────────────────────────────────────────────────────────
+
+CÁCH 3: Sử dụng MySQL Command Line
+
+Nếu bạn có quyền truy cập MySQL command line:
+
+    mysql -u root -p quanlythuviennn < FIX_NOW.sql
+
+────────────────────────────────────────────────────────────────
+
+SAU KHI SỬA:
+
+1. Làm mới trang web (nhấn F5)
+2. Lỗi sẽ biến mất
+3. Tính năng xác nhận 2 chiều sẽ hoạt động bình thường
+
+────────────────────────────────────────────────────────────────
+
+KIỂM TRA:
+
+Để kiểm tra xem các cột đã được thêm chưa, chạy SQL sau:
+
+    SHOW COLUMNS FROM borrows LIKE 'customer_confirmed%';
+
+Bạn sẽ thấy 2 cột:
+  - customer_confirmed_delivery
+  - customer_confirmed_delivery_at
+
+════════════════════════════════════════════════════════════════
