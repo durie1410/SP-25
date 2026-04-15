@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Reader;
 use App\Models\User;
 use App\Services\UserLockService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -99,6 +102,15 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'required|in:admin,staff,user',
+            'phone' => 'required_if:role,user|nullable|string|max:20|unique:users,phone',
+            'address' => 'required_if:role,user|nullable|string|max:500',
+            'province' => 'required_if:role,user|nullable|string|max:255',
+            'district' => 'required_if:role,user|nullable|string|max:255',
+            'xa' => 'required_if:role,user|nullable|string|max:255',
+            'so_cccd' => 'required_if:role,user|nullable|string|max:20|unique:users,so_cccd',
+            'ngay_sinh' => 'required_if:role,user|nullable|date|before_or_equal:today',
+            'gioi_tinh' => 'required_if:role,user|nullable|in:nam,nu,khac',
+            'cccd_image' => 'required_if:role,user|nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
         
         if ($validator->fails()) {
@@ -106,15 +118,42 @@ class UserController extends Controller
                 ->withErrors($validator)
                 ->withInput();
         }
-        
+
+        $cccdImagePath = null;
+        if ($request->hasFile('cccd_image')) {
+            $cccdImagePath = $request->file('cccd_image')->store('cccd_images', 'public');
+        }
+
+        DB::beginTransaction();
         try {
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => $request->password, // Let the model's setPasswordAttribute handle hashing
                 'role' => $request->role,
+                'phone' => $request->phone,
+                'address' => $request->address,
+                'province' => $request->province,
+                'district' => $request->district,
+                'xa' => $request->xa,
+                'so_cccd' => $request->so_cccd,
+                'ngay_sinh' => $request->ngay_sinh,
+                'gioi_tinh' => $request->gioi_tinh,
+                'cccd_image' => $cccdImagePath,
             ]);
+
+            if ($request->role === 'user') {
+                $this->syncReaderProfileForUser($user, $request);
+            }
+
+            // Assign role using Spatie Permission if you're using it
+            if (method_exists($user, 'assignRole')) {
+                $user->assignRole($request->role);
+            }
+
+            DB::commit();
         } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
             // Handle duplicate entry or other database errors
             if ($e->getCode() == 23000) {
                 return redirect()->back()
@@ -122,15 +161,83 @@ class UserController extends Controller
                     ->withInput();
             }
             throw $e;
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
         }
-        
-        // Assign role using Spatie Permission if you're using it
-        if (method_exists($user, 'assignRole')) {
-            $user->assignRole($request->role);
-        }
-        
+
         return redirect()->route('admin.users.index')
             ->with('success', 'Người dùng đã được tạo thành công!');
+    }
+
+    private function syncReaderProfileForUser(User $user, Request $request): void
+    {
+        $phone = trim((string) $request->phone);
+        $gender = match ($request->gioi_tinh) {
+            'nam' => 'Nam',
+            'nu' => 'Nu',
+            default => 'Khac',
+        };
+
+        $existingReader = Reader::where('user_id', $user->id)
+            ->orWhere('email', $user->email)
+            ->orWhere('so_dien_thoai', $phone)
+            ->first();
+
+        if ($existingReader) {
+            $existingReader->fill([
+                'user_id' => $user->id,
+                'ho_ten' => $user->name,
+                'email' => $user->email,
+                'so_dien_thoai' => $phone,
+                'so_cccd' => $request->so_cccd,
+                'ngay_sinh' => $request->ngay_sinh,
+                'gioi_tinh' => $gender,
+                'dia_chi' => $request->address,
+                'tinh_thanh' => $request->province,
+                'huyen' => $request->district,
+                'xa' => $request->xa,
+                'so_nha' => $request->address,
+                'trang_thai' => 'Hoat dong',
+                'ngay_cap_the' => $existingReader->ngay_cap_the ?: now()->toDateString(),
+                'ngay_het_han' => $existingReader->ngay_het_han ?: now()->addYear()->toDateString(),
+            ]);
+
+            if (empty($existingReader->so_the_doc_gia)) {
+                $existingReader->so_the_doc_gia = $this->generateReaderCardCode();
+            }
+
+            $existingReader->save();
+            return;
+        }
+
+        Reader::create([
+            'user_id' => $user->id,
+            'ho_ten' => $user->name,
+            'email' => $user->email,
+            'so_dien_thoai' => $phone,
+            'so_cccd' => $request->so_cccd,
+            'ngay_sinh' => $request->ngay_sinh,
+            'gioi_tinh' => $gender,
+            'dia_chi' => $request->address,
+            'tinh_thanh' => $request->province,
+            'huyen' => $request->district,
+            'xa' => $request->xa,
+            'so_nha' => $request->address,
+            'so_the_doc_gia' => $this->generateReaderCardCode(),
+            'ngay_cap_the' => now()->toDateString(),
+            'ngay_het_han' => now()->addYear()->toDateString(),
+            'trang_thai' => 'Hoat dong',
+        ]);
+    }
+
+    private function generateReaderCardCode(): string
+    {
+        do {
+            $code = 'DG_' . strtoupper(Str::random(8));
+        } while (Reader::where('so_the_doc_gia', $code)->exists());
+
+        return $code;
     }
     
     public function update(Request $request, User $user)
