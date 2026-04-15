@@ -3,21 +3,58 @@
 @section('title', 'Quản Lý Banner - Admin')
 
 @section('content')
-<div class="page-header">
-    <div class="row align-items-center">
-        <div class="col-md-6">
-            <h1 class="page-title">
-                <i class="fas fa-images me-3"></i>
-                Quản Lý Banner Trang Chủ
-            </h1>
-            <p class="page-subtitle">Tải lên và quản lý ảnh banner cho trang chủ</p>
-        </div>
-        <div class="col-md-6 text-end">
-            <a href="{{ route('home') }}" target="_blank" class="btn btn-secondary">
-                <i class="fas fa-external-link-alt me-2"></i>
-                Xem Trang Chủ
-            </a>
-        </div>
+@php
+    $allBannerGroups = [
+        $banners ?? [],
+        $panels ?? [],
+        $services ?? [],
+        $authors ?? [],
+        $contacts ?? [],
+        $news ?? [],
+        $diemSach ?? [],
+    ];
+    $totalSlots = 0;
+    $uploadedSlots = 0;
+    foreach ($allBannerGroups as $group) {
+        foreach ($group as $item) {
+            $totalSlots++;
+            if (!empty($item['exists'])) {
+                $uploadedSlots++;
+            }
+        }
+    }
+    $emptySlots = max(0, $totalSlots - $uploadedSlots);
+@endphp
+
+<div class="banner-admin-hero">
+    <div>
+        <div class="banner-kicker">Homepage Media Studio</div>
+        <h1 class="page-title">
+            <i class="fas fa-images"></i>
+            Quản Lý Banner Trang Chủ
+        </h1>
+        <p class="page-subtitle">Quản lý tập trung toàn bộ ảnh banner theo từng khu vực hiển thị trên website.</p>
+    </div>
+    <div class="banner-hero-actions">
+        <a href="{{ route('home') }}" target="_blank" class="btn btn-light">
+            <i class="fas fa-external-link-alt me-2"></i>
+            Xem Trang Chủ
+        </a>
+    </div>
+</div>
+
+<div class="banner-stats-grid">
+    <div class="banner-stat-card">
+        <div class="stat-label">Tổng vị trí banner</div>
+        <div class="stat-value">{{ $totalSlots }}</div>
+    </div>
+    <div class="banner-stat-card stat-ok">
+        <div class="stat-label">Đã có ảnh</div>
+        <div class="stat-value">{{ $uploadedSlots }}</div>
+    </div>
+    <div class="banner-stat-card stat-wait">
+        <div class="stat-label">Chưa có ảnh</div>
+        <div class="stat-value">{{ $emptySlots }}</div>
     </div>
 </div>
 
@@ -579,91 +616,191 @@
 </div>
 
 <style>
+.banner-admin-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    border-radius: 18px;
+    padding: 20px;
+    margin-bottom: 14px;
+    background: radial-gradient(circle at 8% 14%, #1f2937 0%, #0a3f37 48%, #0f172a 100%);
+    color: #f8fafc;
+    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.22);
+}
+
+.banner-kicker {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    color: rgba(241, 245, 249, 0.76);
+    margin-bottom: 6px;
+}
+
+.page-title {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 30px;
+    font-weight: 800;
+}
+
+.page-subtitle {
+    margin: 8px 0 0;
+    color: rgba(241, 245, 249, 0.92);
+    max-width: 720px;
+}
+
+.banner-hero-actions .btn {
+    border-radius: 11px;
+    font-weight: 700;
+    border: 0;
+    color: #0f172a;
+}
+
+.banner-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.banner-stat-card {
+    border: 1px solid #dbe6f2;
+    background: #fff;
+    border-radius: 14px;
+    padding: 12px 14px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.banner-stat-card .stat-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #64748b;
+    font-weight: 700;
+}
+
+.banner-stat-card .stat-value {
+    margin-top: 2px;
+    font-size: 28px;
+    line-height: 1.1;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.banner-stat-card.stat-ok {
+    background: linear-gradient(140deg, #f0fdf4 0%, #dcfce7 100%);
+    border-color: #86efac;
+}
+
+.banner-stat-card.stat-ok .stat-value {
+    color: #166534;
+}
+
+.banner-stat-card.stat-wait {
+    background: linear-gradient(140deg, #fff7ed 0%, #ffedd5 100%);
+    border-color: #fdba74;
+}
+
+.banner-stat-card.stat-wait .stat-value {
+    color: #9a3412;
+}
+
 .banners-container {
-    padding: 20px 0;
+    padding: 8px 0;
 }
 
 .section-title-admin {
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 2px solid var(--border-color);
+    margin: 12px 0 18px;
+    padding: 12px 14px;
+    border: 1px solid #d8e4ee;
+    border-radius: 14px;
+    background: linear-gradient(145deg, #f8fbff 0%, #eef6f1 100%);
 }
 
 .section-title-admin h2 {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 8px;
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 6px;
 }
 
 .section-title-admin .section-subtitle {
-    color: var(--text-secondary);
+    color: #475569;
     font-size: 14px;
     margin: 0;
 }
 
 .banner-card {
-    background: var(--background-card);
-    border: 1px solid var(--border-color);
+    background: #fff;
+    border: 1px solid #dce6ef;
     border-radius: 16px;
-    padding: 24px;
-    transition: all var(--transition-normal) var(--ease-smooth);
+    padding: 18px;
+    transition: all 0.22s ease;
     height: 100%;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
 
 .banner-card:hover {
-    border-color: var(--primary-color);
-    box-shadow: var(--shadow-lg), var(--shadow-primary);
+    border-color: #0f766e;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
     transform: translateY(-2px);
 }
 
 .banner-card-header {
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .banner-title {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 12px;
     margin-bottom: 8px;
     font-size: 18px;
-    font-weight: 600;
+    font-weight: 800;
 }
 
 .banner-number {
-    color: var(--primary-color);
+    color: #0f172a;
 }
 
 .banner-status {
-    padding: 4px 12px;
-    border-radius: 12px;
+    padding: 5px 11px;
+    border-radius: 999px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
 }
 
 .status-active {
-    background: rgba(0, 255, 153, 0.1);
-    color: var(--primary-color);
+    background: #dcfce7;
+    color: #166534;
 }
 
 .status-inactive {
-    background: rgba(255, 107, 107, 0.1);
-    color: #ff6b6b;
+    background: #fee2e2;
+    color: #b91c1c;
 }
 
 .banner-description {
-    color: var(--text-secondary);
+    color: #64748b;
     font-size: 14px;
     margin: 0;
 }
 
 .banner-preview {
-    margin-bottom: 20px;
+    margin-bottom: 14px;
     border-radius: 12px;
     overflow: hidden;
-    background: var(--background-elevated);
+    background: #f1f5f9;
+    border: 1px dashed #c7d6e5;
     min-height: 200px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
 }
@@ -678,7 +815,7 @@
 .banner-placeholder-upload {
     padding: 60px 20px;
     text-align: center;
-    color: var(--text-muted);
+    color: #94a3b8;
 }
 
 .banner-placeholder-upload i {
@@ -688,31 +825,35 @@
 }
 
 .banner-info {
-    background: rgba(0, 0, 0, 0.3);
-    padding: 12px 16px;
-    margin-top: 12px;
-    border-radius: 8px;
-    display: flex;
+    width: 100%;
+    background: #f8fbff;
+    border-top: 1px solid #dde8f2;
+    padding: 10px 12px;
+    margin-top: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 8px 10px;
 }
 
 .info-item {
     font-size: 12px;
-    color: var(--text-secondary);
+    color: #334155;
     display: flex;
     align-items: center;
 }
 
 .banner-actions {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
 .banner-actions .btn {
     flex: 1;
     min-width: 120px;
+    border-radius: 10px;
+    font-weight: 700;
 }
 
 .alert {
@@ -725,18 +866,32 @@
 }
 
 .alert-success {
-    background: rgba(0, 255, 153, 0.1);
-    color: var(--primary-color);
-    border-left: 4px solid var(--primary-color);
+    background: #dcfce7;
+    color: #166534;
+    border-left: 4px solid #16a34a;
 }
 
 .alert-danger {
-    background: rgba(255, 107, 107, 0.1);
-    color: #ff6b6b;
-    border-left: 4px solid #ff6b6b;
+    background: #fee2e2;
+    color: #b91c1c;
+    border-left: 4px solid #dc2626;
+}
+
+@media (max-width: 992px) {
+    .banner-stats-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
+    .banner-admin-hero {
+        padding: 14px;
+    }
+
+    .page-title {
+        font-size: 24px;
+    }
+
     .banner-card {
         padding: 16px;
     }
