@@ -725,6 +725,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('publishers/{id}/toggle-status', [App\Http\Controllers\Admin\PublisherController::class, 'toggleStatus'])->name('publishers.toggle-status')->middleware('permission:edit-books');
     Route::post('publishers-bulk-action', [App\Http\Controllers\Admin\PublisherController::class, 'bulkAction'])->name('publishers.bulk-action')->middleware('permission:edit-books');
 
+    Route::resource('suppliers', App\Http\Controllers\Admin\SupplierController::class)->middleware('permission:view-books');
+
     Route::resource('departments', App\Http\Controllers\Admin\DepartmentController::class)->middleware('permission:view-readers');
     Route::post('departments/{id}/toggle-status', [App\Http\Controllers\Admin\DepartmentController::class, 'toggleStatus'])->name('departments.toggle-status')->middleware('permission:edit-readers');
     Route::post('departments-bulk-action', [App\Http\Controllers\Admin\DepartmentController::class, 'bulkAction'])->name('departments.bulk-action')->middleware('permission:edit-readers');

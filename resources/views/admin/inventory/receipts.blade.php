@@ -167,6 +167,7 @@
                         <th>Số lượng</th>
                         <th>Vị trí</th>
                         <th>Loại</th>
+                        <th>Nhà cung cấp</th>
                         <th>Người nhập</th>
                         <th>Trạng thái</th>
                         <th>Thao tác</th>
@@ -193,6 +194,7 @@
                                     <span class="badge badge-warning">Trưng bày</span>
                                 @endif
                             </td>
+                            <td>{{ optional($receipt->supplier)->name ?? $receipt->supplier ?? 'N/A' }}</td>
                             <td>{{ optional($receipt->receiver)->name ?? 'N/A' }}</td>
                             <td>
                                 @if($receipt->status == 'pending')
@@ -222,7 +224,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="text-center">Không có phiếu nhập nào</td>
+                            <td colspan="10" class="text-center">Không có phiếu nhập nào</td>
                         </tr>
                     @endforelse
                 </tbody>

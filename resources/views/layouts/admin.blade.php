@@ -1155,6 +1155,13 @@
                     <span>Duyệt xóa sách</span>
                 </a>
                 @endif
+                @if(Route::has('admin.suppliers.index'))
+                <a href="{{ route('admin.suppliers.index') }}"
+                    class="menu-item {{ request()->routeIs('admin.suppliers.*') ? 'active' : '' }}">
+                    <i class="fas fa-truck-loading"></i>
+                    <span>Quản lý nhà cung cấp</span>
+                </a>
+                @endif
 
                 <!-- Quản lý Độc giả - Only for Admin -->
                 @if(!auth()->user()->isStaff())

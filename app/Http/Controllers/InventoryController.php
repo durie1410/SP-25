@@ -10,6 +10,7 @@ use App\Models\DisplayAllocation;
 use App\Models\Book;
 use App\Models\Borrow;
 use App\Models\BorrowItem;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Models\PurchasableBook;
 use App\Exports\InventoryExport;
@@ -20,6 +21,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -386,7 +388,7 @@ class InventoryController extends Controller
                 );
                 $imagePath = $result['path'];
             } catch (\Exception $e) {
-                \Log::error('Upload error:', ['message' => $e->getMessage()]);
+                Log::error('Upload error:', ['message' => $e->getMessage()]);
                 return redirect()->back()
                     ->withErrors(['hinh_anh' => $e->getMessage()])
                     ->withInput();
@@ -475,7 +477,7 @@ class InventoryController extends Controller
                 $book = Book::find($bookId);
                 if ($book) {
                     // Log trước khi xóa
-                    \Log::info("Xóa Book #{$bookId} ({$bookTitle}) vì không còn Inventory nào");
+                    Log::info("Xóa Book #{$bookId} ({$bookTitle}) vì không còn Inventory nào");
                     
                     // Xóa Book
                     $book->delete();
@@ -540,7 +542,7 @@ class InventoryController extends Controller
         if ($allRemainingInventories == 0) {
             // Nếu không còn Inventory nào (kể cả sách đã bán), xóa Book khỏi quản lý sách
             // Log trước khi xóa
-            \Log::info("Xóa Book #{$book_id} ({$bookTitle}) vì đã xóa tất cả {$count} quyển sách khỏi kho");
+            Log::info("Xóa Book #{$book_id} ({$bookTitle}) vì đã xóa tất cả {$count} quyển sách khỏi kho");
             
             // Xóa Book
             $book->delete();
@@ -716,6 +718,7 @@ class InventoryController extends Controller
     {
         $books = Book::with(['category', 'publisher'])->get();
         $receiptNumber = InventoryReceipt::generateReceiptNumber();
+        $suppliers = Supplier::orderBy('name')->get();
         $categories = \App\Models\Category::all();
         $publishers = \App\Models\Publisher::all();
         
@@ -760,6 +763,7 @@ class InventoryController extends Controller
             'books', 
             'allBooks',
             'receiptNumber', 
+            'suppliers',
             'categories', 
             'publishers',
             'locationsInStock',
@@ -777,6 +781,7 @@ class InventoryController extends Controller
             // Form mới: nhiều sách
             $request->validate([
                 'receipt_date' => 'required|date',
+                'supplier_id' => 'required|exists:suppliers,id',
                 'books' => 'required|array|min:1',
                 'books.*.book_id' => 'required|exists:books,id',
                 'books.*.quantity' => 'required|integer|min:1',
@@ -784,12 +789,13 @@ class InventoryController extends Controller
                 'books.*.storage_type' => 'required|in:Kho,Trung bay',
                 'books.*.unit_price' => 'nullable|numeric|min:0',
                 'books.*.notes' => 'nullable|string|max:500',
-                'supplier' => 'required|string|max:255',
                 'notes' => 'nullable|string|max:500',
             ]);
 
             DB::beginTransaction();
             try {
+                $supplier = Supplier::findOrFail($request->supplier_id);
+
                 // Tạo số phiếu
                 $receiptNumber = InventoryReceipt::generateReceiptNumber();
                 
@@ -803,7 +809,8 @@ class InventoryController extends Controller
                     'storage_type' => array_values($request->books)[0]['storage_type'], // Loại đầu tiên
                     'unit_price' => 0, // Sẽ tính từ items
                     'total_price' => 0, // Sẽ tính từ items
-                    'supplier' => $request->supplier,
+                    'supplier' => $supplier->name,
+                    'supplier_id' => $supplier->id,
                     'received_by' => Auth::id(),
                     'status' => 'pending',
                     'notes' => $request->notes,
@@ -841,7 +848,7 @@ class InventoryController extends Controller
                     ->with('success', 'Đã tạo phiếu nhập kho với ' . count($request->books) . ' loại sách. Vui lòng chờ Admin phê duyệt để nhập kho.');
             } catch (\Exception $e) {
                 DB::rollBack();
-                \Log::error('Store receipt error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+                Log::error('Store receipt error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
                 return back()->withInput()->with('error', 'Có lỗi xảy ra: ' . $e->getMessage());
             }
         } else {
@@ -851,6 +858,7 @@ class InventoryController extends Controller
             if ($bookInputType === 'new') {
                 $request->validate([
                     'receipt_date' => 'required|date',
+                    'supplier_id' => 'required|exists:suppliers,id',
                     'ten_sach' => 'required|string|max:255',
                     'tac_gia' => 'required|string|max:255',
                     'category_id' => 'required|exists:categories,id',
@@ -858,7 +866,6 @@ class InventoryController extends Controller
                     'storage_location' => 'required|string|max:100',
                     'storage_type' => 'required|in:Kho,Trung bay',
                     'unit_price' => 'nullable|numeric|min:0',
-                    'supplier' => 'nullable|string|max:255',
                     'notes' => 'nullable|string|max:500',
                     'nha_xuat_ban_id' => 'nullable|exists:publishers,id',
                     'nam_xuat_ban' => 'nullable|integer|min:1900|max:' . date('Y'),
@@ -868,18 +875,20 @@ class InventoryController extends Controller
             } else {
                 $request->validate([
                     'receipt_date' => 'required|date',
+                    'supplier_id' => 'required|exists:suppliers,id',
                     'book_id' => 'required|exists:books,id',
                     'quantity' => 'required|integer|min:1',
                     'storage_location' => 'required|string|max:100',
                     'storage_type' => 'required|in:Kho,Trung bay',
                     'unit_price' => 'nullable|numeric|min:0',
-                    'supplier' => 'nullable|string|max:255',
                     'notes' => 'nullable|string|max:500',
                 ]);
             }
 
             DB::beginTransaction();
             try {
+                $supplier = Supplier::findOrFail($request->supplier_id);
+
                 // Nếu là sách mới, tạo Book trước
                 if ($bookInputType === 'new') {
                     $book = Book::create([
@@ -917,7 +926,8 @@ class InventoryController extends Controller
                     'storage_type' => $request->storage_type,
                     'unit_price' => $unitPrice,
                     'total_price' => $totalPrice,
-                    'supplier' => $request->supplier,
+                    'supplier' => $supplier->name,
+                    'supplier_id' => $supplier->id,
                     'received_by' => Auth::id(),
                     'status' => 'pending',
                     'notes' => $request->notes,
@@ -952,7 +962,7 @@ class InventoryController extends Controller
      */
     public function receipts(Request $request)
     {
-        $query = InventoryReceipt::with(['book', 'receiver', 'approver']);
+        $query = InventoryReceipt::with(['book', 'receiver', 'approver', 'supplier']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -981,7 +991,7 @@ class InventoryController extends Controller
      */
     public function showReceipt($id)
     {
-        $receipt = InventoryReceipt::with(['book', 'receiver', 'approver', 'inventories', 'items.book'])
+        $receipt = InventoryReceipt::with(['book', 'receiver', 'approver', 'inventories', 'items.book', 'supplier'])
             ->findOrFail($id);
 
         return view('admin.inventory.show-receipt', compact('receipt'));
@@ -1007,7 +1017,7 @@ class InventoryController extends Controller
             return back()->with('success', 'Phiếu nhập kho đã được phê duyệt và sách đã được nhập vào kho thành công!');
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Approve receipt error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            Log::error('Approve receipt error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return back()->with('error', 'Có lỗi xảy ra khi phê duyệt phiếu nhập kho: ' . $e->getMessage());
         }
     }
@@ -2509,7 +2519,7 @@ class InventoryController extends Controller
                 ]);
             }
         } catch (\Exception $e) {
-            \Log::error('Error updating PurchasableBook from Book', [
+            Log::error('Error updating PurchasableBook from Book', [
                 'book_id' => $book->id,
                 'book_name' => $book->ten_sach,
                 'error' => $e->getMessage(),
