@@ -147,7 +147,7 @@
                                                                 'cho_tra_sach' => 'admin.borrows.request-return',
                                                                 'dang_van_chuyen_tra_ve' => 'admin.borrows.confirm-return-shipping',
                                                                 'da_nhan_va_kiem_tra' => 'admin.borrows.confirm-receive-check',
-                                                                'hoan_tat_don_hang' => 'admin.borrows.complete-order',
+                                                                'hoan_tat_don_hang' => 'borrows.complete-order',
                                                                 'da_muon_dang_luu_hanh' => 'admin.borrows.request-return',
                                                                 default => null
                                                             };

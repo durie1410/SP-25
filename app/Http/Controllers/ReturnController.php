@@ -656,10 +656,10 @@ class ReturnController extends Controller
             return back()->with('error', 'Không tìm thấy sách trong kho để duyệt.');
         }
 
-        $hasPendingDelete = BookDeleteRequest::where('inventory_id', $item->inventory->id)
-            ->where('status', 'pending')
+        $hasDeleteRequest = BookDeleteRequest::where('inventory_id', $item->inventory->id)
+            ->whereIn('status', ['pending', 'approved'])
             ->exists();
-        if ($hasPendingDelete) {
+        if ($hasDeleteRequest) {
             return back()->with('error', 'Sách đang có yêu cầu xóa, không thể duyệt về kho.');
         }
 

@@ -739,6 +739,30 @@ class FinePaymentController extends Controller
             if (!in_array($condition, ['hong_nhe', 'hong_nang', 'mat_sach'], true)) {
                 continue;
             }
+
+            // Tạo yêu cầu xóa cho sách hỏng/mất để admin duyệt
+            $exists = BookDeleteRequest::where('inventory_id', $item->inventory->id)
+                ->where('status', 'pending')
+                ->exists();
+
+            if (!$exists) {
+                $lyDo = $condition === 'mat_sach'
+                    ? 'Mất sách khi trả'
+                    : 'Sách hỏng khi trả';
+
+                BookDeleteRequest::create([
+                    'book_id'       => $item->book_id,
+                    'inventory_id'  => $item->inventory->id,
+                    'borrow_item_id' => $item->id,
+                    'requested_by'  => Auth::id(),
+                    'status'        => 'pending',
+                    'reason'        => '[BAO HONG] ' . $lyDo . '. Item #' . $item->id,
+                ]);
+            }
+
+            // Cập nhật inventory về 'Co san' để không hiện ở "Sách đã trả chờ duyệt"
+            $item->inventory->update(['status' => 'Co san']);
+            $result['moved_to_delete_review']++;
         }
 
         // Cập nhật trạng thái Borrow nếu tất cả items đã trả

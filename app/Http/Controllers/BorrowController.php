@@ -13,6 +13,7 @@ use App\Models\BorrowPayment;
 
 use App\Models\Wallet;
 use App\Models\Fine;
+use App\Models\BookDeleteRequest;
 use App\Services\FileUploadService;
 use App\Services\NotificationService;
 use Illuminate\Support\Facades\Auth;
@@ -2077,7 +2078,10 @@ class BorrowController extends Controller
      */
     public function completeOrder($id)
     {
-        $borrow = Borrow::with(['reader', 'items', 'fines'])->findOrFail($id);
+        // Load items WITH inventory để tránh lazy loading
+        $borrow = Borrow::with(['reader', 'items' => function ($q) {
+            $q->with('inventory');
+        }, 'fines'])->findOrFail($id);
 
         // Kiểm tra xem còn phạt chưa thanh toán không
         $pendingFinesCount = $borrow->fines()->where('status', 'pending')->count();
@@ -2095,6 +2099,10 @@ class BorrowController extends Controller
             // Log thông tin ban đầu để debug
             Log::info('Starting completeOrder', [
                 'borrow_id' => $borrow->id,
+                'tinh_trang_sach' => $borrow->tinh_trang_sach,
+                'phi_hong_sach' => $borrow->phi_hong_sach,
+                'items_count' => $borrow->items->count(),
+                'auth_id' => auth()->id(),
                 'tien_coc' => $borrow->tien_coc,
                 'phi_hong_sach' => $borrow->phi_hong_sach,
                 'reader_id' => $borrow->reader_id,
@@ -2159,21 +2167,66 @@ class BorrowController extends Controller
 
             // Cập nhật inventory về trạng thái 'Co san' (Có sẵn) - Chỉ dành cho sách bình thường
             foreach ($borrow->items as $item) {
+                // Log để debug
+                Log::info('completeOrder item check', [
+                    'item_id' => $item->id,
+                    'trang_thai' => $item->trang_thai,
+                    'inventorie_id' => $item->inventorie_id,
+                    'has_inventory' => $item->inventory ? true : false,
+                ]);
+
                 if ($item->inventory) {
-                    // Nếu sách bị hỏng hoặc mất, giữ nguyên trạng thái inventory đã được set ở bước kiểm tra
+                    // Nếu sách bị hỏng hoặc mất, tạo yêu cầu xóa cho admin duyệt
                     if (in_array($item->trang_thai, ['Hong', 'Mat sach'])) {
+                        Log::info('Creating BookDeleteRequest for damaged/lost book', [
+                            'item_id' => $item->id,
+                            'inventory_id' => $item->inventorie_id,
+                            'trang_thai' => $item->trang_thai,
+                        ]);
+
+                        // Tạo yêu cầu xóa/báo hỏng cho admin duyệt
+                        $exists = BookDeleteRequest::where('inventory_id', $item->inventorie_id)
+                            ->where('status', 'pending')
+                            ->exists();
+
+                        if (!$exists) {
+                            $lyDo = $item->trang_thai === 'Mat sach'
+                                ? 'Mất sách khi trả'
+                                : 'Sách hỏng khi trả';
+
+                            BookDeleteRequest::create([
+                                'book_id'        => $item->book_id,
+                                'inventory_id'   => $item->inventorie_id,
+                                'borrow_item_id'  => $item->id,
+                                'requested_by'   => auth()->id(),
+                                'status'         => 'pending',
+                                'reason'         => '[BAO HONG] ' . $lyDo . '. Đơn mượn #' . $borrow->id . '. Phí hỏng: ' . number_format($borrow->phi_hong_sach) . ' VNĐ',
+                            ]);
+                        }
+
+                        // Cập nhật inventory về 'Co san' để KHÔNG hiện ở "Sách đã trả chờ duyệt về kho"
+                        $item->inventory->update(['status' => 'Co san']);
                         continue;
                     }
 
                     $item->inventory->update([
                         'status' => 'Co san'
                     ]);
+                } else {
+                    Log::warning('completeOrder: item has no inventory', [
+                        'item_id' => $item->id,
+                        'inventorie_id' => $item->inventorie_id,
+                    ]);
                 }
             }
 
             DB::commit();
 
-            return back()->with('success', 'Đã hoàn tất đơn hàng. Tiền cọc hoàn trả: ' . number_format($borrow->tien_coc_hoan_tra) . ' VNĐ đã được chuyển vào ví của bạn.');
+            $successMsg = 'Đã hoàn tất đơn hàng. Tiền cọc hoàn trả: ' . number_format($borrow->tien_coc_hoan_tra) . ' VNĐ đã được chuyển vào ví của bạn.';
+            if ($borrow->tinh_trang_sach && in_array($borrow->tinh_trang_sach, ['hong_nhe', 'hong_nang', 'mat_sach'])) {
+                $successMsg .= ' Yêu cầu xử lý sách hỏng/mất đã được gửi đến trang duyệt xóa sách của Admin.';
+            }
+            return back()->with('success', $successMsg);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error completing order and refunding to wallet: ' . $e->getMessage(), [
