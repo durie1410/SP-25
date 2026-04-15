@@ -438,6 +438,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('borrows/{id}/process', [BorrowController::class, 'processBorrow'])->name('borrows.process');
     // Màn thanh toán cho phiếu mượn (sau khi duyệt)
     Route::get('borrows/{id}/payment', [BorrowController::class, 'payment'])->name('borrows.payment')->middleware('permission:edit-borrows');
+    Route::get('borrows/{id}/payment/books/search', [BorrowController::class, 'searchBooksForPayment'])->name('borrows.payment.books.search')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/payment/books/add', [BorrowController::class, 'addBookToBorrow'])->name('borrows.payment.books.add')->middleware('permission:edit-borrows');
+    Route::delete('borrows/{id}/payment/items/{itemId}', [BorrowController::class, 'removeBorrowItem'])->name('borrows.payment.items.remove')->middleware('permission:edit-borrows');
+    Route::patch('borrows/{id}/payment/items/{itemId}/return-date', [BorrowController::class, 'updateBorrowItemReturnDate'])->name('borrows.payment.items.update-return-date')->middleware('permission:edit-borrows');
     Route::post('borrows/{id}/approve', [BorrowController::class, 'approve'])->name('borrows.approve')->middleware('permission:edit-borrows');
     Route::post('borrows/{id}/confirm-cash-payment', [BorrowController::class, 'confirmCashPayment'])->name('borrows.confirm-cash-payment')->middleware('permission:edit-borrows');
     Route::post('borrows/{id}/save-receive-evidence', [BorrowController::class, 'saveReceiveEvidenceAfterPayment'])->name('borrows.save-receive-evidence')->middleware('permission:edit-borrows');
@@ -662,6 +666,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
 
     // Autocomplete routes for borrow form
     Route::get('autocomplete/readers', [AdvancedSearchController::class, 'autocompleteReaders'])->name('autocomplete.readers')->middleware('permission:view-readers');
+    Route::post('borrows/quick-user', [BorrowController::class, 'createQuickUser'])->name('borrows.quick-user')->middleware('permission:create-borrows');
     Route::get('autocomplete/books', [AdvancedSearchController::class, 'autocompleteBooks'])->name('autocomplete.books')->middleware('permission:view-books');
     Route::get('books/{book}/inventories', [AdvancedSearchController::class, 'getBookInventories'])
         ->name('books.inventories')
@@ -729,6 +734,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
 
     Route::get('suppliers/legacy-map', [App\Http\Controllers\Admin\SupplierController::class, 'legacyMap'])->name('suppliers.legacy-map')->middleware('permission:view-books');
     Route::post('suppliers/legacy-map', [App\Http\Controllers\Admin\SupplierController::class, 'applyLegacyMap'])->name('suppliers.legacy-map.apply')->middleware('permission:edit-books');
+    Route::get('suppliers/export/csv', [App\Http\Controllers\Admin\SupplierController::class, 'exportCsv'])->name('suppliers.export.csv')->middleware('permission:view-books');
+    Route::get('suppliers/search/json', [App\Http\Controllers\Admin\SupplierController::class, 'searchJson'])->name('suppliers.search.json')->middleware('permission:view-books');
+    Route::get('suppliers/{id}/quick-view', [App\Http\Controllers\Admin\SupplierController::class, 'quickView'])->name('suppliers.quick-view')->middleware('permission:view-books');
     Route::resource('suppliers', App\Http\Controllers\Admin\SupplierController::class)->middleware('permission:view-books');
     Route::post('suppliers/{id}/toggle-status', [App\Http\Controllers\Admin\SupplierController::class, 'toggleStatus'])->name('suppliers.toggle-status')->middleware('permission:edit-books');
 
