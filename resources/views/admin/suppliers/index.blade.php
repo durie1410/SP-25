@@ -6,9 +6,14 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-truck"></i> Quản lý nhà cung cấp</h2>
-        <a href="{{ route('admin.suppliers.create') }}" class="btn btn-success">
-            <i class="fas fa-plus"></i> Thêm nhà cung cấp
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{{ route('admin.suppliers.legacy-map') }}" class="btn btn-outline-primary">
+                <i class="fas fa-project-diagram"></i> Map NCC cũ
+            </a>
+            <a href="{{ route('admin.suppliers.create') }}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Thêm nhà cung cấp
+            </a>
+        </div>
     </div>
 
     @if(session('success'))
@@ -22,8 +27,15 @@
     <div class="card mb-3">
         <div class="card-body">
             <form method="GET" action="{{ route('admin.suppliers.index') }}" class="row g-2">
-                <div class="col-md-10">
+                <div class="col-md-7">
                     <input type="text" name="keyword" class="form-control" value="{{ request('keyword') }}" placeholder="Tìm theo tên, số điện thoại, email, địa chỉ...">
+                </div>
+                <div class="col-md-3">
+                    <select name="status" class="form-control">
+                        <option value="">-- Tất cả trạng thái --</option>
+                        <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Hoạt động</option>
+                        <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Ngừng hợp tác</option>
+                    </select>
                 </div>
                 <div class="col-md-2">
                     <button class="btn btn-primary w-100" type="submit">
@@ -46,8 +58,9 @@
                         <th>Số điện thoại</th>
                         <th>Email</th>
                         <th>Địa chỉ</th>
+                        <th>Trạng thái</th>
                         <th>Phiếu nhập</th>
-                        <th width="170">Thao tác</th>
+                        <th width="230">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -57,6 +70,13 @@
                             <td>{{ $supplier->phone ?: '-' }}</td>
                             <td>{{ $supplier->email ?: '-' }}</td>
                             <td>{{ $supplier->address ?: '-' }}</td>
+                            <td>
+                                @if(($supplier->status ?? 'active') === 'active')
+                                    <span class="badge bg-success">Hoạt động</span>
+                                @else
+                                    <span class="badge bg-secondary">Ngừng hợp tác</span>
+                                @endif
+                            </td>
                             <td><span class="badge bg-info">{{ $supplier->receipts_count }}</span></td>
                             <td>
                                 <a href="{{ route('admin.suppliers.show', $supplier->id) }}" class="btn btn-sm btn-outline-info">
@@ -65,6 +85,12 @@
                                 <a href="{{ route('admin.suppliers.edit', $supplier->id) }}" class="btn btn-sm btn-outline-warning">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                <form method="POST" action="{{ route('admin.suppliers.toggle-status', $supplier->id) }}" class="d-inline" onsubmit="return confirm('Đổi trạng thái hợp tác của nhà cung cấp này?')">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-{{ ($supplier->status ?? 'active') === 'active' ? 'secondary' : 'success' }}" title="{{ ($supplier->status ?? 'active') === 'active' ? 'Chuyển sang ngừng hợp tác' : 'Chuyển sang hoạt động' }}">
+                                        <i class="fas fa-{{ ($supplier->status ?? 'active') === 'active' ? 'pause' : 'play' }}"></i>
+                                    </button>
+                                </form>
                                 <form method="POST" action="{{ route('admin.suppliers.destroy', $supplier->id) }}" class="d-inline" onsubmit="return confirm('Xóa nhà cung cấp này?')">
                                     @csrf
                                     @method('DELETE')
@@ -76,7 +102,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center text-muted">Chưa có nhà cung cấp nào.</td>
+                            <td colspan="7" class="text-center text-muted">Chưa có nhà cung cấp nào.</td>
                         </tr>
                     @endforelse
                 </tbody>

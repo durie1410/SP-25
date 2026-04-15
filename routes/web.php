@@ -649,6 +649,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('statistics/advanced/search-stats', [AdvancedStatisticsController::class, 'searchStats'])->name('statistics.advanced.search-stats')->middleware('permission:view-reports');
     Route::get('statistics/advanced/notification-stats', [AdvancedStatisticsController::class, 'notificationStats'])->name('statistics.advanced.notification-stats')->middleware('permission:view-reports');
     Route::get('statistics/advanced/inventory-stats', [AdvancedStatisticsController::class, 'inventoryStats'])->name('statistics.advanced.inventory-stats')->middleware('permission:view-reports');
+    Route::get('statistics', [App\Http\Controllers\Admin\StatsController::class, 'index'])->name('statistics.index')->middleware('permission:view-reports');
+    Route::get('statistics/export', [App\Http\Controllers\Admin\StatsController::class, 'export'])->name('statistics.export')->middleware('permission:view-reports');
 
     // Advanced Search routes
     Route::get('advanced-search', [AdvancedSearchController::class, 'index'])->name('advanced-search.index')->middleware('permission:view-books');
@@ -725,7 +727,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('publishers/{id}/toggle-status', [App\Http\Controllers\Admin\PublisherController::class, 'toggleStatus'])->name('publishers.toggle-status')->middleware('permission:edit-books');
     Route::post('publishers-bulk-action', [App\Http\Controllers\Admin\PublisherController::class, 'bulkAction'])->name('publishers.bulk-action')->middleware('permission:edit-books');
 
+    Route::get('suppliers/legacy-map', [App\Http\Controllers\Admin\SupplierController::class, 'legacyMap'])->name('suppliers.legacy-map')->middleware('permission:view-books');
+    Route::post('suppliers/legacy-map', [App\Http\Controllers\Admin\SupplierController::class, 'applyLegacyMap'])->name('suppliers.legacy-map.apply')->middleware('permission:edit-books');
     Route::resource('suppliers', App\Http\Controllers\Admin\SupplierController::class)->middleware('permission:view-books');
+    Route::post('suppliers/{id}/toggle-status', [App\Http\Controllers\Admin\SupplierController::class, 'toggleStatus'])->name('suppliers.toggle-status')->middleware('permission:edit-books');
 
     Route::resource('departments', App\Http\Controllers\Admin\DepartmentController::class)->middleware('permission:view-readers');
     Route::post('departments/{id}/toggle-status', [App\Http\Controllers\Admin\DepartmentController::class, 'toggleStatus'])->name('departments.toggle-status')->middleware('permission:edit-readers');

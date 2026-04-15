@@ -1108,6 +1108,13 @@
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
+                @if(Route::has('admin.statistics.index'))
+                <a href="{{ route('admin.statistics.index') }}"
+                    class="menu-item {{ request()->routeIs('admin.statistics.*') ? 'active' : '' }}">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Thống kê riêng</span>
+                </a>
+                @endif
 
                 <!-- Quản lý dữ liệu -->
              
