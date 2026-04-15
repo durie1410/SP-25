@@ -341,10 +341,13 @@ if ($borrow->items && $borrow->items->count() > 0) {
             </a>
             @php
                 $isOverdue = $borrow->items->isNotEmpty() && $borrow->items->contains(fn($item) => $item->trang_thai === 'Qua han');
+                $isDangMuon = $borrow->trang_thai === 'Dang muon'
+                    || ($borrow->items->isNotEmpty() && $borrow->items->contains(fn($item) => $item->trang_thai === 'Dang muon'));
             @endphp
             @if(!($borrow->trang_thai === 'Da tra'
                 || ($borrow->items->isNotEmpty() && $borrow->items->every(fn($item) => $item->trang_thai === 'Da tra'))
-                || $isOverdue))
+                || $isOverdue
+                || $isDangMuon))
                 <a href="{{ route('admin.borrows.edit', $borrow->id) }}" 
                    class="btn btn-sm btn-warning"
                    title="Chỉnh sửa">

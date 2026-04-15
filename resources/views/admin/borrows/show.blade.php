@@ -372,6 +372,18 @@
                             @else
                                 <span class="text-muted small">Chưa có</span>
                             @endif
+
+                            @if(!empty($item->ghi_chu_nhan_sach))
+                                <div class="mt-2 small">
+                                    <strong>Ghi chú nhận sách:</strong>
+                                    <div class="text-muted">{{ $item->ghi_chu_nhan_sach }}</div>
+                                </div>
+                            @elseif(!empty($item->ghi_chu))
+                                <div class="mt-2 small">
+                                    <strong>Ghi chú:</strong>
+                                    <div class="text-muted">{!! nl2br(e($item->ghi_chu)) !!}</div>
+                                </div>
+                            @endif
                         </td>
                     </tr>
                     @endforeach

@@ -2154,7 +2154,7 @@
                         </div>
                         <div class="book-quick-facts">
                             <span class="quick-fact"><i class="fas fa-eye"></i> {{ $book->formatted_views }} lượt xem</span>
-                            <span class="quick-fact"><i class="fas fa-book"></i> {{ $book->formatted_quantity }} cuốn</span>
+                            <span class="quick-fact"><i class="fas fa-book"></i> {{ max(0, (int) ($stats['stock_quantity'] ?? 0)) }} cuốn</span>
                             @if($book->publisher)
                                 <span class="quick-fact"><i class="fas fa-building"></i> {{ $book->publisher->ten_nha_xuat_ban }}</span>
                             @endif

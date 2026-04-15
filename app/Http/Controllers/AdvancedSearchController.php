@@ -191,10 +191,11 @@ class AdvancedSearchController extends Controller
             ->where(function($q) use ($query) {
                 $q->where('ho_ten', 'like', "%{$query}%")
                   ->orWhere('so_the_doc_gia', 'like', "%{$query}%")
-                  ->orWhere('email', 'like', "%{$query}%");
+                  ->orWhere('email', 'like', "%{$query}%")
+                  ->orWhere('so_dien_thoai', 'like', "%{$query}%");
             })
             ->limit(10)
-            ->get(['id', 'ho_ten', 'so_the_doc_gia', 'email', 'so_dien_thoai', 'tinh_thanh', 'huyen', 'xa', 'so_nha']);
+            ->get(['id', 'ho_ten', 'so_the_doc_gia', 'email', 'so_dien_thoai', 'dia_chi', 'tinh_thanh', 'huyen', 'xa', 'so_nha']);
 
         return response()->json($readers);
     }

@@ -156,6 +156,100 @@ class BorrowController extends Controller
         return view('admin.borrows.create', compact('readers', 'books', 'librarians', 'prefillReader'));
     }
 
+    public function createQuickUser(Request $request)
+    {
+        if (!Auth::check() || !Gate::allows('create-borrows')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền thực hiện thao tác này.'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'ho_ten' => 'required|string|max:255',
+            'so_dien_thoai' => 'required|string|max:20',
+            'so_cccd' => 'nullable|string|max:20',
+            'dia_chi' => 'nullable|string|max:500',
+            'gioi_tinh' => 'nullable|in:Nam,Nu,Khac',
+        ]);
+
+        $normalizedPhone = preg_replace('/\s+/', '', (string) $validated['so_dien_thoai']);
+        $existingReader = Reader::whereRaw('REPLACE(so_dien_thoai, " ", "") = ?', [$normalizedPhone])->first();
+        if ($existingReader) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Số điện thoại đã tồn tại trong hệ thống.',
+                'reader' => [
+                    'id' => $existingReader->id,
+                    'ho_ten' => $existingReader->ho_ten,
+                    'so_the_doc_gia' => $existingReader->so_the_doc_gia,
+                    'email' => $existingReader->email,
+                    'so_dien_thoai' => $existingReader->so_dien_thoai,
+                    'dia_chi' => $existingReader->dia_chi,
+                    'tinh_thanh' => $existingReader->tinh_thanh,
+                    'huyen' => $existingReader->huyen,
+                    'xa' => $existingReader->xa,
+                    'so_nha' => $existingReader->so_nha,
+                ],
+            ], 422);
+        }
+
+        $reader = Reader::create([
+            'ho_ten' => $validated['ho_ten'],
+            'email' => $this->generateQuickReaderEmail($normalizedPhone),
+            'so_dien_thoai' => $validated['so_dien_thoai'],
+            'so_cccd' => $validated['so_cccd'] ?? null,
+            'ngay_sinh' => now()->subYears(18)->toDateString(),
+            'gioi_tinh' => $validated['gioi_tinh'] ?? 'Khac',
+            'dia_chi' => $validated['dia_chi'] ?? '',
+            'so_the_doc_gia' => $this->generateReaderCardCode(),
+            'ngay_cap_the' => now()->toDateString(),
+            'ngay_het_han' => now()->addYear()->toDateString(),
+            'trang_thai' => 'Hoat dong',
+            'so_nha' => $validated['dia_chi'] ?? null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã tạo độc giả mới thành công.',
+            'reader' => [
+                'id' => $reader->id,
+                'ho_ten' => $reader->ho_ten,
+                'so_the_doc_gia' => $reader->so_the_doc_gia,
+                'email' => $reader->email,
+                'so_dien_thoai' => $reader->so_dien_thoai,
+                'dia_chi' => $reader->dia_chi,
+                'tinh_thanh' => $reader->tinh_thanh,
+                'huyen' => $reader->huyen,
+                'xa' => $reader->xa,
+                'so_nha' => $reader->so_nha,
+                'gioi_tinh' => $reader->gioi_tinh,
+                'so_cccd' => $reader->so_cccd,
+            ],
+        ]);
+    }
+
+    private function generateReaderCardCode(): string
+    {
+        do {
+            $code = 'DG_' . strtoupper(Str::random(8));
+        } while (Reader::where('so_the_doc_gia', $code)->exists());
+
+        return $code;
+    }
+
+    private function generateQuickReaderEmail(string $phone): string
+    {
+        $base = 'quickreader' . $phone;
+        $email = $base . '@local.reader';
+
+        while (Reader::where('email', $email)->exists()) {
+            $email = $base . '.' . Str::lower(Str::random(4)) . '@local.reader';
+        }
+
+        return $email;
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -168,9 +262,34 @@ class BorrowController extends Controller
             'xa' => 'nullable|string|max:255',
             'so_nha' => 'nullable|string|max:255',
             'ngay_muon' => 'required|date',
+            'ngay_hen_tra' => 'required|date|after_or_equal:ngay_muon',
+            'book_ids' => 'nullable|array',
+            'book_ids.*' => 'exists:books,id',
             'ghi_chu' => 'nullable|string|max:500',
             'reservation_id' => 'nullable|exists:inventory_reservations,id',
         ]);
+
+        $ngayMuonValidated = Carbon::parse($request->input('ngay_muon'))->startOfDay();
+        $ngayHenTraValidated = Carbon::parse($request->input('ngay_hen_tra'))->startOfDay();
+        $today = Carbon::today();
+
+        if (!$ngayMuonValidated->equalTo($today)) {
+            return back()->withErrors([
+                'ngay_muon' => 'Ngày mượn bắt buộc là ngày hôm nay.',
+            ])->withInput();
+        }
+
+        if ($ngayHenTraValidated->lt($ngayMuonValidated)) {
+            return back()->withErrors([
+                'ngay_hen_tra' => 'Ngày trả không được nhỏ hơn ngày mượn.',
+            ])->withInput();
+        }
+
+        if ($ngayMuonValidated->diffInDays($ngayHenTraValidated) > 14) {
+            return back()->withErrors([
+                'ngay_hen_tra' => 'Khoảng ngày mượn và ngày trả chỉ được tối đa 14 ngày.',
+            ])->withInput();
+        }
 
         $data = $request->all();
 
@@ -284,6 +403,64 @@ class BorrowController extends Controller
                         'fulfilled_at' => now(),
                     ]);
                 }
+            } else {
+                $bookIds = collect($request->input('book_ids', []))
+                    ->filter(function ($id) {
+                        return !empty($id);
+                    })
+                    ->map(function ($id) {
+                        return (int) $id;
+                    })
+                    ->values();
+
+                if ($bookIds->isEmpty()) {
+                    throw new \RuntimeException('Vui lòng thêm ít nhất 1 sách vào phiếu mượn.');
+                }
+
+                $ngayMuon = $ngayMuonValidated;
+                $ngayHenTra = $ngayHenTraValidated;
+                $rentalFeePerItem = $this->calculateRentalFeeByDates($ngayMuon, $ngayHenTra);
+
+                $bookRequestCount = $bookIds->countBy();
+                $booksById = Book::whereIn('id', $bookRequestCount->keys()->all())->get()->keyBy('id');
+
+                foreach ($bookRequestCount as $bookId => $requestedQty) {
+                    $book = $booksById->get((int) $bookId);
+                    if (!$book) {
+                        throw new \RuntimeException('Không tìm thấy thông tin sách ID ' . $bookId . '.');
+                    }
+
+                    $availableQty = max(0, (int) ($book->so_luong ?? 0));
+                    if ($availableQty <= 0) {
+                        throw new \RuntimeException('Sách "' . ($book->ten_sach ?? ('#' . $bookId)) . '" đã hết tồn kho.');
+                    }
+
+                    if ((int) $requestedQty > $availableQty) {
+                        throw new \RuntimeException('Sách "' . ($book->ten_sach ?? ('#' . $bookId)) . '" chỉ còn ' . $availableQty . ' cuốn.');
+                    }
+                }
+
+                foreach ($bookIds as $bookId) {
+                    BorrowItem::create([
+                        'borrow_id' => $borrow->id,
+                        'book_id' => $bookId,
+                        'tien_coc' => 0,
+                        'tien_thue' => $rentalFeePerItem,
+                        'tien_ship' => 0,
+                        'ngay_muon' => $ngayMuon->toDateString(),
+                        'ngay_hen_tra' => $ngayHenTra->toDateString(),
+                        'trang_thai' => 'Cho duyet',
+                        'borrow_type' => 'take_home',
+                    ]);
+                }
+
+                $borrow->update([
+                    'tien_coc' => 0,
+                    'tien_ship' => 0,
+                    'tien_thue' => $rentalFeePerItem * $bookIds->count(),
+                    'tong_tien' => $rentalFeePerItem * $bookIds->count(),
+                    'ngay_hen_tra' => $ngayHenTra->toDateString(),
+                ]);
             }
 
             // Không sync tiền ship / tiền cọc từ items cho phiếu đặt trước
@@ -674,7 +851,11 @@ class BorrowController extends Controller
             return back()->with('error', 'Bạn không có quyền thực hiện thao tác này.');
         }
 
-        $borrow = Borrow::with(['items.book', 'reader', 'payments'])->findOrFail($id);
+        $borrow = Borrow::with(['items.book', 'items.reservation', 'reader', 'payments'])->findOrFail($id);
+
+        // Chuẩn hóa phí thuê theo ngày mượn/ngày trả để tránh lệch tiền giữa các item có cùng mốc ngày.
+        $this->normalizeBorrowItemFeesForPayment($borrow);
+        $borrow->load(['items.book', 'items.reservation', 'reader', 'payments']);
 
         $pendingPayment = $borrow->payments()->where('payment_status', 'pending')->latest()->first();
         $successPayment = $borrow->payments()->where('payment_status', 'success')->latest()->first();
@@ -686,6 +867,281 @@ class BorrowController extends Controller
             : null;
 
         return view('admin.borrows.payment', compact('borrow', 'pendingPayment', 'successPayment', 'momoPayUrl', 'momoOrderId', 'momoQrUrl'));
+    }
+
+    public function searchBooksForPayment(Request $request, $id)
+    {
+        if (!Auth::check() || !Gate::allows('edit-borrows')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền thực hiện thao tác này.'
+            ], 403);
+        }
+
+        $borrow = Borrow::with(['items'])->findOrFail($id);
+        $keyword = trim((string) $request->input('keyword', ''));
+
+        $query = Book::query();
+
+        if ($keyword !== '') {
+            $query->where(function ($q) use ($keyword) {
+                $q->where('ten_sach', 'like', '%' . $keyword . '%')
+                    ->orWhere('tac_gia', 'like', '%' . $keyword . '%');
+            });
+        }
+
+        $selectedCountByBook = collect($borrow->items)
+            ->groupBy('book_id')
+            ->map(function ($group) {
+                return $group->count();
+            });
+
+        $books = $query
+            ->orderBy('ten_sach')
+            ->limit(20)
+            ->get()
+            ->map(function ($book) use ($selectedCountByBook) {
+                $selectedQty = (int) ($selectedCountByBook[$book->id] ?? 0);
+                $availableQty = max(0, (int) ($book->so_luong ?? 0));
+                $remainingStock = max(0, $availableQty - $selectedQty);
+
+                return [
+                    'id' => $book->id,
+                    'title' => $book->ten_sach,
+                    'author' => $book->tac_gia,
+                    'image_url' => $book->image_url,
+                    'selected_qty' => $selectedQty,
+                    'available_qty' => $remainingStock,
+                    'max_addable' => max(0, min(2 - $selectedQty, $remainingStock)),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'books' => $books,
+        ]);
+    }
+
+    public function addBookToBorrow(Request $request, $id)
+    {
+        if (!Auth::check() || !Gate::allows('edit-borrows')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền thực hiện thao tác này.'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'book_id' => 'required|exists:books,id',
+            'quantity' => 'nullable|integer|min:1|max:2',
+        ]);
+
+        $borrow = Borrow::with(['items.book', 'items.reservation', 'payments'])->findOrFail($id);
+
+        if ($borrow->payments()->where('payment_status', 'success')->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Phiếu mượn đã thanh toán, không thể thêm sách.'
+            ], 422);
+        }
+
+        $book = Book::findOrFail($validated['book_id']);
+        $quantity = (int) ($validated['quantity'] ?? 1);
+
+        $currentCount = $borrow->items()->where('book_id', $book->id)->count();
+        $remainingLimit = 2 - $currentCount;
+
+        if ($remainingLimit <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mỗi sách chỉ được thêm tối đa 2 cuốn trong một phiếu mượn.'
+            ], 422);
+        }
+
+        $quantityToAdd = min($quantity, $remainingLimit);
+        $availableQty = max(0, (int) ($book->so_luong ?? 0));
+        $remainingStock = max(0, $availableQty - $currentCount);
+        if ($remainingStock <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sách hiện không còn số lượng khả dụng.'
+            ], 422);
+        }
+
+        if ($remainingStock < $quantityToAdd) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Số lượng tồn không đủ để thêm ' . $quantityToAdd . ' cuốn.'
+            ], 422);
+        }
+
+        $templateItem = $borrow->items()->latest('id')->first();
+        $ngayMuon = now()->startOfDay();
+
+        $defaultDueDate = $borrow->ngay_hen_tra ? Carbon::parse($borrow->ngay_hen_tra)->startOfDay() : null;
+        $ngayHenTra = ($defaultDueDate && $defaultDueDate->gte($ngayMuon))
+            ? $defaultDueDate
+            : $ngayMuon->copy()->addDay();
+
+        if ($ngayHenTra->lt($ngayMuon)) {
+            $ngayHenTra = $ngayMuon->copy()->addDay();
+        }
+
+        $rentalFeePerItem = $this->calculateRentalFeeByDates($ngayMuon, $ngayHenTra);
+
+        DB::transaction(function () use ($borrow, $book, $quantityToAdd, $templateItem, $ngayMuon, $ngayHenTra, $rentalFeePerItem) {
+            for ($i = 0; $i < $quantityToAdd; $i++) {
+                $borrow->items()->create([
+                    'book_id' => $book->id,
+                    'ngay_muon' => $ngayMuon->toDateString(),
+                    'ngay_hen_tra' => $ngayHenTra->toDateString(),
+                    'tien_coc' => 0,
+                    'tien_thue' => $rentalFeePerItem,
+                    'tien_ship' => 0,
+                    'trang_thai_coc' => $templateItem->trang_thai_coc ?? 'cho_xu_ly',
+                    'trang_thai' => $templateItem->trang_thai ?? 'Cho duyet',
+                    'borrow_type' => $templateItem->borrow_type ?? 'take_home',
+                    'added_in_payment' => true,
+                ]);
+            }
+
+            $borrow->recalculateTotals();
+            $this->syncPendingBorrowPaymentAmount($borrow);
+        });
+
+        $borrow->load(['items.book', 'items.reservation', 'payments']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã thêm sách vào phiếu mượn.',
+            'total_fee' => (float) ($borrow->tien_thue ?? 0),
+            'total_fee_text' => number_format((float) ($borrow->tien_thue ?? 0)) . '₫',
+            'items_count' => collect($borrow->items)->count(),
+            'items' => $this->buildPaymentItemsPayload($borrow),
+        ]);
+    }
+
+    public function removeBorrowItem(Request $request, $id, $itemId)
+    {
+        if (!Auth::check() || !Gate::allows('edit-borrows')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền thực hiện thao tác này.'
+            ], 403);
+        }
+
+        $borrow = Borrow::with(['items.book', 'items.reservation', 'payments'])->findOrFail($id);
+
+        if ($borrow->payments()->where('payment_status', 'success')->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Phiếu mượn đã thanh toán, không thể xóa sách.'
+            ], 422);
+        }
+
+        $item = BorrowItem::where('borrow_id', $borrow->id)->find($itemId);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy dòng sách cần xóa.'
+            ], 404);
+        }
+
+        if (!$this->canEditPaymentItem($borrow, $item)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sách có sẵn trong đơn không thể xóa ở bước thanh toán.'
+            ], 422);
+        }
+
+        DB::transaction(function () use ($borrow, $item) {
+            $item->delete();
+            $borrow->recalculateTotals();
+            $this->syncPendingBorrowPaymentAmount($borrow);
+        });
+
+        $borrow->load(['items.book', 'items.reservation', 'payments']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã xóa sách khỏi phiếu mượn.',
+            'total_fee' => (float) ($borrow->tien_thue ?? 0),
+            'total_fee_text' => number_format((float) ($borrow->tien_thue ?? 0)) . '₫',
+            'items_count' => collect($borrow->items)->count(),
+            'items' => $this->buildPaymentItemsPayload($borrow),
+        ]);
+    }
+
+    public function updateBorrowItemReturnDate(Request $request, $id, $itemId)
+    {
+        if (!Auth::check() || !Gate::allows('edit-borrows')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền thực hiện thao tác này.'
+            ], 403);
+        }
+
+        $request->validate([
+            'ngay_hen_tra' => 'required|date',
+        ]);
+
+        $borrow = Borrow::with(['items.book', 'items.reservation', 'payments'])->findOrFail($id);
+
+        if ($borrow->payments()->where('payment_status', 'success')->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Phiếu mượn đã thanh toán, không thể cập nhật ngày trả.'
+            ], 422);
+        }
+
+        $item = BorrowItem::where('borrow_id', $borrow->id)->find($itemId);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy dòng sách cần cập nhật.'
+            ], 404);
+        }
+
+        if (!$this->canEditPaymentItem($borrow, $item)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sách có sẵn trong đơn không thể sửa ngày trả ở bước thanh toán.'
+            ], 422);
+        }
+
+        $ngayMuon = $item->ngay_muon ? Carbon::parse($item->ngay_muon)->startOfDay() : now()->startOfDay();
+        $ngayHenTra = Carbon::parse($request->input('ngay_hen_tra'))->startOfDay();
+
+        if ($ngayHenTra->lt($ngayMuon)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ngày trả phải lớn hơn hoặc bằng ngày mượn.'
+            ], 422);
+        }
+
+        $rentalFee = $this->calculateRentalFeeByDates($ngayMuon, $ngayHenTra);
+
+        DB::transaction(function () use ($borrow, $item, $ngayHenTra, $rentalFee) {
+            $item->update([
+                'ngay_hen_tra' => $ngayHenTra->toDateString(),
+                'tien_thue' => $rentalFee,
+            ]);
+
+            $borrow->recalculateTotals();
+            $this->syncPendingBorrowPaymentAmount($borrow);
+        });
+
+        $borrow->load(['items.book', 'items.reservation', 'payments']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã cập nhật ngày trả và tiền thuê.',
+            'total_fee' => (float) ($borrow->tien_thue ?? 0),
+            'total_fee_text' => number_format((float) ($borrow->tien_thue ?? 0)) . '₫',
+            'items_count' => collect($borrow->items)->count(),
+            'items' => $this->buildPaymentItemsPayload($borrow),
+        ]);
     }
 
     /* ============================================================
@@ -712,11 +1168,21 @@ class BorrowController extends Controller
             return back()->with('info', 'Không có thanh toán nào đang chờ xác nhận.');
         }
 
+        try {
+            // Lưu ảnh/ghi chú từ form thanh toán cho cả tiền mặt và online.
+            $this->saveReceiveConfirmationFromPaymentForm($request, $borrow);
+        } catch (\Throwable $e) {
+            Log::warning('Save receive confirmation from payment form failed', [
+                'borrow_id' => $borrow->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', $e->getMessage());
+        }
+
         // Thanh toán online: tạo mã MoMo
         if ($paymentMethod === 'online') {
             try {
-                $this->saveReceiveConfirmationFromPaymentForm($request, $borrow);
-
                 $momoData = $this->createMomoPaymentForBorrow($borrow, $payment);
 
                 $payment->update([
@@ -770,6 +1236,161 @@ class BorrowController extends Controller
         }
     }
 
+    private function syncPendingBorrowPaymentAmount(Borrow $borrow): void
+    {
+        $amountToPay = (float) ($borrow->tien_thue ?? 0);
+
+        if ($amountToPay <= 0) {
+            $amountToPay = (float) $borrow->items()->sum('tien_thue');
+        }
+
+        $pendingPayment = $borrow->payments()->where('payment_status', 'pending')->latest()->first();
+
+        if ($pendingPayment) {
+            $pendingPayment->update([
+                'amount' => $amountToPay,
+            ]);
+            return;
+        }
+
+        if (!$borrow->payments()->where('payment_status', 'success')->exists()) {
+            BorrowPayment::create([
+                'borrow_id' => $borrow->id,
+                'amount' => $amountToPay,
+                'payment_type' => 'borrow_fee',
+                'payment_method' => 'offline',
+                'payment_status' => 'pending',
+                'note' => 'Thanh toán tiền thuê phiếu mượn #' . $borrow->id,
+            ]);
+        }
+    }
+
+    private function calculateRentalFeeByDates(Carbon $ngayMuon, Carbon $ngayHenTra): int
+    {
+        $rentalDays = max(1, $ngayMuon->copy()->startOfDay()->diffInDays($ngayHenTra->copy()->startOfDay()));
+        $dailyRentalFee = (int) config('library.rental_per_day', 5000);
+        return $rentalDays * $dailyRentalFee;
+    }
+
+    private function normalizeBorrowItemFeesForPayment(Borrow $borrow): void
+    {
+        // Nếu đã có payment success thì giữ nguyên dữ liệu lịch sử.
+        if ($borrow->payments()->where('payment_status', 'success')->exists()) {
+            return;
+        }
+
+        $hasChanges = false;
+
+        foreach ($borrow->items as $item) {
+            if (!$item->ngay_muon || !$item->ngay_hen_tra) {
+                continue;
+            }
+
+            $ngayMuon = Carbon::parse($item->ngay_muon)->startOfDay();
+            $ngayHenTra = Carbon::parse($item->ngay_hen_tra)->startOfDay();
+
+            if ($ngayHenTra->lt($ngayMuon)) {
+                $ngayHenTra = $ngayMuon->copy()->addDay();
+            }
+
+            $expectedFee = $this->calculateRentalFeeByDates($ngayMuon, $ngayHenTra);
+            $updates = [];
+
+            if ((float) ($item->tien_thue ?? 0) !== (float) $expectedFee) {
+                $updates['tien_thue'] = $expectedFee;
+            }
+
+            if (Carbon::parse($item->ngay_hen_tra)->toDateString() !== $ngayHenTra->toDateString()) {
+                $updates['ngay_hen_tra'] = $ngayHenTra->toDateString();
+            }
+
+            if (!empty($updates)) {
+                $item->update($updates);
+                $hasChanges = true;
+            }
+        }
+
+        if ($hasChanges) {
+            $borrow->recalculateTotals();
+            $this->syncPendingBorrowPaymentAmount($borrow);
+        }
+    }
+
+    private function buildPaymentItemsPayload(Borrow $borrow): array
+    {
+        return $borrow->items
+            ->map(function ($item) use ($borrow) {
+                $proofImages = [];
+                $reservationMatch = $item->reservation_match;
+
+                if ($reservationMatch && method_exists($reservationMatch, 'getProofImages')) {
+                    $proofImages = collect($reservationMatch->getProofImages())
+                        ->map(function ($imgPath) {
+                            return asset('storage/' . ltrim((string) $imgPath, '/'));
+                        })
+                        ->values()
+                        ->all();
+                }
+
+                if (empty($proofImages)) {
+                    $proofImages = collect([
+                        $item->anh_bia_truoc,
+                        $item->anh_bia_sau,
+                        $item->anh_gay_sach,
+                    ])
+                        ->filter(function ($url) {
+                            return !empty($url);
+                        })
+                        ->values()
+                        ->all();
+                }
+
+                $borrowFrom = $item->ngay_muon ? Carbon::parse($item->ngay_muon)->format('d/m/Y') : null;
+                $borrowDue = $item->ngay_hen_tra ? Carbon::parse($item->ngay_hen_tra)->format('d/m/Y') : null;
+                $borrowFromIso = $item->ngay_muon ? Carbon::parse($item->ngay_muon)->format('Y-m-d') : null;
+                $borrowDueIso = $item->ngay_hen_tra ? Carbon::parse($item->ngay_hen_tra)->format('Y-m-d') : null;
+
+                return [
+                    'id' => $item->id,
+                    'book_title' => $item->book->ten_sach ?? 'N/A',
+                    'book_author' => $item->book->tac_gia ?? 'Không rõ',
+                    'book_has_image' => !empty($item->book->hinh_anh),
+                    'book_image_url' => $item->book->image_url ?? null,
+                    'status' => $item->trang_thai,
+                    'fee' => (float) ($item->tien_thue ?? 0),
+                    'fee_text' => number_format((float) ($item->tien_thue ?? 0)) . '₫',
+                    'proof_images' => $proofImages,
+                    'borrow_from' => $borrowFrom,
+                    'borrow_due' => $borrowDue,
+                    'borrow_from_iso' => $borrowFromIso,
+                    'borrow_due_iso' => $borrowDueIso,
+                    'borrow_range_text' => ($borrowFrom && $borrowDue)
+                        ? ('Mượn: ' . $borrowFrom . ' | Trả: ' . $borrowDue)
+                        : 'Chưa có ngày mượn/trả',
+                    'is_newly_added' => $reservationMatch ? false : true,
+                    'show_upload_proof' => empty($proofImages),
+                    'can_edit_in_payment' => $this->canEditPaymentItem($borrow, $item),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function canEditPaymentItem(Borrow $borrow, BorrowItem $item): bool
+    {
+        $isFlaggedAddedInPayment = (bool) ($item->added_in_payment ?? false);
+        if (!$isFlaggedAddedInPayment) {
+            return false;
+        }
+
+        // Chỉ cho sửa/xóa sách được thêm sau thời điểm tạo phiếu.
+        if ($borrow->created_at && $item->created_at) {
+            return $item->created_at->greaterThan($borrow->created_at);
+        }
+
+        return true;
+    }
+
     private function saveReceiveConfirmationFromPaymentForm(Request $request, Borrow $borrow, bool $requireCompleteEvidence = false): void
     {
         $firstFrontUrl = null;
@@ -783,6 +1404,24 @@ class BorrowController extends Controller
             $frontUrl = $item->anh_bia_truoc;
             $backUrl = $item->anh_bia_sau;
             $spineUrl = $item->anh_gay_sach;
+
+            // UX mới: 1 input 1 ảnh chứng minh cho mỗi sách.
+            $proofFiles = $request->file("book_images_proof.$itemId", []);
+            if (!is_array($proofFiles)) {
+                $proofFiles = $proofFiles ? [$proofFiles] : [];
+            }
+
+            if (!empty($proofFiles)) {
+                $proofFiles = array_values(array_filter($proofFiles, function ($file) {
+                    return $file !== null;
+                }));
+
+                if (!empty($proofFiles[0])) {
+                    $uploadedFront = FileUploadService::uploadToCloudinary($proofFiles[0], 'borrow_delivery_confirm');
+                    $frontUrl = $uploadedFront['url'] ?? $frontUrl;
+                    $hasAnyChange = true;
+                }
+            }
 
             if ($request->hasFile("book_images_front.$itemId")) {
                 $uploadedFront = FileUploadService::uploadToCloudinary($request->file("book_images_front.$itemId"), 'borrow_delivery_confirm');
@@ -809,8 +1448,8 @@ class BorrowController extends Controller
             }
 
             if ($requireCompleteEvidence) {
-                if (empty($frontUrl) || empty($backUrl) || empty($spineUrl)) {
-                    throw new \RuntimeException('Thiếu 1 trong 3 ảnh bắt buộc của sách: ' . ($item->book->ten_sach ?? ('#' . $itemId)));
+                if (empty($frontUrl)) {
+                    throw new \RuntimeException('Thiếu ảnh chứng minh của sách: ' . ($item->book->ten_sach ?? ('#' . $itemId)));
                 }
 
                 if ($note === '') {

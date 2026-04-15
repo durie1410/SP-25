@@ -42,6 +42,7 @@ class BorrowItem extends Model
         'anh_bia_sau',
         'anh_gay_sach',
         'ghi_chu_nhan_sach',
+        'added_in_payment',
     ];
 
     protected $casts = [
@@ -54,6 +55,7 @@ class BorrowItem extends Model
         'tien_coc_da_thu' => 'decimal:2',
         'tien_coc_da_hoan' => 'decimal:2',
         'return_proof_images' => 'array',
+        'added_in_payment' => 'boolean',
     ];
 
 

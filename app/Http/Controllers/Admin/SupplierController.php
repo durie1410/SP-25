@@ -13,25 +13,107 @@ class SupplierController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Supplier::query()->withCount('receipts');
-
-        if ($request->filled('keyword')) {
-            $keyword = trim((string) $request->keyword);
-            $query->where(function ($q) use ($keyword) {
-                $q->where('name', 'like', "%{$keyword}%")
-                    ->orWhere('phone', 'like', "%{$keyword}%")
-                    ->orWhere('email', 'like', "%{$keyword}%")
-                    ->orWhere('address', 'like', "%{$keyword}%");
-            });
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
+        $query = $this->buildFilteredSupplierQuery($request);
 
         $suppliers = $query->orderByDesc('created_at')->paginate(15);
+        $totalSuppliers = Supplier::count();
+        $activeSuppliers = Supplier::where('status', 'active')->count();
+        $inactiveSuppliers = Supplier::where('status', 'inactive')->count();
+        $suppliersWithReceipts = Supplier::has('receipts')->count();
 
-        return view('admin.suppliers.index', compact('suppliers'));
+        return view('admin.suppliers.index', compact(
+            'suppliers',
+            'totalSuppliers',
+            'activeSuppliers',
+            'inactiveSuppliers',
+            'suppliersWithReceipts'
+        ));
+    }
+
+    public function searchJson(Request $request)
+    {
+        $query = $this->buildFilteredSupplierQuery($request);
+        $suppliers = $query
+            ->orderByDesc('created_at')
+            ->limit(100)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'suppliers' => $suppliers->map(function ($supplier) {
+                return [
+                    'id' => $supplier->id,
+                    'name' => $supplier->name,
+                    'phone' => $supplier->phone,
+                    'email' => $supplier->email,
+                    'address' => $supplier->address,
+                    'status' => $supplier->status,
+                    'receipts_count' => (int) ($supplier->receipts_count ?? 0),
+                ];
+            })->values(),
+            'total' => $suppliers->count(),
+        ]);
+    }
+
+    public function quickView($id)
+    {
+        $supplier = Supplier::withCount('receipts')->findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'supplier' => [
+                'id' => $supplier->id,
+                'name' => $supplier->name,
+                'phone' => $supplier->phone,
+                'email' => $supplier->email,
+                'address' => $supplier->address,
+                'status' => $supplier->status,
+                'receipts_count' => (int) ($supplier->receipts_count ?? 0),
+                'created_at' => optional($supplier->created_at)->format('d/m/Y H:i'),
+                'updated_at' => optional($supplier->updated_at)->format('d/m/Y H:i'),
+            ],
+        ]);
+    }
+
+    public function exportCsv(Request $request)
+    {
+        $query = $this->buildFilteredSupplierQuery($request);
+        $suppliers = $query->orderBy('name')->get();
+
+        $filename = 'suppliers_' . now()->format('Ymd_His') . '.csv';
+
+        return response()->streamDownload(function () use ($suppliers) {
+            $handle = fopen('php://output', 'w');
+
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, [
+                'ID',
+                'Ten nha cung cap',
+                'So dien thoai',
+                'Email',
+                'Dia chi',
+                'Trang thai',
+                'So phieu nhap',
+                'Ngay tao',
+            ]);
+
+            foreach ($suppliers as $supplier) {
+                fputcsv($handle, [
+                    $supplier->id,
+                    $supplier->name,
+                    $supplier->phone ?? '',
+                    $supplier->email ?? '',
+                    $supplier->address ?? '',
+                    $supplier->status === 'active' ? 'Hoat dong' : 'Ngung hop tac',
+                    (int) ($supplier->receipts_count ?? 0),
+                    optional($supplier->created_at)->format('d/m/Y H:i'),
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     public function create()
@@ -199,6 +281,27 @@ class SupplierController extends Controller
     private function normalizeName(string $name): string
     {
         return preg_replace('/\s+/u', ' ', trim($name)) ?? trim($name);
+    }
+
+    private function buildFilteredSupplierQuery(Request $request)
+    {
+        $query = Supplier::query()->withCount('receipts');
+
+        if ($request->filled('keyword')) {
+            $keyword = trim((string) $request->keyword);
+            $query->where(function ($q) use ($keyword) {
+                $q->where('name', 'like', "%{$keyword}%")
+                    ->orWhere('phone', 'like', "%{$keyword}%")
+                    ->orWhere('email', 'like', "%{$keyword}%")
+                    ->orWhere('address', 'like', "%{$keyword}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        return $query;
     }
 
     private function isDuplicateName(string $name, ?int $ignoreId = null): bool

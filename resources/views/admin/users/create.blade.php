@@ -31,7 +31,7 @@
         </div>
     @endif
 
-    <form action="{{ route('admin.users.store') }}" method="POST">
+    <form action="{{ route('admin.users.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
         
         <div class="row">
@@ -92,6 +92,118 @@
                     @error('role')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+                    <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror"
+                           value="{{ old('phone') }}" placeholder="Ví dụ: 0912345678">
+                    @error('phone')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Địa chỉ <span class="text-danger">*</span></label>
+                    <input type="text" name="address" class="form-control @error('address') is-invalid @enderror"
+                           value="{{ old('address') }}" placeholder="Nhập địa chỉ hiện tại">
+                    @error('address')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                    <small class="form-text text-muted">Bắt buộc khi tạo tài khoản vai trò Người dùng</small>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Số CCCD <span class="text-danger">*</span></label>
+                    <input type="text" name="so_cccd" class="form-control @error('so_cccd') is-invalid @enderror"
+                           value="{{ old('so_cccd') }}" placeholder="Nhập số CCCD">
+                    @error('so_cccd')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Tỉnh/Thành phố <span class="text-danger">*</span></label>
+                    <input type="text" name="province" class="form-control @error('province') is-invalid @enderror"
+                           value="{{ old('province') }}" placeholder="Ví dụ: Hà Nội">
+                    @error('province')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Quận/Huyện <span class="text-danger">*</span></label>
+                    <input type="text" name="district" class="form-control @error('district') is-invalid @enderror"
+                           value="{{ old('district') }}" placeholder="Ví dụ: Nam Từ Liêm">
+                    @error('district')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">Xã/Phường <span class="text-danger">*</span></label>
+                    <input type="text" name="xa" class="form-control @error('xa') is-invalid @enderror"
+                           value="{{ old('xa') }}" placeholder="Ví dụ: Mễ Trì">
+                    @error('xa')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Ngày sinh <span class="text-danger">*</span></label>
+                    <input type="date" name="ngay_sinh" class="form-control @error('ngay_sinh') is-invalid @enderror"
+                           value="{{ old('ngay_sinh') }}">
+                    @error('ngay_sinh')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Giới tính <span class="text-danger">*</span></label>
+                    <select name="gioi_tinh" class="form-select @error('gioi_tinh') is-invalid @enderror">
+                        <option value="">-- Chọn giới tính --</option>
+                        <option value="nam" {{ old('gioi_tinh') === 'nam' ? 'selected' : '' }}>Nam</option>
+                        <option value="nu" {{ old('gioi_tinh') === 'nu' ? 'selected' : '' }}>Nữ</option>
+                        <option value="khac" {{ old('gioi_tinh') === 'khac' ? 'selected' : '' }}>Khác</option>
+                    </select>
+                    @error('gioi_tinh')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">Ảnh căn cước công dân <span class="text-danger">*</span></label>
+                    <input type="file" name="cccd_image" accept="image/*" class="form-control @error('cccd_image') is-invalid @enderror">
+                    @error('cccd_image')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                    <small class="form-text text-muted">Bắt buộc khi tạo tài khoản vai trò Người dùng</small>
                 </div>
             </div>
         </div>
