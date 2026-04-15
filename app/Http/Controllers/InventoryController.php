@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class InventoryController extends Controller
 {
@@ -718,7 +719,7 @@ class InventoryController extends Controller
     {
         $books = Book::with(['category', 'publisher'])->get();
         $receiptNumber = InventoryReceipt::generateReceiptNumber();
-        $suppliers = Supplier::orderBy('name')->get();
+        $suppliers = Supplier::active()->orderBy('name')->get();
         $categories = \App\Models\Category::all();
         $publishers = \App\Models\Publisher::all();
         
@@ -781,7 +782,12 @@ class InventoryController extends Controller
             // Form mới: nhiều sách
             $request->validate([
                 'receipt_date' => 'required|date',
-                'supplier_id' => 'required|exists:suppliers,id',
+                'supplier_id' => [
+                    'required',
+                    Rule::exists('suppliers', 'id')->where(function ($query) {
+                        $query->where('status', 'active');
+                    }),
+                ],
                 'books' => 'required|array|min:1',
                 'books.*.book_id' => 'required|exists:books,id',
                 'books.*.quantity' => 'required|integer|min:1',
@@ -795,6 +801,9 @@ class InventoryController extends Controller
             DB::beginTransaction();
             try {
                 $supplier = Supplier::findOrFail($request->supplier_id);
+                if (($supplier->status ?? 'active') !== 'active') {
+                    return back()->withInput()->with('error', 'Nhà cung cấp đã ngừng hợp tác, không thể tạo phiếu nhập mới.');
+                }
 
                 // Tạo số phiếu
                 $receiptNumber = InventoryReceipt::generateReceiptNumber();
@@ -858,7 +867,12 @@ class InventoryController extends Controller
             if ($bookInputType === 'new') {
                 $request->validate([
                     'receipt_date' => 'required|date',
-                    'supplier_id' => 'required|exists:suppliers,id',
+                    'supplier_id' => [
+                        'required',
+                        Rule::exists('suppliers', 'id')->where(function ($query) {
+                            $query->where('status', 'active');
+                        }),
+                    ],
                     'ten_sach' => 'required|string|max:255',
                     'tac_gia' => 'required|string|max:255',
                     'category_id' => 'required|exists:categories,id',
@@ -875,7 +889,12 @@ class InventoryController extends Controller
             } else {
                 $request->validate([
                     'receipt_date' => 'required|date',
-                    'supplier_id' => 'required|exists:suppliers,id',
+                    'supplier_id' => [
+                        'required',
+                        Rule::exists('suppliers', 'id')->where(function ($query) {
+                            $query->where('status', 'active');
+                        }),
+                    ],
                     'book_id' => 'required|exists:books,id',
                     'quantity' => 'required|integer|min:1',
                     'storage_location' => 'required|string|max:100',
@@ -888,6 +907,9 @@ class InventoryController extends Controller
             DB::beginTransaction();
             try {
                 $supplier = Supplier::findOrFail($request->supplier_id);
+                if (($supplier->status ?? 'active') !== 'active') {
+                    return back()->withInput()->with('error', 'Nhà cung cấp đã ngừng hợp tác, không thể tạo phiếu nhập mới.');
+                }
 
                 // Nếu là sách mới, tạo Book trước
                 if ($bookInputType === 'new') {

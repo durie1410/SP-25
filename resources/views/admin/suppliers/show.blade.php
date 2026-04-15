@@ -36,6 +36,16 @@
                     <td>{{ $supplier->address ?: '-' }}</td>
                 </tr>
                 <tr>
+                    <th>Trạng thái hợp tác</th>
+                    <td>
+                        @if(($supplier->status ?? 'active') === 'active')
+                            <span class="badge bg-success">Hoạt động</span>
+                        @else
+                            <span class="badge bg-secondary">Ngừng hợp tác</span>
+                        @endif
+                    </td>
+                </tr>
+                <tr>
                     <th>Số phiếu nhập liên quan</th>
                     <td>{{ $supplier->receipts_count }}</td>
                 </tr>

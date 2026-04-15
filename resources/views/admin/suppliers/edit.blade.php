@@ -41,6 +41,15 @@
                     @error('address')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
+                <div class="mb-3">
+                    <label class="form-label">Trạng thái hợp tác <span class="text-danger">*</span></label>
+                    <select name="status" class="form-control @error('status') is-invalid @enderror" required>
+                        <option value="active" {{ old('status', $supplier->status) === 'active' ? 'selected' : '' }}>Hoạt động</option>
+                        <option value="inactive" {{ old('status', $supplier->status) === 'inactive' ? 'selected' : '' }}>Ngừng hợp tác</option>
+                    </select>
+                    @error('status')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> Cập nhật
                 </button>

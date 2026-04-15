@@ -14,7 +14,17 @@ class Supplier extends Model
         'phone',
         'email',
         'address',
+        'status',
     ];
+
+    protected $attributes = [
+        'status' => 'active',
+    ];
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
 
     public function receipts()
     {

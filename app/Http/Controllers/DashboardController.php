@@ -11,6 +11,7 @@ use App\Models\Fine;
 use App\Models\Reader;
 use App\Models\Inventory;
 use App\Models\Order;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,25 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        $overviewStats = $this->getOverviewStats();
+        $recentOrders = $this->getRecentOrders();
+        $newUsers = $this->getNewUsers();
+
+        $upcomingDueReturns = BorrowItem::with(['borrow.reader', 'book'])
+            ->where('trang_thai', 'Dang muon')
+            ->whereDate('ngay_hen_tra', '>=', Carbon::today())
+            ->whereDate('ngay_hen_tra', '<=', Carbon::today()->copy()->addDays(3))
+            ->orderBy('ngay_hen_tra')
+            ->limit(5)
+            ->get();
+
+        $lowStockBooks = Book::query()
+            ->where('so_luong', '<=', 5)
+            ->orderBy('so_luong')
+            ->orderBy('ten_sach')
+            ->limit(5)
+            ->get(['id', 'ten_sach', 'so_luong']);
+
         // Lấy thống kê tổng quan
         $totalBooks = Book::count();
         $totalBorrowingReaders = Borrow::where('trang_thai', 'Dang muon')->count();
@@ -240,6 +260,11 @@ class DashboardController extends Controller
         $borrowYear = Borrow::whereYear('created_at', Carbon::now()->year)->count();
 
         return view('admin.dashboard', array_merge(compact(
+            'overviewStats',
+            'recentOrders',
+            'newUsers',
+            'upcomingDueReturns',
+            'lowStockBooks',
             'totalBooks',
             'totalBorrowingReaders',
             'totalReservations',
@@ -276,6 +301,90 @@ class DashboardController extends Controller
                 'year' => $borrowYear,
             ],
         ]));
+    }
+
+    public function getOverviewStats(): array
+    {
+        if (!$this->shouldUseOrderSource()) {
+            $borrowDateSql = 'COALESCE(ngay_muon, created_at)';
+
+            $borrowAgg = Borrow::query()
+                ->selectRaw('COUNT(*) as total_orders')
+                ->selectRaw('COALESCE(SUM(CASE WHEN (trang_thai = "Da tra" OR trang_thai_chi_tiet IN ("' . Borrow::STATUS_DA_NHAN_VA_KIEM_TRA . '", "' . Borrow::STATUS_HOAN_TAT_DON_HANG . '")) THEN tong_tien ELSE 0 END), 0) as total_revenue')
+                ->selectRaw('SUM(CASE WHEN DATE(' . $borrowDateSql . ') = CURDATE() THEN 1 ELSE 0 END) as orders_today')
+                ->selectRaw('SUM(CASE WHEN YEAR(' . $borrowDateSql . ') = YEAR(CURDATE()) AND MONTH(' . $borrowDateSql . ') = MONTH(CURDATE()) THEN 1 ELSE 0 END) as orders_this_month')
+                ->first();
+
+            return [
+                'total_users' => User::count(),
+                'total_books' => Book::count(),
+                'total_orders' => (int) ($borrowAgg->total_orders ?? 0),
+                'total_revenue' => (float) ($borrowAgg->total_revenue ?? 0),
+                'orders_today' => (int) ($borrowAgg->orders_today ?? 0),
+                'orders_this_month' => (int) ($borrowAgg->orders_this_month ?? 0),
+            ];
+        }
+
+        $orderAgg = Order::query()
+            ->selectRaw('COUNT(*) as total_orders')
+            ->selectRaw('COALESCE(SUM(CASE WHEN payment_status = "paid" THEN total_amount ELSE 0 END), 0) as total_revenue')
+            ->selectRaw('SUM(CASE WHEN DATE(created_at) = CURDATE() THEN 1 ELSE 0 END) as orders_today')
+            ->selectRaw('SUM(CASE WHEN YEAR(created_at) = YEAR(CURDATE()) AND MONTH(created_at) = MONTH(CURDATE()) THEN 1 ELSE 0 END) as orders_this_month')
+            ->first();
+
+        return [
+            'total_users' => User::count(),
+            'total_books' => Book::count(),
+            'total_orders' => (int) ($orderAgg->total_orders ?? 0),
+            'total_revenue' => (float) ($orderAgg->total_revenue ?? 0),
+            'orders_today' => (int) ($orderAgg->orders_today ?? 0),
+            'orders_this_month' => (int) ($orderAgg->orders_this_month ?? 0),
+        ];
+    }
+
+    public function getRecentOrders()
+    {
+        if (!$this->shouldUseOrderSource()) {
+            return Borrow::query()
+                ->select([
+                    'id',
+                    DB::raw('borrow_code as order_number'),
+                    DB::raw('ten_nguoi_muon as customer_name'),
+                    DB::raw('tong_tien as total_amount'),
+                    'ngay_muon',
+                    'created_at',
+                ])
+                ->orderByRaw('COALESCE(ngay_muon, created_at) DESC')
+                ->orderByDesc('id')
+                ->limit(5)
+                ->get()
+                ->map(function ($borrow) {
+                    $displayDate = $borrow->ngay_muon ?: $borrow->created_at;
+                    $borrow->created_at = $displayDate ? Carbon::parse($displayDate) : $borrow->created_at;
+                    return $borrow;
+                });
+        }
+
+        return Order::query()
+            ->with(['user:id,name,email'])
+            ->select(['id', 'order_number', 'user_id', 'customer_name', 'total_amount', 'status', 'payment_status', 'created_at'])
+            ->latest('created_at')
+            ->limit(5)
+            ->get();
+    }
+
+    public function getNewUsers()
+    {
+        return User::query()
+            ->select(['id', 'name', 'email', 'created_at'])
+            ->latest('created_at')
+            ->limit(5)
+            ->get();
+    }
+
+    private function shouldUseOrderSource(): bool
+    {
+        return Order::query()->exists();
     }
     
     /**
