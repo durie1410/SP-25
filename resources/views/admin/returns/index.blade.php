@@ -3,10 +3,21 @@
 @section('title', 'Trả sách theo khách')
 
 @section('content')
+@php
+    $borrowingCount = is_countable($borrowItems ?? null) ? count($borrowItems) : 0;
+    $returnedCount = is_countable($returnedItems ?? null) ? count($returnedItems) : 0;
+@endphp
 <div class="returns-page">
     <div class="returns-header">
-
-
+        <div>
+            <div class="returns-kicker">Return Desk</div>
+            <h2 class="returns-title"><i class="fas fa-undo-alt"></i> Trả sách theo khách</h2>
+            <p class="returns-subtitle">Tìm độc giả, chọn sách cần trả, đính kèm minh chứng và chuyển thanh toán phạt trong một luồng.</p>
+        </div>
+        <div class="returns-actions">
+            <span class="returns-chip"><i class="fas fa-book-reader"></i> Đang mượn: {{ $borrowingCount }}</span>
+            <span class="returns-chip"><i class="fas fa-clipboard-check"></i> Chờ duyệt kho: {{ $returnedCount }}</span>
+        </div>
     </div>
 
     <div class="returns-grid">
@@ -67,7 +78,10 @@
                         <div class="returns-reader-title">Khách: {{ $selectedReader->ho_ten }}</div>
                         <div class="returns-reader-sub">#{{ $selectedReader->id }}</div>
                     </div>
-                 
+                    <div class="returns-reader-badges">
+                        <span class="badge bg-primary-subtle text-primary-emphasis">Đang mượn: {{ $borrowingCount }}</span>
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis">Đã trả: {{ $returnedCount }}</span>
+                    </div>
                 </div>
                 <div class="card-body">
                     @if(empty($borrowItems) || count($borrowItems) === 0)
@@ -442,23 +456,40 @@
 }
 
 .returns-page {
+    --returns-ink: #0f172a;
+    --returns-muted: #64748b;
+    --returns-line: #dbe6f0;
+    font-family: "Be Vietnam Pro", "Segoe UI", sans-serif;
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
 
 .returns-header {
+    background: radial-gradient(circle at 8% 14%, #1f2937 0%, #0a3f37 52%, #0f172a 100%);
+    border-radius: 18px;
+    padding: 18px 20px;
+    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.2);
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     flex-wrap: wrap;
     gap: 16px;
 }
 
-.returns-title {
-    font-size: 24px;
+.returns-kicker {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
     font-weight: 700;
-    color: var(--text-primary);
+    color: rgba(248, 250, 252, 0.76);
+    margin-bottom: 6px;
+}
+
+.returns-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #f8fafc;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -467,13 +498,27 @@
 
 .returns-subtitle {
     font-size: 14px;
-    color: var(--text-muted);
+    color: rgba(241, 245, 249, 0.88);
     margin: 0;
+    max-width: 760px;
 }
 
 .returns-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.returns-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(248, 250, 252, 0.28);
+    background: rgba(248, 250, 252, 0.12);
+    color: #f8fafc;
+    font-weight: 700;
+    padding: 8px 12px;
 }
 
 .returns-grid {
@@ -484,8 +529,24 @@
 }
 
 .returns-card {
-    border: 1px solid rgba(148, 163, 184, 0.2);
+    border: 1px solid #d8e4ef;
+    border-radius: 16px;
+    background: linear-gradient(150deg, #ffffff 0%, #f8fbff 100%);
     box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+}
+
+.returns-card .card-header,
+.returns-summary .card-header {
+    border-bottom: 1px solid #dde8f2;
+    background: rgba(255, 255, 255, 0.65);
+}
+
+.returns-card .card-title,
+.returns-summary .card-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--returns-ink);
 }
 
 .returns-filter-form {
@@ -495,11 +556,29 @@
     align-items: end;
 }
 
+.returns-filter-form .form-control {
+    border-radius: 11px;
+    border: 1px solid #ccdae8;
+    min-height: 42px;
+}
+
+.returns-filter-form .form-control:focus {
+    border-color: #0f766e;
+    box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.15);
+}
+
+.returns-filter-form .btn {
+    min-height: 42px;
+    border-radius: 11px;
+    font-weight: 700;
+}
+
 .returns-reader-list {
     margin-top: 18px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #dce7f1;
     border-radius: 12px;
     overflow: hidden;
+    background: #fff;
 }
 
 .returns-reader-head,
@@ -512,7 +591,7 @@
 }
 
 .returns-reader-head {
-    background: #f8fafc;
+    background: linear-gradient(180deg, #f8fbff 0%, #eff5fb 100%);
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -522,6 +601,11 @@
 
 .returns-reader-row {
     border-top: 1px solid #e2e8f0;
+}
+
+.returns-reader-row .btn-success {
+    border-radius: 9px;
+    font-weight: 700;
 }
 
 .reader-name {
@@ -544,29 +628,39 @@
     font-weight: 700;
 }
 
+.returns-reader-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .returns-reader-sub {
     font-size: 12px;
     color: #64748b;
 }
 
 .returns-table {
-    border: 1px solid #e2e8f0;
+    border: 1px solid #dce7f1;
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: #fff;
 }
 
 .returned-table {
-    border: 1px solid #e2e8f0;
+    border: 1px solid #dce7f1;
     border-radius: 12px;
     overflow: hidden;
+    background: #fff;
 }
 
 .returns-table-head,
 .returns-row {
     display: grid;
-    grid-template-columns: 44px 1fr 110px 200px 140px 160px;
-    gap: 10px;
-    padding: 10px 12px;
+    grid-template-columns: 48px minmax(220px, 1.45fr) 130px minmax(240px, 1fr) 180px minmax(180px, 0.9fr);
+    gap: 12px;
+    padding: 12px 14px;
+    min-width: 1030px;
     align-items: start;
 }
 
@@ -580,21 +674,27 @@
 }
 
 .returns-table-head {
-    background: #f8fafc;
+    background: linear-gradient(180deg, #f8fbff 0%, #eff5fb 100%);
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: #64748b;
     font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
 
 .returned-table-head {
-    background: #f8fafc;
+    background: linear-gradient(180deg, #f8fbff 0%, #eff5fb 100%);
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: #64748b;
     font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
 
 .returned-table-head span {
@@ -613,12 +713,28 @@
 
 .returns-row {
     align-items: center;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid #e1eaf2;
+}
+
+.returns-table-body .returns-row:nth-child(odd) {
+    background: #fbfdff;
+}
+
+.returns-table-body .returns-row:hover {
+    background: #f0f9ff;
 }
 
 .returned-row {
     align-items: center;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid #e1eaf2;
+}
+
+.returned-table-body .returned-row:nth-child(odd) {
+    background: #fbfdff;
+}
+
+.returned-table-body .returned-row:hover {
+    background: #f0f9ff;
 }
 
 .returned-row > div {
@@ -689,6 +805,15 @@
     gap: 2px;
 }
 
+.returns-book .book-name {
+    line-height: 1.35;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 .returns-row > div:nth-child(4) {
     display: flex;
     flex-direction: column;
@@ -724,18 +849,21 @@
     font-size: 13px;
     color: #0f172a;
     text-align: center;
+    font-weight: 600;
 }
 
 .returns-fee-fine {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
 }
 
 .fee-row {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    justify-content: flex-start;
+    align-items: baseline;
+    flex-wrap: wrap;
     gap: 6px;
     font-size: 12px;
 }
@@ -754,6 +882,32 @@
     background: #fff7ed;
 }
 
+.returns-table .form-check-input {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    border-color: #94a3b8;
+    cursor: pointer;
+}
+
+.returns-table .form-check-input:checked {
+    background-color: #0f766e;
+    border-color: #0f766e;
+}
+
+.returns-table .form-select {
+    border-radius: 12px;
+    border: 1px solid #cdd9e6;
+    min-height: 42px;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.returns-table .form-select:focus {
+    border-color: #0f766e;
+    box-shadow: 0 0 0 0.2rem rgba(15, 118, 110, 0.14);
+}
+
 .returns-proof .proof-upload {
     border: 1px dashed #cbd5e1;
     border-radius: 10px;
@@ -766,6 +920,14 @@
     color: #0f766e;
     cursor: pointer;
     width: 100%;
+    background: #f8fbff;
+    transition: all 0.2s ease;
+}
+
+.returns-proof .proof-upload:hover {
+    border-color: #0f766e;
+    background: #ecfeff;
+    color: #0f766e;
 }
 
 .returns-proof .proof-upload input {
@@ -832,8 +994,6 @@
 .returns-proof .proof-delete-btn:hover {
     background: #dc2626;
 }
-    border: 1px solid #e2e8f0;
-}
 
 .returns-actions-row {
     display: flex;
@@ -841,10 +1001,25 @@
     margin-top: 16px;
 }
 
+.returns-actions-row .btn {
+    border-radius: 11px;
+    font-weight: 700;
+    padding: 9px 14px;
+    min-width: 190px;
+}
+
+.returned-actions .btn {
+    border-radius: 9px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
 .returns-summary {
     position: sticky;
     top: 92px;
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 16px;
+    background: linear-gradient(160deg, #ffffff 0%, #eefaf4 100%);
     box-shadow: 0 16px 32px rgba(15, 23, 42, 0.1);
 }
 
@@ -878,7 +1053,7 @@
 .summary-note {
     margin-top: 16px;
     font-size: 12px;
-    color: #64748b;
+    color: #475569;
     line-height: 1.6;
 }
 
@@ -899,7 +1074,8 @@
 @media (max-width: 1200px) {
     .returns-table-head,
     .returns-row {
-        grid-template-columns: 44px 1fr 110px 170px 120px 140px;
+        grid-template-columns: 44px minmax(190px, 1.35fr) 120px minmax(220px, 1fr) 160px minmax(160px, 0.85fr);
+        min-width: 920px;
     }
 
     .returned-table-head,
@@ -935,6 +1111,14 @@
 }
 
 @media (max-width: 768px) {
+    .returns-header {
+        padding: 14px;
+    }
+
+    .returns-title {
+        font-size: 23px;
+    }
+
     .returns-header {
         flex-direction: column;
         align-items: flex-start;
