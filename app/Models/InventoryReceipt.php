@@ -19,6 +19,7 @@ class InventoryReceipt extends Model
         'unit_price',
         'total_price',
         'supplier',
+        'supplier_id',
         'received_by',
         'approved_by',
         'status',
@@ -40,6 +41,11 @@ class InventoryReceipt extends Model
     public function approver()
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class, 'supplier_id');
     }
 
     public function inventories()

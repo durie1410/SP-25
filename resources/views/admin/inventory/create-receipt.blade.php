@@ -14,7 +14,7 @@
 
     @media (min-width: 1100px) {
         .receipt-shell {
-            grid-template-columns: 420px 1fr;
+            grid-template-columns: 520px 1fr;
         }
     }
 
@@ -69,6 +69,10 @@
         display: grid;
         grid-template-columns: 1fr;
         gap: 12px;
+    }
+
+    .receipt-form-grid .form-label {
+        white-space: nowrap;
     }
 
     @media (min-width: 900px) {
@@ -395,9 +399,19 @@
                         <input type="text" class="form-control" value="{{ auth()->user()->name }}" readonly style="background:#f8fafc;">
             </div>
                     <div>
-                        <label class="form-label">Nhà cung cấp <span class="text-danger"></span></label>
-                    <input type="text" name="supplier" class="form-control" value="{{ old('supplier') }}" placeholder="Nhập tên nhà cung cấp" required>
-                </div>
+                        <label class="form-label">Nhà cung cấp <span class="text-danger">*</span></label>
+                        <select name="supplier_id" class="form-control" required>
+                            <option value="">-- Chọn nhà cung cấp --</option>
+                            @foreach($suppliers as $supplier)
+                                <option value="{{ $supplier->id }}" {{ (string) old('supplier_id') === (string) $supplier->id ? 'selected' : '' }}>
+                                    {{ $supplier->name }}{{ $supplier->phone ? ' - ' . $supplier->phone : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('supplier_id')
+                            <small class="text-danger">{{ $message }}</small>
+                        @enderror
+                    </div>
                     <div class="span-2">
                         <label class="form-label">Ghi chú</label>
                         <textarea name="notes" class="form-control" rows="3" placeholder="Ghi chú cho phiếu nhập...">{{ old('notes') }}</textarea>

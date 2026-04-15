@@ -84,23 +84,65 @@
                         <td>
                             @php
                                 $proofImages = [];
-                                // Ưu tiên: ảnh upload trực tiếp trên yêu cầu
+
+                                $makeProofUrl = function ($img) {
+                                    $img = trim((string) $img);
+                                    if ($img === '') {
+                                        return null;
+                                    }
+
+                                    if (preg_match('/^https?:\/\//i', $img)) {
+                                        return $img;
+                                    }
+
+                                    $normalized = ltrim(str_replace('\\', '/', $img), '/');
+                                    if (str_starts_with($normalized, 'storage/')) {
+                                        $normalized = substr($normalized, 8);
+                                    }
+
+                                    return asset('storage/' . $normalized);
+                                };
+
+                                // Ưu tiên ảnh upload trực tiếp trên yêu cầu duyệt xóa.
                                 if ($req->proof_images) {
-                                    $proofImages = is_array($req->proof_images) ? $req->proof_images : (is_string($req->proof_images) ? json_decode($req->proof_images, true) : []);
+                                    $proofImages = is_array($req->proof_images)
+                                        ? $req->proof_images
+                                        : (is_string($req->proof_images) ? json_decode($req->proof_images, true) : []);
                                 }
-                                // Fallback: ảnh từ borrow_item (trả sách)
-                                if (empty($proofImages) && $req->borrowItem && $req->borrowItem->return_proof_images) {
+
+                                // Fallback ảnh từ quá trình trả sách.
+                                if (empty($proofImages) && $req->borrowItem) {
                                     $raw = $req->borrowItem->return_proof_images;
-                                    $proofImages = is_array($raw) ? $raw : (is_string($raw) ? json_decode($raw, true) : []);
+                                    $proofImages = is_array($raw)
+                                        ? $raw
+                                        : (is_string($raw) ? json_decode($raw, true) : []);
+
+                                    $extraProofs = [
+                                        $req->borrowItem->anh_bia_truoc ?? null,
+                                        $req->borrowItem->anh_bia_sau ?? null,
+                                        $req->borrowItem->anh_gay_sach ?? null,
+                                    ];
+
+                                    $proofImages = array_values(array_filter(array_merge(
+                                        is_array($proofImages) ? $proofImages : [],
+                                        $extraProofs
+                                    )));
                                 }
+
+                                $proofUrls = collect(is_array($proofImages) ? $proofImages : [])
+                                    ->map($makeProofUrl)
+                                    ->filter()
+                                    ->unique()
+                                    ->values()
+                                    ->all();
                             @endphp
-                            @if(!empty($proofImages))
+                            @if(!empty($proofUrls))
                                 <div style="display:flex; gap:4px; flex-wrap:wrap;">
-                                    @foreach($proofImages as $img)
-                                        <img src="{{ asset('storage/' . $img) }}"
+                                    @foreach($proofUrls as $imgUrl)
+                                        <img src="{{ $imgUrl }}"
                                              alt="Ảnh minh chứng"
                                              style="width:50px; height:50px; object-fit:cover; border-radius:4px; border:1px solid #ddd; cursor:pointer;"
-                                             onclick="window.open('{{ asset('storage/' . $img) }}', '_blank')">
+                                             onclick="window.open('{{ $imgUrl }}', '_blank')">
                                     @endforeach
                                 </div>
                             @else

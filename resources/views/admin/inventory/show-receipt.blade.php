@@ -78,7 +78,7 @@
                         </tr>
                         <tr>
                             <th>Nhà cung cấp:</th>
-                            <td>{{ $receipt->supplier ?? '-' }}</td>
+                            <td>{{ optional($receipt->supplier)->name ?? $receipt->supplier ?? '-' }}</td>
                         </tr>
                         <tr>
                             <th>Người nhập:</th>
