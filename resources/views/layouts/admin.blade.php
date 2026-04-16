@@ -1148,13 +1148,13 @@
                     <span>Giao dịch kho</span>
                 </a>
                 @endif
-                @if(Route::has('admin.inventory.report'))
+                {{-- @if(Route::has('admin.inventory.report'))
                 <a href="{{ route('admin.inventory.report') }}"
                     class="menu-item {{ request()->routeIs('admin.inventory.report') ? 'active' : '' }}">
                     <i class="fas fa-chart-bar"></i>
                     <span>Báo cáo kho</span>
                 </a>
-                @endif
+                @endif --}}
                 @if(auth()->user()->isAdmin() && Route::has('admin.inventory.delete-requests.index'))
                 <a href="{{ route('admin.inventory.delete-requests.index') }}"
                     class="menu-item {{ request()->routeIs('admin.inventory.delete-requests.index') ? 'active' : '' }}">
@@ -1162,13 +1162,13 @@
                     <span>Duyệt xóa sách</span>
                 </a>
                 @endif
-                @if(Route::has('admin.suppliers.index'))
+                {{-- @if(Route::has('admin.suppliers.index'))
                 <a href="{{ route('admin.suppliers.index') }}"
                     class="menu-item {{ request()->routeIs('admin.suppliers.*') ? 'active' : '' }}">
                     <i class="fas fa-truck-loading"></i>
                     <span>Quản lý nhà cung cấp</span>
                 </a>
-                @endif
+                @endif --}}
 
                 <!-- Quản lý Độc giả - Only for Admin -->
                 @if(!auth()->user()->isStaff())

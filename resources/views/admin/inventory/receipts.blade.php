@@ -17,9 +17,9 @@
             <i class="fas fa-plus"></i>
             Tạo Phiếu Nhập Mới
         </a>
-        <a href="{{ route('admin.inventory-reports.import') }}" class="btn btn-info" style="background: #06b6d4; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;">
+                <a href="{{  route('admin.suppliers.index') }}" class="btn btn-info" style="background: #06b6d4; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;">
             <i class="fas fa-chart-bar"></i>
-            Báo Cáo Nhập Kho
+           Nhà cung cấp
         </a>
     </div>
 </div>
