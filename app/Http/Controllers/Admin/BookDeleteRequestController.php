@@ -106,7 +106,11 @@ class BookDeleteRequestController extends Controller
 
         if ($request->filled('type')) {
             if ($request->type === 'damage') {
-                $query->whereNotNull('inventory_id');
+                $query->whereNotNull('inventory_id')
+                    ->where('reason', 'LIKE', '%[BAO HONG]%');
+            } elseif ($request->type === 'lost') {
+                $query->whereNotNull('inventory_id')
+                    ->where('reason', 'LIKE', '%[BAO MAT]%');
             } else {
                 $query->whereNull('inventory_id');
             }
@@ -228,7 +232,7 @@ class BookDeleteRequestController extends Controller
      */
     public function reject(Request $request, $id)
     {
-        $deleteRequest = BookDeleteRequest::findOrFail($id);
+        $deleteRequest = BookDeleteRequest::with('inventory')->findOrFail($id);
 
         if ($deleteRequest->status !== 'pending') {
             return back()->with('error', 'Yêu cầu này đã được xử lý.');
@@ -238,6 +242,14 @@ class BookDeleteRequestController extends Controller
             'admin_note' => 'nullable|string|max:1000',
         ]);
 
+        // Nếu có inventory → đưa về lại trạng thái "có sẵn" khi từ chối
+        if ($deleteRequest->inventory_id) {
+            $inventory = Inventory::find($deleteRequest->inventory_id);
+            if ($inventory) {
+                $inventory->update(['status' => 'Co san']);
+            }
+        }
+
         $deleteRequest->update([
             'status'      => 'rejected',
             'approved_by' => Auth::id(),
@@ -245,6 +257,6 @@ class BookDeleteRequestController extends Controller
             'admin_note'  => $request->admin_note,
         ]);
 
-        return back()->with('success', 'Đã từ chối yêu cầu.');
+        return back()->with('success', 'Đã từ chối yêu cầu. Cuốn sách đã được đưa trở lại kho sẵn sàng.');
     }
 }

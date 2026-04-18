@@ -442,6 +442,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('borrows/{id}/payment/books/add', [BorrowController::class, 'addBookToBorrow'])->name('borrows.payment.books.add')->middleware('permission:edit-borrows');
     Route::delete('borrows/{id}/payment/items/{itemId}', [BorrowController::class, 'removeBorrowItem'])->name('borrows.payment.items.remove')->middleware('permission:edit-borrows');
     Route::patch('borrows/{id}/payment/items/{itemId}/return-date', [BorrowController::class, 'updateBorrowItemReturnDate'])->name('borrows.payment.items.update-return-date')->middleware('permission:edit-borrows');
+    Route::post('borrows/{id}/upload-proof-image', [BorrowController::class, 'uploadProofImage'])->name('borrows.upload-proof-image')->middleware('permission:edit-borrows');
     Route::post('borrows/{id}/approve', [BorrowController::class, 'approve'])->name('borrows.approve')->middleware('permission:edit-borrows');
     Route::post('borrows/{id}/confirm-cash-payment', [BorrowController::class, 'confirmCashPayment'])->name('borrows.confirm-cash-payment')->middleware('permission:edit-borrows');
     Route::post('borrows/{id}/save-receive-evidence', [BorrowController::class, 'saveReceiveEvidenceAfterPayment'])->name('borrows.save-receive-evidence')->middleware('permission:edit-borrows');

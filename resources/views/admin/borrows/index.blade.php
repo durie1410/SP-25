@@ -78,7 +78,7 @@ tạo phiếu mượn    </a>
                    name="keyword" 
                    value="{{ request('keyword') }}" 
                    class="form-control" 
-                   placeholder="Tìm theo tên độc giả hoặc tên sách...">
+                   placeholder="Tìm theo tên độc giả">
         </div>
         <div style="flex: 1; min-width: 200px;">
             <select name="trang_thai" class="form-select">
@@ -232,8 +232,12 @@ if ($borrow->items && $borrow->items->count() > 0) {
 
 <td>
  @php
-    // Nhóm các BorrowItem theo trạng thái và đếm số lượng
-    $statuses = $borrow->items->groupBy('trang_thai')->map->count();
+    // Nhóm các BorrowItem theo trạng thái và đếm số lượng s
+    $statuses = $borrow->items->groupBy('trang_thai') 
+        ->map(function($group) {
+            return $group->count();
+        })
+        ->toArray();
 @endphp
 
 @foreach($statuses as $status => $count)
@@ -242,22 +246,12 @@ if ($borrow->items && $borrow->items->count() > 0) {
 
         switch($status) {
             case 'Dang muon': $text = 'Đang mượn'; $color = '#007bff'; break;
-            case 'Qua han':
-                $text = 'Quá hạn';
-                $color = 'red';
-                $overdueDays = $borrow->items
-                    ->where('trang_thai', 'Qua han')
-                    ->max(function($item) {
-                        if (empty($item->ngay_hen_tra)) {
-                            return 0;
-                        }
-
-                        return \Carbon\Carbon::parse($item->ngay_hen_tra)
-                            ->startOfDay()
-                            ->diffInDays(now()->startOfDay());
-                    });
-                $suffixText = ($overdueDays ?? 0) . ' ngày';
-                break;
+ case 'Qua han':
+    $text = 'Quá hạn';
+    $color = 'red';
+    $suffixText = $count . ' sách'; // ✅ dùng lại count
+    break;
+    
             case 'Da tra': $text = 'Đã trả'; $color = 'green'; break;
             case 'Cho duyet': $text = 'Chờ duyệt'; $color = 'orange'; break;
             case 'Chua nhan': $text = 'Chưa nhận'; $color = '#17a2b8'; break;
@@ -421,7 +415,7 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                 <th style="width: 150px;">Tác giả</th>
                                 <th style="width: 100px;">Tiền thuê</th>
                                 <th style="width: 120px;">Ngày hẹn trả</th>
-                                <th style="width: 130px;">Trạng thái</th>
+                                <th style="width: 200px;">Trạng thái</th>
                                 <th style="width: 150px;">Ảnh xác nhận sách</th>
                                 <th style="width: 150px;">Hành động</th>
                             </tr>
@@ -458,7 +452,7 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                                 $bgColor = '#007bff'; 
                                                 break;
                                             case 'Qua han': 
-                                                $text = 'Quá hạn'; 
+                                                $text = 'Quá hạn (' . ($item->ngay_hen_tra ? $item->ngay_hen_tra->diffInDays(now()) . ' ngày' : 'N/A') . ')'; 
                                                 $bgColor = '#dc3545'; 
                                                 break;
                                             case 'Da tra': 
@@ -535,6 +529,11 @@ if ($borrow->items && $borrow->items->count() > 0) {
                                     @else
                                         <span class="text-muted" style="font-size: 12px;">Chưa có</span>
                                     @endif
+                                     @if(!empty($item->ghi_chu_nhan_sach))
+                                                    <div class="text-muted" style="font-size: 12px; margin-top: 8px;">
+                                                        <strong>Ghi chú:</strong> {{ $item->ghi_chu_nhan_sach }}
+                                                    </div>
+                                                @endif
                                 </td>
                                 <td>
                                     <div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">

@@ -31,6 +31,7 @@
         <select name="type" class="form-select" style="min-width: 180px;">
             <option value="">-- Tất cả loại --</option>
             <option value="damage" {{ request('type')==='damage' ? 'selected' : '' }}>Báo hỏng</option>
+            <option value="lost" {{ request('type')==='lost' ? 'selected' : '' }}>Báo mất</option>
             <option value="delete" {{ request('type')==='delete' ? 'selected' : '' }}>Xóa sách</option>
         </select>
         <button class="btn btn-primary" type="submit"><i class="fas fa-filter"></i> Lọc</button>
@@ -56,31 +57,36 @@
                 @forelse($requests as $req)
                     @php
                         $isDamage = $req->reason && str_starts_with($req->reason, '[BAO HONG]');
-                        $reasonClean = $isDamage ? trim(substr($req->reason, 11)) : $req->reason;
+                        $isLost  = $req->reason && str_starts_with($req->reason, '[BAO MAT]');
+                        $reasonClean = ($isDamage || $isLost)
+                            ? trim(substr($req->reason, strpos($req->reason, ']') + 1))
+                            : $req->reason;
                         $bookName = $req->book?->ten_sach ?? $req->inventory?->book?->ten_sach ?? 'Sách đã bị xóa';
                     @endphp
                     <tr>
                         <td><span class="badge badge-info">{{ $req->id }}</span></td>
                         <td>
-                            @if($isDamage)
+                            @if($isLost)
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-eye-slash"></i> Báo mất
+                                </span>
+                            @elseif($isDamage)
                                 <span class="badge badge-warning">
                                     <i class="fas fa-exclamation-triangle"></i> Báo hỏng
                                 </span>
                             @else
-                                <span class="badge badge-danger">
+                                <span class="badge badge-secondary">
                                     <i class="fas fa-trash"></i> Xóa sách
                                 </span>
                             @endif
                         </td>
                         <td>
                             <div style="font-weight: 600; color: var(--text-primary);">{{ $bookName }}</div>
-                            <div style="font-size: 12px; color: #888;">#{{ $req->book_id }}</div>
                         </td>
                         <td>
                             <div style="font-weight: 600;">{{ $req->requester->name ?? 'N/A' }}</div>
-                            <div style="font-size: 12px; color: #888;">#{{ $req->requested_by }}</div>
                         </td>
-                        <td style="max-width: 300px;">{{ $reasonClean ?: '-' }}</td>
+                        <td style="max-width: 300px;"> {{ $reasonClean ?: '-' }}</td>
                         <td>
                             @php
                                 $proofImages = [];
@@ -150,37 +156,41 @@
                             @endif
                         </td>
                         <td>
-                            @if($req->status==='pending')
-                                <span class="badge badge-warning">Chờ duyệt</span>
-                            @elseif($req->status==='approved')
-                                <span class="badge badge-success">Đã duyệt</span>
-                            @else
-                                <span class="badge badge-danger">Từ chối</span>
-                            @endif
+                          @if($isLost)
+    <span class="badge badge-success">Đã duyệt</span>
+@elseif($req->status==='pending')
+    <span class="badge badge-warning">Chờ duyệt</span>
+@elseif($req->status==='approved')
+    <span class="badge badge-success">Đã duyệt</span>
+@else
+    <span class="badge badge-danger">Từ chối</span>
+@endif
                         </td>
                         <td>
                             <div style="font-size: 12px; color:#666;">{{ $req->created_at?->format('d/m/Y H:i') }}</div>
                         </td>
                         <td>
                             @if(auth()->user()->isAdmin())
-                                @if($req->status==='pending')
-                                    {{-- Duyệt --}}
-                                    <form method="POST" action="{{ route('admin.inventory.delete-requests.approve', $req->id) }}" style="display:inline;">
-                                        @csrf
-                                        <button class="btn btn-sm btn-success" type="submit" onclick="return confirm('{{ $isDamage ? 'Xử lý báo hỏng này?' : 'Duyệt và xóa sách này?' }}');">
-                                            <i class="fas fa-check"></i> Duyệt
-                                        </button>
-                                    </form>
-                                    {{-- Từ chối --}}
-                                    <form method="POST" action="{{ route('admin.inventory.delete-requests.reject', $req->id) }}" style="display:inline; margin-left:6px;">
-                                        @csrf
-                                        <button class="btn btn-sm btn-danger" type="submit" onclick="return confirm('Từ chối yêu cầu này?');">
-                                            <i class="fas fa-times"></i> Từ chối
-                                        </button>
-                                    </form>
-                                @else
-                                    <span class="text-muted">-</span>
-                                @endif
+@if($req->status==='pending' && !$isLost)    {{-- Duyệt --}}
+    <form method="POST" action="{{ route('admin.inventory.delete-requests.approve', $req->id) }}" style="display:inline;">
+        @csrf
+        <button class="btn btn-sm btn-success" type="submit"
+            onclick="return confirm('{{ $isDamage ? 'Xử lý báo hỏng này?' : 'Duyệt và xóa sách này?' }}');">
+            <i class="fas fa-check"></i> Duyệt
+        </button>
+    </form>
+
+    {{-- Nếu KHÔNG phải báo mất thì mới cho từ chối --}}
+    @if(!$isLost)
+        <form method="POST" action="{{ route('admin.inventory.delete-requests.reject', $req->id) }}" style="display:inline; margin-left:6px;">
+            @csrf
+            <button class="btn btn-sm btn-danger" type="submit"
+                onclick="return confirm('Từ chối yêu cầu này?');">
+                <i class="fas fa-times"></i> Từ chối
+            </button>
+        </form>
+    @endif
+@endif
                             @else
                                 <span class="text-muted">-</span>
                             @endif

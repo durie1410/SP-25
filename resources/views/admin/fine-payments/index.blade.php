@@ -47,6 +47,37 @@
         <div class="alert alert-info border-0">
             <i class="fas fa-info-circle me-2"></i>Không có khoản phạt pending và không có sách nào được chọn để trả.
         </div>
+    @elseif(!empty($hasMissingProofs))
+        {{-- Cảnh báo thiếu ảnh minh chứng --}}
+        <div class="alert alert-danger border-0 d-flex align-items-start gap-3">
+            <div>
+                <div class="fw-bold mb-1"><i class="fas fa-exclamation-triangle me-1"></i> Chưa tải đủ ảnh minh chứng!</div>
+                <div class="small">Vui lòng tải ảnh minh chứng cho <strong>tất cả các sách</strong> bên dưới trước khi xác nhận thanh toán.</div>
+                @if(!empty($finesMissingProofs))
+                    <div class="mt-2 small">
+                        <i class="fas fa-times-circle text-danger me-1"></i>
+                        <span class="text-danger fw-semibold">Thiếu ảnh cho khoản phạt:</span>
+                        @foreach($finesMissingProofs as $m)
+                            <span class="badge bg-danger me-1">{{ $m['book_name'] }}</span>
+                        @endforeach
+                    </div>
+                @endif
+                @if(!empty($pendingMissingProofs))
+                    <div class="mt-1 small">
+                        <i class="fas fa-times-circle text-danger me-1"></i>
+                        <span class="text-danger fw-semibold">Thiếu ảnh cho sách chờ trả:</span>
+                        @foreach($pendingMissingProofs as $m)
+                            <span class="badge bg-danger me-1">{{ $m['book_name'] }}</span>
+                        @endforeach
+                    </div>
+                @endif
+                <div class="mt-2">
+                    <a href="{{ route('admin.returns.index', ['reader_id' => $reader?->id]) }}" class="btn btn-sm btn-danger">
+                        <i class="fas fa-camera"></i> Quay lại trang trả sách để tải ảnh
+                    </a>
+                </div>
+            </div>
+        </div>
     @else
         <div class="fine-payment-grid">
             <div class="fine-payment-main">
@@ -104,7 +135,7 @@
                                     @foreach($pendingReturnFines ?? [] as $fine)
                                         <tr class="table-warning">
                                             <td>
-                                                <div class="fw-semibold">{{ optional(optional($fine->borrowItem)->book)->ten_sach ?? '---' }}</div>
+                                                <h3><div class="fw-semibold">{{ optional(optional($fine->borrowItem)->book)->ten_sach ?? '---' }}</div></h3>
                                                 <div class="small text-muted">Chờ trả sách</div>
                                             </td>
                                             <td>#{{ $fine->borrow_id }}</td>
@@ -286,7 +317,7 @@
                     </div>
                 </div>
 
-                @if(session('momo_qr_url') && session('momo_pay_url'))
+                @if(session('momo_qr_url') && session('momo_pay_url') && empty($hasMissingProofs))
                     <div class="card fine-payment-card">
                         <div class="card-header">
                             <h3 class="card-title"><i class="fas fa-qrcode"></i> QR thanh toán MoMo</h3>
@@ -340,12 +371,44 @@
                             <form id="paymentForm" action="{{ route('admin.fine-payments.pay-cash', $reader->id) }}" method="POST" class="mt-3">
                                 @csrf
                                 <input type="hidden" id="paymentMethod" name="payment_method" value="offline">
-                                <button type="submit" class="btn btn-primary w-100"
-                                        onclick="const chosen=document.querySelector('input[name=payment_method_choice]:checked')?.value||'offline';document.getElementById('paymentMethod').value=chosen;const total={{ $totalPending ?? 0 }};const name='{{ $reader?->ho_ten ?? '' }}';if(chosen==='offline'){return confirm('Xác nhận đã thanh toán ' + total.toLocaleString('vi-VN') + '₫' + (name ? ' cho ' + name : '') + '?');}return confirm('Tạo thanh toán MoMo cho khoản phạt này?');">
-                                    <i class="fas fa-check-circle"></i> Xác nhận thanh toán
-                                </button>
-                                <div class="summary-note">Hệ thống sẽ ghi nhận giao dịch theo phương thức bạn chọn.</div>
+                                @if(!empty($hasMissingProofs))
+                                    <button type="button" class="btn btn-secondary w-100" disabled
+                                            title="Cần tải đủ ảnh minh chứng cho tất cả sách trước khi thanh toán">
+                                        <i class="fas fa-lock"></i> Cần tải ảnh minh chứng
+                                    </button>
+                                    <div class="summary-note text-danger">
+                                        <i class="fas fa-exclamation-circle"></i>
+                                        Thiếu ảnh minh chứng cho một số sách. Không thể thanh toán.
+                                    </div>
+                                @else
+                                    <button type="button" id="btnConfirmPayment" class="btn btn-primary w-100">
+                                        <i class="fas fa-check-circle"></i> Xác nhận thanh toán
+                                    </button>
+                                    <div class="summary-note">Hệ thống sẽ ghi nhận giao dịch theo phương thức bạn chọn.</div>
+                                @endif
                             </form>
+                            {{-- Khối hiển thị QR MoMo (ẩn mặc định, hiện khi tạo thành công) --}}
+                            <div id="momoQrSection" class="mt-3" style="display:none;">
+                                <div class="momo-box">
+                                    <div class="momo-content">
+                                        <img id="momoQrImg" src="" alt="MoMo QR">
+                                        <div class="momo-meta">Mã đơn: <strong id="momoOrderId"></strong></div>
+                                        <a id="momoPayLink" href="" target="_blank" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-external-link-alt"></i> Mở MoMo
+                                        </a>
+                                        <div class="mt-2">
+                                            <button type="button" class="btn btn-success btn-sm" id="btnMomoDone">
+                                                <i class="fas fa-check"></i> Đã thanh toán xong
+                                            </button>
+                                            <form id="momoSuccessForm" action="{{ route('admin.fine-payments.pay-cash', $reader->id) }}" method="POST" style="display:none;">
+                                                @csrf
+                                                <input type="hidden" name="payment_method" value="online">
+                                            </form>
+                                        </div>
+                                    </div>
+                                    <div class="small text-muted mt-2 text-center">Quét mã QR bằng app MoMo để thanh toán. Sau khi thanh toán xong, nhấn "Đã thanh toán xong" để xác nhận.</div>
+                                </div>
+                            </div>
                         @endif
                     </div>
                 </div>
@@ -673,4 +736,105 @@
     }
 }
 </style>
+@endpush
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // --- Tham chiếu DOM ---
+    const qrSection    = document.getElementById('momoQrSection');
+    const qrImg        = document.getElementById('momoQrImg');
+    const orderIdEl    = document.getElementById('momoOrderId');
+    const payLink      = document.getElementById('momoPayLink');
+    const btnConfirm   = document.getElementById('btnConfirmPayment');
+    const btnMomoDone  = document.getElementById('btnMomoDone');
+
+    // Ẩn QR khi load trang
+    if (qrSection) qrSection.style.display = 'none';
+
+    // ======================================================
+    //  Nút "Xác nhận thanh toán" — xử lý cả MoMo lẫn Tiền mặt
+    // ======================================================
+    if (btnConfirm) {
+        btnConfirm.addEventListener('click', function () {
+            const chosen = document.querySelector('input[name="payment_method_choice"]:checked')?.value || 'offline';
+
+            if (chosen === 'online') {
+                // -------- MoMo --------
+                if (!confirm('Tạo thanh toán MoMo cho khoản phạt này?')) return;
+
+                btnConfirm.disabled = true;
+                btnConfirm.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tạo mã MoMo...';
+
+                const csrfToken = (document.querySelector('meta[name="csrf-token"]') || document.querySelector('input[name="_token"]'))?.value || '';
+                const readerId  = {!! $reader->id ?? 'null' !!};
+                const readerName = {!! json_encode($reader?->ho_ten ?? '') !!};
+
+                fetch('/admin/fine-payments/' + readerId + '/momo/create', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({}),
+                })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (data.success && data.payUrl) {
+                        // Hiện QR
+                        const qrUrl  = 'https://api.qrserver.com/v1/create-qr-code/?size=260x260&data='
+                                     + encodeURIComponent(data.payUrl);
+                        const orderId = data.orderId || '';
+                        if (qrImg)     qrImg.src      = qrUrl;
+                        if (orderIdEl) orderIdEl.textContent = orderId;
+                        if (payLink)   payLink.href   = data.payUrl;
+                        if (qrSection) {
+                            qrSection.style.display = 'block';
+                            qrSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                        // Đổi nút thành "Đã thanh toán xong"
+                        btnConfirm.style.display = 'none';
+                    } else {
+                        alert('Không thể tạo thanh toán MoMo: ' + (data.message || 'Lỗi không xác định'));
+                        btnConfirm.disabled = false;
+                        btnConfirm.innerHTML = '<i class="fas fa-check-circle"></i> Xác nhận thanh toán';
+                    }
+                })
+                .catch(function (err) {
+                    alert('Lỗi kết nối: ' + err.message);
+                    btnConfirm.disabled = false;
+                    btnConfirm.innerHTML = '<i class="fas fa-check-circle"></i> Xác nhận thanh toán';
+                });
+
+            } else {
+                // -------- Tiền mặt --------
+                const total = {!! $totalPending ?? 0 !!};
+                const name  = {!! json_encode($reader?->ho_ten ?? '') !!};
+                if (confirm('Xác nhận đã thanh toán '
+                    + total.toLocaleString('vi-VN') + '₫'
+                    + (name ? ' cho ' + name : '') + '?')) {
+                    const form = document.getElementById('paymentForm');
+                    if (form) {
+                        document.getElementById('paymentMethod').value = 'offline';
+                        form.submit();
+                    }
+                }
+            }
+        });
+    }
+
+    // ======================================================
+    //  Nút "Đã thanh toán xong" (hiện sau khi quét QR)
+    // ======================================================
+    if (btnMomoDone) {
+        btnMomoDone.addEventListener('click', function () {
+            if (confirm('Xác nhận độc giả đã thanh toán MoMo thành công?')) {
+                const successForm = document.getElementById('momoSuccessForm');
+                if (successForm) successForm.submit();
+            }
+        });
+    }
+});
+</script>
 @endpush

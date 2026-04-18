@@ -16,7 +16,6 @@
         </div>
         <div class="returns-actions">
             <span class="returns-chip"><i class="fas fa-book-reader"></i> Đang mượn: {{ $borrowingCount }}</span>
-            <span class="returns-chip"><i class="fas fa-clipboard-check"></i> Chờ duyệt kho: {{ $returnedCount }}</span>
         </div>
     </div>
 
@@ -78,10 +77,7 @@
                         <div class="returns-reader-title">Khách: {{ $selectedReader->ho_ten }}</div>
                         <div class="returns-reader-sub">#{{ $selectedReader->id }}</div>
                     </div>
-                    <div class="returns-reader-badges">
-                        <span class="badge bg-primary-subtle text-primary-emphasis">Đang mượn: {{ $borrowingCount }}</span>
-                        <span class="badge bg-secondary-subtle text-secondary-emphasis">Đã trả: {{ $returnedCount }}</span>
-                    </div>
+                 
                 </div>
                 <div class="card-body">
                     @if(empty($borrowItems) || count($borrowItems) === 0)
@@ -105,6 +101,7 @@
                                     <span>Phí & Phạt</span>
                                 </div>
                                 <div class="returns-table-body">
+                                    
                                     @foreach($borrowItems as $i => $item)
                                         @php
                                             $due = $item->ngay_hen_tra ? \Carbon\Carbon::parse($item->ngay_hen_tra)->format('d/m/Y') : '---';
@@ -138,7 +135,11 @@
 
 
 
-
+ @if(!empty($item->ghi_chu_nhan_sach))
+                                                    <div class="text-muted" style="font-size: 12px; margin-top: 8px;">
+                                                        <strong>Ghi chú:</strong> {{ $item->ghi_chu_nhan_sach }}
+                                                    </div>
+                                                @endif
 
 
 

@@ -265,10 +265,7 @@ use Illuminate\Support\Str;
                                     @endif
                                     @if($r->status === 'ready' && !$r->is_pickup_overdue)
                                         @if(!empty($r->customer_confirmed_at) && $hasProofImages)
-                                            <form method="POST" action="{{ route('admin.inventory-reservations.fulfill', $r->id) }}" style="display:inline;">
-                                                @csrf
-                                                <button type="submit" class="btn btn-sm btn-primary" style="padding: 4px 8px; font-size: 11px;">Fulfill</button>
-                                            </form>
+                                      
                                         @elseif(!empty($r->customer_confirmed_at) && !$hasProofImages)
                                             <button type="button" class="btn btn-sm btn-secondary" disabled style="padding: 4px 8px; font-size: 11px; opacity: 0.5; cursor: not-allowed;" title="Cần tải ít nhất 1 ảnh chứng minh trước khi Fulfill">Fulfill</button>
                                         @else

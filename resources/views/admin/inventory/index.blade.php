@@ -149,10 +149,13 @@
                             $allInventories = $item->all_inventories;
                             
                             // Tính toán tổng hợp
-                            $inKho = $allInventories->where('storage_type', 'Kho')->count();
-                            $onDisplay = $allInventories->where('storage_type', 'Trung bay')->count();
+                            // kho = có sẵn +  hỏng - mất
+$inKho = $allInventories->filter(function($inv) {
+    return $inv->storage_type === 'Kho' && $inv->status !== 'Mat';
+})->count();                            $onDisplay = $allInventories->where('storage_type', 'Trung bay')->count();
                             $available = $allInventories->where('status', 'Co san')->count();
                             $borrowed = $allInventories->where('status', 'Dang muon')->count();
+                            $lost = $allInventories->where('status', 'Mat')->count();
                             $damaged = $allInventories->filter(function($inv) {
                                 return $inv->status == 'Hong' || $inv->condition == 'Hong';
                             })->count();
@@ -231,6 +234,12 @@
                                             <i class="fas fa-hand-holding"></i> Đang mượn: {{ $borrowed }}
                                         </span>
                                     @endif
+                                    @if($lost > 0)
+                                        <span class="badge badge-dark">
+                                            <i class="fas fa-skull-crossbones"></i> Mất: {{ $lost }}
+                                        </span>
+                                    @endif
+
                                     @if($damaged > 0)
                                         <span class="badge badge-danger">
                                             <i class="fas fa-times-circle"></i> Hỏng: {{ $damaged }}

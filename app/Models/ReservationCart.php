@@ -168,6 +168,9 @@ class ReservationCart extends Model
                 // Lấy daily_fee từ cart item, nếu null thì lấy từ sách
                 $dailyFee = (float) ($item->daily_fee ?? $item->book?->daily_fee ?? 5000);
                 $perCopyFee = $days * $dailyFee;
+                // Làm tròn giống PricingService để đảm bảo đúng với giá trong phiếu mượn
+                $roundTo = config('pricing.rental.round_to', 1000);
+                $perCopyFee = round($perCopyFee / $roundTo) * $roundTo;
 
                 \Log::info('DEBUG submitReservations fee calculation', [
                     'item_id' => $item->id,

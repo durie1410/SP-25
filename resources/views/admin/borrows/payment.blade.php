@@ -9,10 +9,7 @@
             <div class="payment-kicker">Borrow Checkout Desk</div>
             <h2 class="payment-title"><i class="fas fa-credit-card"></i> Thanh toán phiếu mượn #{{ $borrow->id }}</h2>
             <p class="payment-subtitle">Xác nhận giao dịch, kiểm tra tình trạng sách và ảnh chứng minh trước khi hoàn tất.</p>
-            <div class="payment-quick-badges">
-                <span class="payment-badge-pill"><i class="fas fa-books"></i> <span class="js-borrow-items-count">{{ $borrow->items->count() }}</span> sách</span>
-                <span class="payment-badge-pill"><i class="fas fa-wallet"></i> {{ number_format($pendingPayment->amount ?? ($borrow->tien_thue ?? 0)) }}₫</span>
-            </div>
+     
         </div>
         <div class="payment-actions">
             @if(!$successPayment)
@@ -82,7 +79,7 @@
                             <div class="proof-table-head">
                                 <span>Ảnh</span>
                                 <span>Sách</span>
-                                <span>Ngày mượn / trả</span>
+                                <span>Ngày mươn / trả</span>
                                 <span>Trạng thái</span>
                                 <span>Thuê</span>
                                 <span>Ảnh chứng minh</span>
@@ -103,11 +100,8 @@
 
                                         $canUploadBeforePayment = !$successPayment;
                                         $showUploadProof = $canUploadBeforePayment && empty($proofImages);
-                                        $canEditLineInPayment = !$successPayment
-                                            && (bool) ($item->added_in_payment ?? false)
-                                            && $borrow->created_at
-                                            && $item->created_at
-                                            && $item->created_at->greaterThan($borrow->created_at);
+                                        $isNewlyAdded = (bool) ($item->added_in_payment ?? false);
+                                        $canEditLineInPayment = !$successPayment && $isNewlyAdded;
                                     @endphp
                                     <div class="proof-row" data-item-id="{{ $item->id }}">
                                         <div class="book-thumb">
@@ -148,8 +142,13 @@
                                             <div class="proof-grid">
                                                 @if(!empty($proofImages))
                                                     @foreach($proofImages as $img)
-                                                        <a href="{{ asset('storage/' . $img) }}" target="_blank">
-                                                            <img src="{{ asset('storage/' . $img) }}" alt="Proof">
+                                                        @php
+                                                            $imgUrl = (str_starts_with($img, 'http://') || str_starts_with($img, 'https://')) 
+                                                                ? $img 
+                                                                : asset('storage/' . $img);
+                                                        @endphp
+                                                        <a href="{{ $imgUrl }}" target="_blank">
+                                                            <img src="{{ $imgUrl }}" alt="Proof">
                                                         </a>
                                                     @endforeach
                                                 @else
@@ -159,12 +158,31 @@
 
                                             @if($showUploadProof)
                                                 <div class="upload-proof-box" data-upload-for-item="{{ $item->id }}">
-                                                    <div class="upload-proof-title">Ảnh chứng minh (1 ảnh)</div>
+                                                    <div class="upload-proof-title">
+                                                        Ảnh chứng minh (1 ảnh)
+                                                        @if($canEditLineInPayment)
+                                                            <span class="text-danger">*</span>
+                                                        @endif
+                                                    </div>
                                                     <div class="upload-proof-inputs">
-                                                        <input type="file" class="form-control form-control-sm" name="book_images_proof[{{ $item->id }}]" form="paymentWithImagesForm" accept="image/*">
-                                                        <input type="text" class="form-control form-control-sm" name="book_notes[{{ $item->id }}]" form="paymentWithImagesForm" placeholder="Ghi chú nhận sách (tùy chọn)">
+                                                        <input type="file" class="form-control form-control-sm" name="book_images_proof[{{ $item->id }}]" form="paymentWithImagesForm" accept="image/*" @if($canEditLineInPayment) required @endif>
+                                                    </div>
+                                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1;">
+                                                        <div class="upload-proof-title">
+                                                            Ghi chú
+                                                            @if($canEditLineInPayment)
+                                                                <span class="text-danger">*</span>
+                                                            @endif
+                                                        </div>
+                                                        <input type="text" class="form-control form-control-sm" name="book_notes[{{ $item->id }}]" form="paymentWithImagesForm" placeholder="Ghi chú nhận sách @if($canEditLineInPayment)(bắt buộc)@else(tùy chọn)@endif" style="margin-top: 6px;" @if($canEditLineInPayment) required @endif>
                                                     </div>
                                                 </div>
+                                            @else
+                                                @if(!empty($item->ghi_chu_nhan_sach))
+                                                    <div class="text-muted" style="font-size: 12px; margin-top: 8px;">
+                                                        <strong>Ghi chú:</strong> {{ $item->ghi_chu_nhan_sach }}
+                                                    </div>
+                                                @endif
                                             @endif
                                         </div>
                                         <div>
@@ -581,6 +599,7 @@
 .proof-cell {
     min-width: 0;
 }
+
 
 .borrow-range-text {
     font-size: 12px;
@@ -1002,13 +1021,22 @@
 
             const uploadBlock = item.show_upload_proof ? `
                     <div class="upload-proof-box" data-upload-for-item="${item.id}">
-                        <div class="upload-proof-title">Ảnh chứng minh (1 ảnh)</div>
+                        <div class="upload-proof-title">
+                            Ảnh chứng minh (1 ảnh)
+                            ${item.can_edit_in_payment ? '<span class="text-danger">*</span>' : ''}
+                        </div>
                         <div class="upload-proof-inputs">
-                            <input type="file" class="form-control form-control-sm" name="book_images_proof[${item.id}]" form="paymentWithImagesForm" accept="image/*">
-                            <input type="text" class="form-control form-control-sm" name="book_notes[${item.id}]" form="paymentWithImagesForm" placeholder="Ghi chú nhận sách (tùy chọn)">
+                            <input type="file" class="form-control form-control-sm" name="book_images_proof[${item.id}]" form="paymentWithImagesForm" accept="image/*" ${item.can_edit_in_payment ? 'required' : ''}>
+                        </div>
+                        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1;">
+                            <div class="upload-proof-title">
+                                Ghi chú
+                                ${item.can_edit_in_payment ? '<span class="text-danger">*</span>' : ''}
+                            </div>
+                            <input type="text" class="form-control form-control-sm" name="book_notes[${item.id}]" form="paymentWithImagesForm" placeholder="Ghi chú nhận sách ${item.can_edit_in_payment ? '(bắt buộc)' : '(tùy chọn)'}" style="margin-top: 6px;" ${item.can_edit_in_payment ? 'required' : ''}>
                         </div>
                     </div>
-                ` : '';
+                ` : `${item.note ? `<div class="text-muted" style="font-size: 12px; margin-top: 8px;"><strong>Ghi chú:</strong> ${item.note}</div>` : ''}`;
 
             const returnDatePart = item.can_edit_in_payment
                 ? `
@@ -1324,6 +1352,111 @@
             }
 
             removeItem(removeBtn.dataset.itemId, removeBtn);
+        });
+
+        // Preview ảnh khi chọn file
+        proofTableBody.addEventListener('change', (event) => {
+            const fileInput = event.target.closest('input[type="file"]');
+            if (!fileInput || !fileInput.name.includes('book_images_proof')) {
+                return;
+            }
+
+            const uploadBox = fileInput.closest('.upload-proof-box');
+            if (!uploadBox) {
+                return;
+            }
+
+            const proofCell = fileInput.closest('.proof-cell');
+            if (!proofCell) {
+                return;
+            }
+
+            const proofGrid = proofCell.querySelector('.proof-grid');
+            if (!proofGrid) {
+                return;
+            }
+
+            const file = fileInput.files[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                // Xóa text "Chưa có ảnh" nếu có
+                const mutedSpan = proofGrid.querySelector('.text-muted');
+                if (mutedSpan) {
+                    mutedSpan.remove();
+                }
+
+                // Kiểm tra xem đã có ảnh preview chưa
+                let previewImg = proofGrid.querySelector('[data-preview="true"]');
+                if (previewImg) {
+                    previewImg.src = e.target.result;
+                } else {
+                    // Tạo ảnh preview mới
+                    const container = document.createElement('div');
+                    container.style.position = 'relative';
+                    container.style.display = 'inline-block';
+
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.alt = 'Preview';
+                    img.style.width = '46px';
+                    img.style.height = '64px';
+                    img.style.borderRadius = '8px';
+                    img.style.objectFit = 'cover';
+                    img.style.border = '1px solid #e2e8f0';
+                    img.setAttribute('data-preview', 'true');
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'btn btn-sm btn-danger';
+                    removeBtn.style.position = 'absolute';
+                    removeBtn.style.top = '-8px';
+                    removeBtn.style.right = '-8px';
+                    removeBtn.style.width = '24px';
+                    removeBtn.style.height = '24px';
+                    removeBtn.style.padding = '0';
+                    removeBtn.style.borderRadius = '50%';
+                    removeBtn.innerHTML = '✕';
+                    removeBtn.addEventListener('click', (ev) => {
+                        ev.preventDefault();
+                        fileInput.value = '';
+                        container.remove();
+                        if (proofGrid.children.length === 0) {
+                            proofGrid.innerHTML = '<span class="text-muted">Chưa có ảnh</span>';
+                        }
+                    });
+
+                    container.appendChild(img);
+                    container.appendChild(removeBtn);
+                    proofGrid.appendChild(container);
+                }
+
+                // Upload ảnh lên server ngay
+                const formData = new FormData();
+                formData.append('book_images_proof', file);
+                formData.append('_token', '{{ csrf_token() }}');
+
+                fetch('{{ route("admin.borrows.upload-proof-image", $borrow->id) }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        showToast('Lỗi tải ảnh: ' + (data.message || 'Unknown error'), true);
+                    }
+                })
+                .catch(err => {
+                    showToast('Lỗi kết nối: ' + err.message, true);
+                });
+            };
+            reader.readAsDataURL(file);
         });
     }
 

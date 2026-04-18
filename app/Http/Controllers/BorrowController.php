@@ -37,11 +37,13 @@ class BorrowController extends Controller
 
         // Sử dụng fresh() để đảm bảo load dữ liệu mới nhất từ database
         $query = Borrow::with(['reader', 'librarian', 'items.book', 'items.inventory', 'items.reservation', 'voucher', 'payments']);
-
+// tìm kiếm độc giả và id phiếu mượn
         if ($request->filled('keyword')) {
             $keyword = $request->keyword;
-            $query->whereHas('reader', function ($q) use ($keyword) {
-                $q->where('ho_ten', 'like', "%{$keyword}%");
+            $query->where(function ($q) use ($keyword) {
+                $q->whereHas('reader', function ($qr) use ($keyword) {
+                    $qr->where('ho_ten', 'like', '%' . $keyword . '%');
+                })->orWhere('id', 'like', '%' . $keyword . '%');
             });
         }
 
@@ -372,6 +374,7 @@ class BorrowController extends Controller
                         'ngay_hen_tra' => $reservation->return_date ? \Carbon\Carbon::parse($reservation->return_date)->toDateString() : \Carbon\Carbon::parse($borrow->ngay_muon)->addDays(14)->toDateString(),
                         'trang_thai' => 'Cho duyet',
                         'borrow_type' => 'take_home',
+                        'added_in_payment' => true,
                     ]);
 
                     // Update header totals = chỉ tiền thuê
@@ -430,9 +433,13 @@ class BorrowController extends Controller
                         throw new \RuntimeException('Không tìm thấy thông tin sách ID ' . $bookId . '.');
                     }
 
-                    $availableQty = max(0, (int) ($book->so_luong ?? 0));
+                    // Đếm số inventory có status = 'Co san' (có sẵn)
+                    $availableQty = max(0, (int) Inventory::where('book_id', $bookId)
+                        ->where('status', 'Co san')
+                        ->count());
+
                     if ($availableQty <= 0) {
-                        throw new \RuntimeException('Sách "' . ($book->ten_sach ?? ('#' . $bookId)) . '" đã hết tồn kho.');
+                        throw new \RuntimeException('Sách "' . ($book->ten_sach ?? ('#' . $bookId)) . '" đã hết có sẵn.');
                     }
 
                     if ((int) $requestedQty > $availableQty) {
@@ -451,6 +458,7 @@ class BorrowController extends Controller
                         'ngay_hen_tra' => $ngayHenTra->toDateString(),
                         'trang_thai' => 'Cho duyet',
                         'borrow_type' => 'take_home',
+                        'added_in_payment' => true,
                     ]);
                 }
 
@@ -853,9 +861,14 @@ class BorrowController extends Controller
 
         $borrow = Borrow::with(['items.book', 'items.reservation', 'reader', 'payments'])->findOrFail($id);
 
-        // Chuẩn hóa phí thuê theo ngày mượn/ngày trả để tránh lệch tiền giữa các item có cùng mốc ngày.
-        $this->normalizeBorrowItemFeesForPayment($borrow);
-        $borrow->load(['items.book', 'items.reservation', 'reader', 'payments']);
+        // Chỉ chuẩn hóa phí thuê nếu borrow KHÔNG phải từ reservation
+        // Borrow từ reservation đã dùng giá từ reservation->total_fee, không được tính lại
+        $hasReservationFulfillment = \App\Models\InventoryReservation::where('borrow_id', $borrow->id)->exists();
+        if (!$hasReservationFulfillment) {
+            // Chuẩn hóa phí thuê theo ngày mượn/ngày trả để tránh lệch tiền giữa các item có cùng mốc ngày.
+            $this->normalizeBorrowItemFeesForPayment($borrow);
+            $borrow->load(['items.book', 'items.reservation', 'reader', 'payments']);
+        }
 
         $pendingPayment = $borrow->payments()->where('payment_status', 'pending')->latest()->first();
         $successPayment = $borrow->payments()->where('payment_status', 'success')->latest()->first();
@@ -902,7 +915,12 @@ class BorrowController extends Controller
             ->get()
             ->map(function ($book) use ($selectedCountByBook) {
                 $selectedQty = (int) ($selectedCountByBook[$book->id] ?? 0);
-                $availableQty = max(0, (int) ($book->so_luong ?? 0));
+
+                // Đếm số inventory có status = 'Co san' (có sẵn)
+                $availableQty = max(0, (int) Inventory::where('book_id', $book->id)
+                    ->where('status', 'Co san')
+                    ->count());
+
                 $remainingStock = max(0, $availableQty - $selectedQty);
 
                 return [
@@ -960,7 +978,12 @@ class BorrowController extends Controller
         }
 
         $quantityToAdd = min($quantity, $remainingLimit);
-        $availableQty = max(0, (int) ($book->so_luong ?? 0));
+
+        // Đếm số inventory có status = 'Co san' (có sẵn)
+        $availableQty = max(0, (int) Inventory::where('book_id', $book->id)
+            ->where('status', 'Co san')
+            ->count());
+
         $remainingStock = max(0, $availableQty - $currentCount);
         if ($remainingStock <= 0) {
             return response()->json([
@@ -972,7 +995,7 @@ class BorrowController extends Controller
         if ($remainingStock < $quantityToAdd) {
             return response()->json([
                 'success' => false,
-                'message' => 'Số lượng tồn không đủ để thêm ' . $quantityToAdd . ' cuốn.'
+                'message' => 'Số lượng có sẵn không đủ để thêm ' . $quantityToAdd . ' cuốn.'
             ], 422);
         }
 
@@ -1161,9 +1184,47 @@ class BorrowController extends Controller
         $paymentMethod = $request->payment_method;
         $paymentMethodText = $paymentMethod === 'offline' ? 'tiền mặt' : 'quét mã MoMo';
 
+        // Kiểm tra những sách chưa có ảnh có được tải không
+        foreach ($borrow->items as $item) {
+            $itemId = $item->id;
+
+            // Check xem sách đã có ảnh chứng minh từ trước không (từ reservation hoặc lần tải trước)
+            $reservationMatch = $item->reservation_match;
+            $proofImages = $reservationMatch ? $reservationMatch->getProofImages() : [];
+            if (empty($proofImages)) {
+                $proofImages = collect([
+                    $item->anh_bia_truoc,
+                    $item->anh_bia_sau,
+                    $item->anh_gay_sach,
+                ])->filter()->values()->all();
+            }
+
+            // Sách chưa có ảnh → kiểm tra xem có tải ảnh không
+            if (empty($proofImages)) {
+                $proofFile = $request->file("book_images_proof.$itemId");
+                $note = $request->input("book_notes.$itemId");
+
+                if (!$proofFile) {
+                    return redirect()
+                        ->route('admin.borrows.payment', $borrow->id)
+                        ->with('warning', 'Sách "' . ($item->book->ten_sach ?? '#' . $itemId) . '" chưa có ảnh chứng minh. Vui lòng tải ảnh dưới đây.');
+                }
+
+                if (trim($note) === '') {
+                    return back()->with('error', 'Sách "' . ($item->book->ten_sach ?? '#' . $itemId) . '" yêu cầu ghi chú nhận sách.');
+                }
+            } else {
+                // Sách đã có ảnh: vẫn kiểm tra ghi chú nếu người dùng muốn thêm
+                $incomingNote = $request->input("book_notes.$itemId");
+                if ($incomingNote !== null && trim($incomingNote) === '') {
+                    return back()->with('error', 'Sách "' . ($item->book->ten_sach ?? '#' . $itemId) . '" có ghi chú không được để trống.');
+                }
+            }
+        }
+
         // Cập nhật payment pending sang success, giữ nguyên amount gốc (không update)
         $payment = $borrow->payments()->where('payment_status', 'pending')->first();
-        
+
         if (!$payment) {
             return back()->with('info', 'Không có thanh toán nào đang chờ xác nhận.');
         }
@@ -1171,6 +1232,11 @@ class BorrowController extends Controller
         try {
             // Lưu ảnh/ghi chú từ form thanh toán cho cả tiền mặt và online.
             $this->saveReceiveConfirmationFromPaymentForm($request, $borrow);
+            
+            // Đồng bộ lại tổng tiền thanh toán sau khi có thể đã update items
+            $this->syncPendingBorrowPaymentAmount($borrow);
+            // Reload payment sau khi sync để có amount mới nhất
+            $payment = $borrow->payments()->where('payment_status', 'pending')->latest()->first();
         } catch (\Throwable $e) {
             Log::warning('Save receive confirmation from payment form failed', [
                 'borrow_id' => $borrow->id,
@@ -1326,7 +1392,11 @@ class BorrowController extends Controller
                 if ($reservationMatch && method_exists($reservationMatch, 'getProofImages')) {
                     $proofImages = collect($reservationMatch->getProofImages())
                         ->map(function ($imgPath) {
-                            return asset('storage/' . ltrim((string) $imgPath, '/'));
+                            $imgPath = (string) $imgPath;
+                            if (str_starts_with($imgPath, 'http://') || str_starts_with($imgPath, 'https://')) {
+                                return $imgPath;
+                            }
+                            return asset('storage/' . ltrim($imgPath, '/'));
                         })
                         ->values()
                         ->all();
@@ -1360,6 +1430,7 @@ class BorrowController extends Controller
                     'fee' => (float) ($item->tien_thue ?? 0),
                     'fee_text' => number_format((float) ($item->tien_thue ?? 0)) . '₫',
                     'proof_images' => $proofImages,
+                    'note' => $item->ghi_chu_nhan_sach ?? '',
                     'borrow_from' => $borrowFrom,
                     'borrow_due' => $borrowDue,
                     'borrow_from_iso' => $borrowFromIso,
@@ -1496,6 +1567,41 @@ class BorrowController extends Controller
 
         if ($borrow->isDirty()) {
             $borrow->save();
+        }
+    }
+
+    /**
+     * Upload ảnh chứng minh lúc thanh toán (được gọi khi chọn file)
+     */
+    public function uploadProofImage(Request $request, $id)
+    {
+        if (!Auth::check() || !Gate::allows('edit-borrows')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn không có quyền thực hiện thao tác này.'
+            ], 403);
+        }
+
+        $request->validate([
+            'book_images_proof' => 'required|image|max:5120',
+        ]);
+
+        try {
+            $uploadedFile = FileUploadService::uploadToCloudinary(
+                $request->file('book_images_proof'),
+                'borrow_delivery_confirm'
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tải ảnh thành công',
+                'image_url' => $uploadedFile['url'] ?? null,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi tải ảnh: ' . $e->getMessage(),
+            ], 500);
         }
     }
 
@@ -1718,6 +1824,17 @@ class BorrowController extends Controller
     {
         $choduyetItems = $borrow->items()->where('trang_thai', 'Cho duyet')->get();
         foreach ($choduyetItems as $item) {
+            // Nếu chưa gán inventory, tìm inventory sẵn sàng (status = 'Co san')
+            if (!$item->inventorie_id) {
+                $availableInventory = Inventory::where('book_id', $item->book_id)
+                    ->where('status', 'Co san')
+                    ->first();
+
+                if ($availableInventory) {
+                    $item->update(['inventorie_id' => $availableInventory->id]);
+                }
+            }
+
             $item->update([
                 'trang_thai' => 'Dang muon',
                 'ngay_muon' => $item->ngay_muon ?? now(),
@@ -2832,6 +2949,7 @@ class BorrowController extends Controller
                             $lyDo = $item->trang_thai === 'Mat sach'
                                 ? 'Mất sách khi trả'
                                 : 'Sách hỏng khi trả';
+                            $prefix = $item->trang_thai === 'Mat sach' ? '[BAO MAT]' : '[BAO HONG]';
 
                             BookDeleteRequest::create([
                                 'book_id'        => $item->book_id,
@@ -2839,12 +2957,11 @@ class BorrowController extends Controller
                                 'borrow_item_id'  => $item->id,
                                 'requested_by'   => auth()->id(),
                                 'status'         => 'pending',
-                                'reason'         => '[BAO HONG] ' . $lyDo . '. Đơn mượn #' . $borrow->id . '. Phí hỏng: ' . number_format($borrow->phi_hong_sach) . ' VNĐ',
+                                'reason'         => $prefix . ' ' . $lyDo . '. Đơn mượn #' . $borrow->id . '. Phí hỏng: ' . number_format($borrow->phi_hong_sach) . ' VNĐ',
                             ]);
                         }
 
-                        // Cập nhật inventory về 'Co san' để KHÔNG hiện ở "Sách đã trả chờ duyệt về kho"
-                        $item->inventory->update(['status' => 'Co san']);
+                        // KHÔNG cập nhật inventory về 'Co san' — sách hỏng/mất chờ duyệt xóa, không phải "có sẵn"
                         continue;
                     }
 

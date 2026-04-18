@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\BorrowItem;
+use App\Models\BorrowPayment;
 use App\Models\Fine;
 use App\Models\Reader;
 use App\Services\PricingService;
@@ -166,6 +167,75 @@ class FinePaymentsController extends Controller
             });
         }
 
+        // Kiểm tra mỗi Fine item có ảnh minh chứng chưa (báo cho view)
+        $finesMissingProofs = [];
+        foreach ($fines as $fine) {
+            $item = $fine->borrowItem;
+            if (!$item) continue;
+            $raw = $item->return_proof_images ?? [];
+            if (is_string($raw)) {
+                $raw = json_decode($raw, true) ?? [];
+            }
+            $sessionProofs = $sessionProofsByItemId->get($item->id, []);
+            $hasProof = !empty($raw) || !empty($sessionProofs);
+            if (!$hasProof) {
+                $finesMissingProofs[] = [
+                    'fine_id' => $fine->id,
+                    'item_id' => $item->id,
+                    'book_name' => optional($item->book)->ten_sach ?? '---',
+                    'borrow_id' => $fine->borrow_id,
+                ];
+            }
+        }
+
+        // Kiểm tra mỗi pending return item có ảnh minh chứng chưa
+        $pendingMissingProofs = [];
+        foreach ($pendingReturnItems as $item) {
+            $raw = $item->return_proof_images ?? [];
+            if (is_string($raw)) {
+                $raw = json_decode($raw, true) ?? [];
+            }
+            $sessionProofs = $sessionProofsByItemId->get($item->id, []);
+            $hasProof = !empty($raw) || !empty($sessionProofs);
+            if (!$hasProof) {
+                $pendingMissingProofs[] = [
+                    'item_id' => $item->id,
+                    'book_name' => optional($item->book)->ten_sach ?? '---',
+                    'borrow_id' => $item->borrow_id,
+                ];
+            }
+        }
+
+        $hasMissingProofs = !empty($finesMissingProofs) || !empty($pendingMissingProofs);
+
+        $momoEnabled = !empty(config('services.momo.partner_code')) && !empty(config('services.momo.access_key')) && !empty(config('services.momo.secret_key'));
+
+        // Kiểm tra xem MoMo đã thanh toán thành công rồi nhưng chưa finalize trong session này
+        $justPaidMomo = false;
+        $momoPaidAt = null;
+        $momoOrderId = session('momo_order_id');
+
+        if ($momoOrderId && $reader) {
+            $recentPayment = BorrowPayment::where('transaction_code', $momoOrderId)
+                ->where('payment_status', 'success')
+                ->where('created_at', '>=', now()->subMinutes(30))
+                ->first();
+
+            if ($recentPayment) {
+                $justPaidMomo = true;
+                $momoPaidAt = $recentPayment->created_at;
+            }
+        }
+
+        // Nếu MoMo đã paid nhưng fines vẫn còn pending → IPN chưa chạy → vẫn cho hiện thông báo đợi
+        // Nếu MoMo đã paid và fines đã paid hết → đã finalize rồi → ẩn form thanh toán
+
+        // Kiểm tra còn sách đang chờ trả hoặc fines pending không
+        $hasPendingItems = $fines->count() > 0 || (!empty($pendingReturnItems) && count($pendingReturnItems) > 0);
+
+        // Nếu MoMo đã paid + fines đã paid + session đã clear → thanh toán hoàn tất
+        $momoPaymentCompleted = $justPaidMomo && !$hasPendingItems;
+
         return view('admin.fine-payments.index', [
             'fines' => $fines,
             'reader' => $reader,
@@ -173,6 +243,14 @@ class FinePaymentsController extends Controller
             'pendingReturnTotal' => $pendingReturnTotal,
             'pendingReturnFines' => $pendingReturnFines,
             'sessionProofsByItemId' => $sessionProofsByItemId,
+            'finesMissingProofs' => $finesMissingProofs,
+            'pendingMissingProofs' => $pendingMissingProofs,
+            'hasMissingProofs' => $hasMissingProofs,
+            'momoEnabled' => $momoEnabled,
+            'justPaidMomo' => $justPaidMomo,
+            'momoPaidAt' => $momoPaidAt,
+            'hasPendingItems' => $hasPendingItems,
+            'momoPaymentCompleted' => $momoPaymentCompleted,
         ]);
     }
 }

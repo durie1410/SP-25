@@ -84,71 +84,7 @@
                         </div>
 
                         <!-- Thống kê và hành động -->
-                        <div class="col-md-3">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h5 class="card-title"><i class="fas fa-chart-bar"></i> Thống kê</h5>
-                                    
-                                    <div class="row text-center mb-3">
-                                        <div class="col-6 mb-3">
-                                            <div class="border-end">
-                                                <div class="h3 text-primary mb-1">{{ $stats['total_copies'] }}</div>
-                                                <small class="text-muted">Tổng bản</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-6 mb-3">
-                                            <div class="h3 text-success mb-1">{{ $stats['available_copies'] }}</div>
-                                            <small class="text-muted">Có sẵn</small>
-                                        </div>
-                                        <div class="col-6 mb-3">
-                                            <div class="border-end">
-                                                <div class="h3 text-warning mb-1">{{ $stats['borrowed_copies'] }}</div>
-                                                <small class="text-muted">Đang mượn</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-6 mb-3">
-                                            <div class="h3 text-info mb-1">{{ $stats['total_borrows'] ?? 0 }}</div>
-                                            <small class="text-muted">Lượt mượn</small>
-                                        </div>
-                                        <div class="col-12 mb-2">
-                                            <div class="border-top pt-2">
-                                                <div class="h4 text-secondary mb-1">{{ $stats['total_reviews'] }}</div>
-                                                <small class="text-muted">Đánh giá</small>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Hành động -->
-                                    <div class="mt-3 border-top pt-3">
-                                        @if(auth()->check())
-                                        <button class="btn btn-outline-danger btn-sm w-100 mb-2" 
-                                                onclick="toggleFavorite({{ $book->id }})">
-                                            <i class="fas fa-heart {{ $isFavorited ? 'text-danger' : 'text-muted' }}"></i>
-                                            {{ $isFavorited ? 'Bỏ yêu thích' : 'Yêu thích' }}
-                                        </button>
-                                        @endif
-
-                                        @can('create-borrows')
-                                        @if($stats['available_copies'] > 0)
-                                        <button class="btn btn-success btn-sm w-100 mb-2" 
-                                                onclick="showBorrowModal()">
-                                            <i class="fas fa-book-open"></i> Cho mượn
-                                        </button>
-                                        @endif
-                                        @endcan
-
-                                        @can('create-reservations')
-                                        @if($stats['available_copies'] == 0)
-                                        <button class="btn btn-info btn-sm w-100 mb-2" 
-                                                onclick="showReservationModal()">
-                                            <i class="fas fa-bookmark"></i> Đặt trước
-                                        </button>
-                                        @endif
-                                        @endcan
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    
                     </div>
                 </div>
             </div>

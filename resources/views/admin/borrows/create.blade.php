@@ -84,7 +84,7 @@
             <div class="row mb-1">
                 <div class="col-md-6">
                     <label class="form-label">Ngày mượn</label>
-                    <input type="date" name="ngay_muon" id="ngayMuonInput" class="form-control" value="{{ now()->toDateString() }}" readonly>
+                    <input type="date" name="ngay_muon" id="ngayMuonInput" class="form-control" value="{{ request('ngay_muon', now()->toDateString()) }}" readonly>
                     <small class="form-text text-muted">Ngày mượn cố định là hôm nay.</small>
                 </div>
                 <div class="col-md-6">
@@ -176,6 +176,7 @@
             'ten_sach' => $book->ten_sach,
             'tac_gia' => $book->tac_gia,
             'so_luong' => $book->so_luong,
+            'available_inventory_count' => $book->inventories()->where('status', 'Co san')->count(),
             'loai_sach' => $book->loai_sach,
             'image_url' => $book->image_url,
         ];
@@ -669,7 +670,7 @@
 
         bookSearchResult.innerHTML = filtered.map((book) => {
             const selectedQty = selectedBooks.get(Number(book.id))?.qty || 0;
-            const availableQty = Math.max(0, Number(book.so_luong || 0));
+            const availableQty = Math.max(0, Number(book.available_inventory_count || 0));
             const maxQty = availableQty;
             const isOutOfStock = availableQty <= 0;
             const image = book.image_url
@@ -681,7 +682,7 @@
                     <div class="book-picker-thumb">${image}</div>
                     <div>
                         <div class="book-picker-title">${book.ten_sach || 'N/A'}</div>
-                        <div class="book-picker-meta">${book.tac_gia || 'Không rõ'} | Đang có trong phiếu: ${selectedQty} | Tồn: ${availableQty}</div>
+                        <div class="book-picker-meta">${book.tac_gia || 'Không rõ'} | Đang có trong phiếu: ${selectedQty} | Có sẵn: ${availableQty}</div>
                     </div>
                     <div class="book-picker-actions">
                         <input type="number" min="1" max="${Math.max(1, maxQty)}" value="1" class="form-control form-control-sm book-picker-qty" data-book-qty-id="${book.id}" ${isOutOfStock ? 'disabled' : ''}>
@@ -732,9 +733,9 @@
 
         const qtyInput = bookSearchResult.querySelector(`[data-book-qty-id="${bookId}"]`);
         const requestedQty = Math.max(1, Number(qtyInput?.value || 1));
-        const maxQty = Math.max(0, Number(found.so_luong || 0));
+        const maxQty = Math.max(0, Number(found.available_inventory_count || 0));
         if (maxQty <= 0) {
-            showNotice('Sách này đã hết tồn kho, không thể thêm vào phiếu.', 'danger');
+            showNotice('Sách này đã hết có sẵn, không thể thêm vào phiếu.', 'danger');
             return;
         }
         const safeQty = Math.min(requestedQty, maxQty);
@@ -789,7 +790,7 @@
                 <div class="selected-book-thumb">${image}</div>
                 <div>
                     <div class="fw-semibold">${book.ten_sach || 'N/A'}</div>
-                    <small class="text-muted">${book.tac_gia || 'Không rõ tác giả'} | SL đã chọn: ${book.qty} | Còn: ${book.so_luong ?? 0}</small>
+                    <small class="text-muted">${book.tac_gia || 'Không rõ tác giả'} | SL đã chọn: ${book.qty} | Có sẵn: ${book.available_inventory_count ?? 0}</small>
                 </div>
                 <button type="button" class="btn btn-sm btn-outline-danger" data-remove-book-id="${book.id}">Xóa</button>
             `;
@@ -1001,6 +1002,22 @@
             so_nha: @json($prefillReader->so_nha),
             dia_chi: @json($prefillReader->dia_chi),
         });
+        
+        // Auto-add sách từ book_id parameter (từ reservation fulfill)
+        const bookIdParam = new URLSearchParams(window.location.search).get('book_id');
+        if (bookIdParam) {
+            const bookId = Number(bookIdParam);
+            const found = bookCatalog.find((book) => Number(book.id) === bookId);
+            if (found) {
+                const maxQty = Math.max(0, Number(found.available_inventory_count || 0));
+                if (maxQty > 0) {
+                    selectedBooks.set(bookId, {
+                        ...found,
+                        qty: 1,
+                    });
+                }
+            }
+        }
     });
     @endif
 
