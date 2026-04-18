@@ -602,6 +602,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('fine-payments', [FinePaymentsController::class, 'index'])->name('fine-payments.index');
     Route::post('fine-payments/{reader}/pay-cash', [FinePaymentController::class, 'payCashByReader'])->name('fine-payments.pay-cash');
     Route::post('fine-payments/{reader}/momo/create', [FinePaymentController::class, 'createMomoPaymentByReader'])->name('fine-payments.momo.create-payment');
+    Route::post('admin/fine-payments/{reader}/momo/create', [FinePaymentController::class, 'createMomoPaymentByReader']);
 
     // MoMo callbacks cho phạt (tách biệt với Order)
     Route::get('borrows/fine-momo/return', [FinePaymentController::class, 'momoReturn'])->name('borrows.fine-momo.return');
