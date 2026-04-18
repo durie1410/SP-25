@@ -228,9 +228,9 @@
                                                 </div>
                                                 <div class="proof-actions">
                                                     @if(count($proofs) > 0)
-                                                        <button type="button" class="btn btn-xs btn-outline-danger py-0 px-1"
+                                                        <button type="button" class="proof-delete-all-btn"
                                                             onclick="if(confirm('Xóa tất cả ảnh minh chứng của sách này?')) { fetch('{{ route('admin.returns.process') }}', {method:'POST', body: new URLSearchParams({_token:'{{ csrf_token() }}', reader_id:'{{ $selectedReader->id }}', action:'delete_all_proofs', item_id:'{{ $item->id }}'}), headers:{'X-Requested-With':'XMLHttpRequest'}}).then(r=>location.reload()); }">
-                                                            <i class="fas fa-trash-alt"></i> Xóa all
+                                                            <i class="fas fa-trash-alt"></i> Xóa hết
                                                         </button>
                                                     @endif
                                                     <label class="proof-upload">
@@ -491,7 +491,8 @@
 .returned-table {
     border: 1px solid #dce7f1;
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     background: #fff;
 }
 
@@ -508,9 +509,10 @@
 .returned-table-head,
 .returned-row {
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 8px;
-    padding: 8px 10px;
+    grid-template-columns: minmax(220px, 1.5fr) 70px minmax(140px, 1fr) 120px 140px minmax(190px, 1fr);
+    gap: 10px;
+    padding: 10px 12px;
+    min-width: 920px;
     align-items: center;
 }
 
@@ -632,8 +634,9 @@
 .returned-actions {
     display: flex;
     gap: 6px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
 }
 
 .returned-actions form {
@@ -752,15 +755,17 @@
 .returns-proof .proof-upload {
     border: 1px dashed #cbd5e1;
     border-radius: 10px;
-    padding: 6px 10px;
+    padding: 7px 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     font-size: 12px;
+    font-weight: 600;
     color: #0f766e;
     cursor: pointer;
-    width: 100%;
+    min-height: 38px;
+    min-width: 106px;
     background: #f8fbff;
     transition: all 0.2s ease;
 }
@@ -780,6 +785,31 @@
     gap: 8px;
     margin-top: 8px;
     align-items: center;
+    flex-wrap: wrap;
+}
+
+.returns-proof .proof-delete-all-btn {
+    border: 1px solid #fecaca;
+    background: #fff1f2;
+    color: #dc2626;
+    border-radius: 10px;
+    min-height: 38px;
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.returns-proof .proof-delete-all-btn:hover {
+    border-color: #f87171;
+    background: #fee2e2;
+    color: #b91c1c;
 }
 
 .returns-proof .proof-grid {
@@ -921,7 +951,8 @@
 
     .returned-table-head,
     .returned-row {
-        grid-template-columns: 1fr 48px 120px 90px 120px 80px 180px;
+        grid-template-columns: minmax(190px, 1.35fr) 56px minmax(120px, 1fr) 100px 130px 170px;
+        min-width: 800px;
     }
 }
 
@@ -940,13 +971,12 @@
 
     .returned-table-head,
     .returned-row {
-        grid-template-columns: 1fr 48px 90px 120px 180px;
+        grid-template-columns: minmax(170px, 1.2fr) 52px 110px 120px 170px;
+        min-width: 650px;
     }
 
     .returned-table-head span:nth-child(3),
-    .returned-row > div:nth-child(3),
-    .returned-table-head span:nth-child(6),
-    .returned-row > div:nth-child(6) {
+    .returned-row > div:nth-child(3) {
         display: none;
     }
 }

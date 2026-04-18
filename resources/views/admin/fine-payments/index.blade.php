@@ -181,8 +181,19 @@
                                             $book = optional($item)->book;
                                             $shownItemIds[] = $item->id;
 
-                                            // Ảnh đặt trước
-                                            $reservationProofs = collect(optional($item->reservation)->getProofImages() ?? [])->map($makeProofUrl)->filter()->values()->all();
+                                            // Ảnh khi nhận sách: ưu tiên reservation đúng book_id, fallback về ảnh đã lưu trực tiếp trên borrow_item
+                                            $reservationMatch = $item->reservation_match;
+                                            $borrowProofsRaw = !empty($reservationMatch)
+                                                ? ($reservationMatch->getProofImages() ?? [])
+                                                : [];
+                                            if (empty($borrowProofsRaw)) {
+                                                $borrowProofsRaw = collect([
+                                                    $item->anh_bia_truoc,
+                                                    $item->anh_bia_sau,
+                                                    $item->anh_gay_sach,
+                                                ])->filter()->values()->all();
+                                            }
+                                            $borrowProofs = collect($borrowProofsRaw)->map($makeProofUrl)->filter()->values()->all();
 
                                             // Ảnh trả sách
                                             $raw = is_array($item->return_proof_images ?? null)
@@ -197,7 +208,7 @@
                                                 ->values()
                                                 ->all();
 
-                                            $hasAnyProof = !empty($reservationProofs) || !empty($returnProofs);
+                                            $hasAnyProof = !empty($borrowProofs) || !empty($returnProofs);
                                         @endphp
                                         <div class="fine-proof-row">
                                             <div class="fine-proof-book">
@@ -215,11 +226,11 @@
                                             </div>
                                             <div class="fine-proof-images">
                                                 @if($hasAnyProof)
-                                                    @if(!empty($reservationProofs))
+                                                    @if(!empty($borrowProofs))
                                                         <div class="fine-proof-group">
                                                             <div class="fine-proof-group-label">Ảnh khi nhận sách</div>
                                                             <div class="fine-proof-grid">
-                                                                @foreach($reservationProofs as $url)
+                                                                @foreach($borrowProofs as $url)
                                                                     <a href="{{ $url }}" target="_blank"><img src="{{ $url }}" alt="Ảnh nhận sách"></a>
                                                                 @endforeach
                                                             </div>
@@ -250,7 +261,18 @@
                                         if (!$item || in_array($item->id, $shownItemIds)) continue;
                                         $book = optional($item)->book;
 
-                                        $reservationProofs = collect(optional($item->reservation)->getProofImages() ?? [])->map($makeProofUrl)->filter()->values()->all();
+                                        $reservationMatch = $item->reservation_match;
+                                        $borrowProofsRaw = !empty($reservationMatch)
+                                            ? ($reservationMatch->getProofImages() ?? [])
+                                            : [];
+                                        if (empty($borrowProofsRaw)) {
+                                            $borrowProofsRaw = collect([
+                                                $item->anh_bia_truoc,
+                                                $item->anh_bia_sau,
+                                                $item->anh_gay_sach,
+                                            ])->filter()->values()->all();
+                                        }
+                                        $borrowProofs = collect($borrowProofsRaw)->map($makeProofUrl)->filter()->values()->all();
                                          $raw = is_array($item->return_proof_images ?? null)
                                              ? $item->return_proof_images
                                              : (is_string($item->return_proof_images ?? null) ? json_decode($item->return_proof_images, true) : []);
@@ -262,7 +284,7 @@
                                              ->filter()
                                              ->values()
                                              ->all();
-                                        $hasAnyProof = !empty($reservationProofs) || !empty($returnProofs);
+                                        $hasAnyProof = !empty($borrowProofs) || !empty($returnProofs);
                                     @endphp
                                     <div class="fine-proof-row">
                                         <div class="fine-proof-book">
@@ -280,11 +302,11 @@
                                         </div>
                                         <div class="fine-proof-images">
                                             @if($hasAnyProof)
-                                                @if(!empty($reservationProofs))
+                                                @if(!empty($borrowProofs))
                                                     <div class="fine-proof-group">
                                                         <div class="fine-proof-group-label">Ảnh khi nhận sách</div>
                                                         <div class="fine-proof-grid">
-                                                            @foreach($reservationProofs as $url)
+                                                            @foreach($borrowProofs as $url)
                                                                 <a href="{{ $url }}" target="_blank"><img src="{{ $url }}" alt="Ảnh nhận sách"></a>
                                                             @endforeach
                                                         </div>
@@ -770,7 +792,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const readerId  = {!! $reader->id ?? 'null' !!};
                 const readerName = {!! json_encode($reader?->ho_ten ?? '') !!};
 
-                fetch('/admin/fine-payments/' + readerId + '/momo/create', {
+                fetch(window.location.origin + window.location.pathname.replace(/\/admin\/fine-payments.*/, '') + '/admin/fine-payments/' + readerId + '/momo/create', {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,

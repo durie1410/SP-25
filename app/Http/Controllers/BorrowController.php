@@ -2857,7 +2857,7 @@ class BorrowController extends Controller
                 'borrow_id' => $borrow->id,
                 'tinh_trang_sach' => $borrow->tinh_trang_sach,
                 'phi_hong_sach' => $borrow->phi_hong_sach,
-                'items_count' => $borrow->items->count(),
+                'items_count' => $borrow->items()->count(),
                 'auth_id' => auth()->id(),
                 'tien_coc' => $borrow->tien_coc,
                 'phi_hong_sach' => $borrow->phi_hong_sach,
