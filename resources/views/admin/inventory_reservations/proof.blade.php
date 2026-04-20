@@ -50,6 +50,16 @@
     <div class="card-body">
         <div class="row g-3 mb-4">
             <div class="col-md-6">
+                {{-- ảnh sách  --}}
+                <div>
+                    @if($reservation->book && $reservation->book->hinh_anh)
+                        <img src="{{ asset('storage/' . $reservation->book->hinh_anh) }}" alt="Ảnh bìa" style="width: 130px; height: 180px; object-fit: cover; border-radius: 4px;">
+                    @else
+                        <div style="width: 40px; height: 60px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; border-radius: 4px;">
+                            <i class="fas fa-book" style="color: #94a3b8;"></i>
+                        </div>
+                    @endif
+                </div>
                 <div class="mb-2"><strong>Sách:</strong> {{ $reservation->book->ten_sach ?? 'N/A' }}</div>
                 <div class="mb-2"><strong>Độc giả:</strong> {{ $reservation->reader->ho_ten ?? ($reservation->user->name ?? 'N/A') }}</div>
                 <div class="mb-2"><strong>Bản sao:</strong> {{ $reservation->inventory?->id ?? 'Chưa gán' }}</div>

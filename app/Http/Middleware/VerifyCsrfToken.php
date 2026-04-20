@@ -17,6 +17,7 @@ class VerifyCsrfToken extends Middleware
         '/momo/notify',
         '/momo/ipn',
         '/borrows/momo/ipn',
+        '/borrows/fine-momo/ipn',
         '/admin/borrows/fine-momo/ipn',
         'admin/fine-payments/*/momo/create',
     ];

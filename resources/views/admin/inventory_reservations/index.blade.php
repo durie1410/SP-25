@@ -178,6 +178,7 @@ use Illuminate\Support\Str;
                     @endphp
                     <div class="reservation-item-card" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 8px; {{ $autoWillCancel || in_array($r->status, ['fulfilled', 'overdue', 'cancelled']) ? 'opacity: 0.45; filter: grayscale(0.4);' : '' }}">
                         <div style="display: grid; grid-template-columns: 40px repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; align-items: center;">
+                          
                             <div>
                                 @if($autoWillCancel)
                                     {{-- Chưa có bản sao + quá 2h → sẽ tự hủy, không cho tích --}}
@@ -198,6 +199,16 @@ use Illuminate\Support\Str;
                                 <div style="font-size: 11px; color: #64748b;">ID</div>
                                 <span class="badge badge-secondary">#{{ $r->id }}</span>
                             </div>
+                            {{-- ảnh sách  --}}
+                          <div>
+                            @if($r->book && $r->book->hinh_anh)
+                                <img src="{{ asset('storage/' . $r->book->hinh_anh) }}" alt="Ảnh bìa" style="width: 40px; height: 60px; object-fit: cover; border-radius: 4px;">
+                            @else
+                                <div style="width: 40px; height: 60px; background: #e2e8f0; display: flex; align-items: center; justify-content: center; border-radius: 4px;">
+                                    <i class="fas fa-book" style="color: #94a3b8;"></i>
+                                </div>
+                            @endif
+                          </div>
                             <div>
                                 <div style="font-size: 11px; color: #64748b;">Sách</div>
                                 <div style="font-weight: 600; font-size: 13px;">{{ $r->book->ten_sach ?? 'N/A' }}</div>
@@ -239,14 +250,7 @@ use Illuminate\Support\Str;
                                     </div>
                                 @endif
                             </div>
-                            <div>
-                                <div style="font-size: 11px; color: #64748b;">Bản sao</div>
-                                @if($r->inventory)
-                                    <span class="badge badge-success">#{{ $r->inventory->id }}</span>
-                                @else
-                                    <span class="badge badge-secondary">Chưa gán</span>
-                                @endif
-                            </div>
+
                             <div>
                                 <div style="font-size: 11px; color: #64748b;">Phí</div>
                                 <div style="font-weight: 700; color: #f97316;">{{ number_format($r->total_fee ?? 0, 0, ',', '.') }}đ</div>

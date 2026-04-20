@@ -46,7 +46,6 @@
                     <th>Loại</th>
                     <th>Sách</th>
                     <th>Người yêu cầu</th>
-                    <th>Lý do</th>
                     <th>Ảnh minh chứng</th>
                     <th>Trạng thái</th>
                     <th>Thời gian</th>
@@ -86,7 +85,6 @@
                         <td>
                             <div style="font-weight: 600;">{{ $req->requester->name ?? 'N/A' }}</div>
                         </td>
-                        <td style="max-width: 300px;"> {{ $reasonClean ?: '-' }}</td>
                         <td>
                             @php
                                 $proofImages = [];
@@ -153,6 +151,12 @@
                                 </div>
                             @else
                                 <span style="color:#aaa; font-size:12px;">Không có ảnh</span>
+                            @endif
+
+                            @if(!empty($reasonClean))
+                                <div style="margin-top:8px; font-size:12px; color:#444; line-height:1.4;">
+                                    <strong>Lý do:</strong> {{ $reasonClean }}
+                                </div>
                             @endif
                         </td>
                         <td>

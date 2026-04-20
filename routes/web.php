@@ -68,6 +68,11 @@ Route::get('/borrows/momo/return', [BorrowController::class, 'borrowMomoReturn']
 Route::post('/borrows/momo/ipn', [BorrowController::class, 'borrowMomoIpn'])
     ->name('admin.borrows.momo.ipn');
 
+Route::get('borrows/fine-momo/return', [FinePaymentController::class, 'momoReturn'])
+    ->name('admin.borrows.fine-momo.return');
+Route::post('borrows/fine-momo/ipn', [FinePaymentController::class, 'momoIpn'])
+    ->name('admin.borrows.fine-momo.ipn');
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -604,11 +609,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::post('fine-payments/{reader}/momo/create', [FinePaymentController::class, 'createMomoPaymentByReader'])->name('fine-payments.momo.create-payment');
     Route::post('admin/fine-payments/{reader}/momo/create', [FinePaymentController::class, 'createMomoPaymentByReader']);
 
-    // MoMo callbacks cho phạt (tách biệt với Order)
-    Route::get('borrows/fine-momo/return', [FinePaymentController::class, 'momoReturn'])->name('borrows.fine-momo.return');
-    Route::post('borrows/fine-momo/ipn', [FinePaymentController::class, 'momoIpn'])->name('borrows.fine-momo.ipn');
-
-    // Reservations routes - Đã xóa (thay bằng giỏ hàng)
+        // Reservations routes - Đã xóa (thay bằng giỏ hàng)
     Route::post('fines/{id}/restore', [FineController::class, 'restore'])->name('fines.restore')->middleware('permission:edit-fines');
     // Orders routes (Admin)
     Route::get('orders', [App\Http\Controllers\Admin\OrderController::class, 'index'])->name('orders.index');
