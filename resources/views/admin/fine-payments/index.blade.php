@@ -418,17 +418,7 @@
                                         <a id="momoPayLink" href="" target="_blank" class="btn btn-sm btn-danger">
                                             <i class="fas fa-external-link-alt"></i> Mở MoMo
                                         </a>
-                                        <div class="mt-2">
-                                            <button type="button" class="btn btn-success btn-sm" id="btnMomoDone">
-                                                <i class="fas fa-check"></i> Đã thanh toán xong
-                                            </button>
-                                            <form id="momoSuccessForm" action="{{ route('admin.fine-payments.pay-cash', $reader->id) }}" method="POST" style="display:none;">
-                                                @csrf
-                                                <input type="hidden" name="payment_method" value="online">
-                                            </form>
-                                        </div>
-                                    </div>
-                                    <div class="small text-muted mt-2 text-center">Quét mã QR bằng app MoMo để thanh toán. Sau khi thanh toán xong, nhấn "Đã thanh toán xong" để xác nhận.</div>
+                                      
                                 </div>
                             </div>
                         @endif
